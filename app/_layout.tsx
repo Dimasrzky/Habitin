@@ -1,14 +1,18 @@
-import { Stack } from "expo-router";
-import { StatusBar } from "expo-status-bar";
-import "react-native-reanimated";
-import "../global.css";
+import { Stack } from "expo-router"
+import { StatusBar } from "expo-status-bar"
+import "react-native-reanimated"
+import "../global.css"
 
 export default function RootLayout() {
   return (
     <>
-      <Stack>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+        }}
+      >
         <Stack.Screen
-          name="index"
+          name="(tabs)"
           options={{
             headerShown: false,
           }}
@@ -16,5 +20,5 @@ export default function RootLayout() {
       </Stack>
       <StatusBar style="auto" />
     </>
-  );
+  )
 }
