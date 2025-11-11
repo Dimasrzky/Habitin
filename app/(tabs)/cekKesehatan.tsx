@@ -1,4 +1,4 @@
-// app/(tabs)/cekKesehatan/Page.tsx
+// app/(tabs)/cekKesehatan.tsx
 
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -15,9 +15,8 @@ import {
 
 const { width } = Dimensions.get('window');
 const CARD_SPACING = 12;
-const CARD_WIDTH = (width - 48 - CARD_SPACING) / 2;
 
-export default function CekKesehatanPage() {
+export default function CekKesehatanTab() {
   const router = useRouter();
 
   return (
@@ -26,15 +25,10 @@ export default function CekKesehatanPage() {
       
       {/* Header */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color="#1F2937" />
-        </Pressable>
         <Text style={styles.headerTitle}>Cek Kesehatan</Text>
-        <View style={styles.headerRight}>
-          <Pressable style={styles.iconButton}>
-            <Ionicons name="notifications-outline" size={24} color="#1F2937" />
-          </Pressable>
-        </View>
+        <Pressable style={styles.iconButton}>
+          <Ionicons name="notifications-outline" size={24} color="#1F2937" />
+        </Pressable>
       </View>
 
       <ScrollView
@@ -44,7 +38,7 @@ export default function CekKesehatanPage() {
       >
         {/* Title Section */}
         <View style={styles.titleSection}>
-          <Text style={styles.title}>🧪 Pantau Kesehatan Anda</Text>
+          <Text style={styles.title}>Pantau Kesehatan Anda</Text>
           <Text style={styles.subtitle}>Pilih metode pemeriksaan</Text>
         </View>
 
@@ -58,25 +52,14 @@ export default function CekKesehatanPage() {
             ]}
             onPress={() => router.push('/screens/cekKesehatan/uploadLab')}
           >
-            <View style={[styles.iconContainer, { backgroundColor: '#E8F5E9' }]}>
-              <Ionicons name="document-text" size={32} color="#ABE7B2" />
-            </View>
-            <Text style={styles.cardTitle}>Upload Hasil Lab</Text>
-            <Text style={styles.cardDescription}>
-              Unggah foto/dokumen hasil laboratorium
-            </Text>
-            <View style={styles.featureList}>
-              <View style={styles.featureItem}>
-                <Ionicons name="checkmark-circle" size={16} color="#ABE7B2" />
-                <Text style={styles.featureText}>Analisis otomatis</Text>
+            <View style={[styles.iconContainer, { backgroundColor: '#def0e0ff' }]}>
+                <Ionicons name="document-text" size={32} color="#66d373ff" top={15}  />
+              <Text style={styles.cardTitle}>Upload Hasil Lab</Text>
+              <View style={styles.featureList}>
+                <View style={styles.featureItem}>
+                  <Text style={styles.featureText}>Analisis otomatis</Text>
+                </View>
               </View>
-              <View style={styles.featureItem}>
-                <Ionicons name="time-outline" size={16} color="#6B7280" />
-                <Text style={styles.featureText}>Hasil 2-3 menit</Text>
-              </View>
-            </View>
-            <View style={styles.cardFooter}>
-              <Ionicons name="arrow-forward" size={20} color="#ABE7B2" />
             </View>
           </Pressable>
 
@@ -86,27 +69,15 @@ export default function CekKesehatanPage() {
               styles.gridCard,
               { opacity: pressed ? 0.8 : 1 },
             ]}
-            onPress={() => router.push('../cekKesehatan/self-check')}
+            onPress={() => router.push('/screens/cekKesehatan/selfCheck')}
           >
             <View style={[styles.iconContainer, { backgroundColor: '#E3F2FD' }]}>
-              <Ionicons name="clipboard" size={32} color="#93BFC7" />
-            </View>
+              <Ionicons name="clipboard" size={32} color="#93BFC7" top={15}  />
             <Text style={styles.cardTitle}>Self-Check</Text>
             <Text style={styles.cardDescription}>
-              Cek risiko dengan kuesioner cepat
+              Cek risiko dengan kuesioner
             </Text>
-            <View style={styles.featureList}>
-              <View style={styles.featureItem}>
-                <Ionicons name="checkmark-circle" size={16} color="#93BFC7" />
-                <Text style={styles.featureText}>15 pertanyaan</Text>
-              </View>
-              <View style={styles.featureItem}>
-                <Ionicons name="time-outline" size={16} color="#6B7280" />
-                <Text style={styles.featureText}>Estimasi 5 menit</Text>
-              </View>
-            </View>
-            <View style={styles.cardFooter}>
-              <Ionicons name="arrow-forward" size={20} color="#93BFC7" />
+            <View style={styles.featureList}></View>
             </View>
           </Pressable>
         </View>
@@ -117,7 +88,7 @@ export default function CekKesehatanPage() {
             styles.fullWidthCard,
             { opacity: pressed ? 0.95 : 1 },
           ]}
-          onPress={() => router.push('../cekKesehatan/event-screening')}
+          //onPress={() => router.push('/screens/cekKesehatan/eventScreening')}
         >
           <View style={styles.fullCardHeader}>
             <View style={styles.iconBadge}>
@@ -159,7 +130,7 @@ export default function CekKesehatanPage() {
             styles.historyCard,
             { opacity: pressed ? 0.95 : 1 },
           ]}
-          onPress={() => router.push('../cekKesehatan/history')}
+          //onPress={() => router.push('/screens/cekKesehatan/history')}
         >
           <View style={styles.historyHeader}>
             <Ionicons name="bar-chart" size={24} color="#93BFC7" />
@@ -190,25 +161,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 10,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
-  backButton: {
-    padding: 4,
-  },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
     color: '#1F2937',
-  },
-  headerRight: {
-    flexDirection: 'row',
-    gap: 8,
+    marginTop: 22,
   },
   iconButton: {
-    padding: 4,
+    padding: 15,
+    marginTop: 8,
+    top: 8,
   },
   scrollView: {
     flex: 1,
@@ -236,34 +203,36 @@ const styles = StyleSheet.create({
     gap: CARD_SPACING,
   },
   gridCard: {
-    width: CARD_WIDTH,
-    backgroundColor: '#FFFFFF',
+    width: (width - 48 - CARD_SPACING) / 2,
+    backgroundColor: '#fff',
     borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
+    padding: 20,
+    borderWidth: 2,
     borderColor: '#E5E7EB',
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 0,
   },
   iconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 12,
-    justifyContent: 'center',
+    width: 170,
+    height: 120,
+    borderRadius: 8,
+    //justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
+    padding: 10,
   },
   cardTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1F2937',
-    marginBottom: 6,
+    marginTop: 28,
   },
   cardDescription: {
-    fontSize: 12,
+    fontSize: 10,
     color: '#6B7280',
     lineHeight: 16,
     marginBottom: 12,
