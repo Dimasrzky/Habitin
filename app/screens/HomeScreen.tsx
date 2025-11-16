@@ -175,7 +175,7 @@ export default function HomeScreen() {
             <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
             <ScrollView
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 32 }}
+                contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 50, paddingBottom: 32 }}
             >
                 {/* Header */}
                 <View style={{ marginBottom: 24 }}>

@@ -22,7 +22,7 @@ export default function CekKesehatanTab() {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Cek Kesehatan</Text>
@@ -53,7 +53,7 @@ export default function CekKesehatanTab() {
             onPress={() => router.push('/screens/cekKesehatan/uploadLab')}
           >
             <View style={[styles.iconContainer, { backgroundColor: '#def0e0ff' }]}>
-                <Ionicons name="document-text" size={32} color="#66d373ff" top={15}  />
+              <Ionicons name="document-text" size={32} color="#66d373ff" top={15} />
               <Text style={styles.cardTitle}>Upload Hasil Lab</Text>
               <View style={styles.featureList}>
                 <View style={styles.featureItem}>
@@ -72,12 +72,12 @@ export default function CekKesehatanTab() {
             onPress={() => router.push('/screens/cekKesehatan/selfCheck')}
           >
             <View style={[styles.iconContainer, { backgroundColor: '#E3F2FD' }]}>
-              <Ionicons name="clipboard" size={32} color="#93BFC7" top={15}  />
-            <Text style={styles.cardTitle}>Self-Check</Text>
-            <Text style={styles.cardDescription}>
-              Cek risiko dengan kuesioner
-            </Text>
-            <View style={styles.featureList}></View>
+              <Ionicons name="clipboard" size={32} color="#93BFC7" top={15} />
+              <Text style={styles.cardTitle}>Self-Check</Text>
+              <Text style={styles.cardDescription}>
+                Cek risiko dengan kuesioner
+              </Text>
+              <View style={styles.featureList}></View>
             </View>
           </Pressable>
         </View>
@@ -88,7 +88,7 @@ export default function CekKesehatanTab() {
             styles.fullWidthCard,
             { opacity: pressed ? 0.95 : 1 },
           ]}
-          //onPress={() => router.push('/screens/cekKesehatan/eventScreening')}
+        //onPress={() => router.push('/screens/cekKesehatan/eventScreening')}
         >
           <View style={styles.fullCardHeader}>
             <View style={styles.iconBadge}>
@@ -130,7 +130,7 @@ export default function CekKesehatanTab() {
             styles.historyCard,
             { opacity: pressed ? 0.95 : 1 },
           ]}
-          //onPress={() => router.push('/screens/cekKesehatan/history')}
+        //onPress={() => router.push('/screens/cekKesehatan/history')}
         >
           <View style={styles.historyHeader}>
             <Ionicons name="bar-chart" size={24} color="#93BFC7" />
@@ -160,6 +160,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginTop: 15,
     paddingHorizontal: 16,
     paddingVertical: 10,
     backgroundColor: '#FFFFFF',

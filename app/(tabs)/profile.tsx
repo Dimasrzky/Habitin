@@ -138,6 +138,7 @@ export default function ProfileScreen() {
                     flexDirection: "row",
                     alignItems: "center",
                     justifyContent: "space-between",
+                    marginTop: 30,
                     paddingHorizontal: 16,
                     paddingVertical: 12,
                     borderBottomWidth: 1,
