@@ -256,13 +256,16 @@ const FILTER_OPTIONS: FilterOption[] = [
 const getCategoryGradient = (category: ChallengeCategory): readonly [string, string] => {
     switch (category) {
         case 'physical':
-            return ['#ABE7B2', '#93BFC7'] as const;
+            return ['#5DC493', '#4A9DB5'] as const; // Lebih deep
+
         case 'nutrition':
-            return ['#ECF4E8', '#CBF3BB'] as const;
+            return ['#9AC7AA', '#88C985'] as const; // Lebih bold
+
         case 'lifestyle':
-            return ['#93BFC7', '#ABE7B2'] as const;
+            return ['#4A9DB5', '#5DC493'] as const; // Lebih vibrant
+
         default:
-            return ['#ECF4E8', '#CBF3BB'] as const;
+            return ['#9AC7AA', '#88C985'] as const;
     }
 };
 

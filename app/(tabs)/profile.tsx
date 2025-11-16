@@ -303,24 +303,27 @@ export default function ProfileScreen() {
 
                 {/* Personal Health Data Card (Collapsible) */}
                 <Card>
-                    <Pressable
-                        onPress={() => setHealthDataExpanded(!healthDataExpanded)}
-                        style={({ pressed }) => ({
+                    <View
+                        style={{
                             flexDirection: "row",
                             justifyContent: "space-between",
                             alignItems: "center",
-                            opacity: pressed ? 0.7 : 1,
-                        })}
+                        }}
                     >
                         <Text style={{ fontSize: 16, fontWeight: "600", color: "#000000" }}>
                             Data Kesehatan Personal
                         </Text>
-                        <Ionicons
-                            name={healthDataExpanded ? "chevron-up" : "chevron-down"}
-                            size={24}
-                            color="#6B7280"
-                        />
-                    </Pressable>
+                        <Pressable
+                            onPress={() => setHealthDataExpanded(!healthDataExpanded)}
+                            style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+                        >
+                            <Ionicons
+                                name={healthDataExpanded ? "chevron-up" : "chevron-down"}
+                                size={24}
+                                color="#6B7280"
+                            />
+                        </Pressable>
+                    </View>
 
                     {/* Collapsed View - Show only BMI */}
                     {!healthDataExpanded && (
@@ -530,34 +533,39 @@ export default function ProfileScreen() {
                             key={index}
                             onPress={() => handleSettingsPress(item.label)}
                             style={({ pressed }) => ({
-                                flexDirection: "row",
-                                alignItems: "center",
-                                justifyContent: "space-between",
                                 paddingVertical: 12,
                                 borderBottomWidth: index < SETTINGS_ITEMS.length - 1 ? 1 : 0,
                                 borderBottomColor: "#F3F4F6",
                                 opacity: pressed ? 0.7 : 1,
                             })}
                         >
-                            <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
-                                <View
-                                    style={{
-                                        width: 40,
-                                        height: 40,
-                                        borderRadius: 20,
-                                        backgroundColor: `${item.color}40`,
-                                        justifyContent: "center",
-                                        alignItems: "center",
-                                        marginRight: 12,
-                                    }}
-                                >
-                                    <Ionicons name={item.icon} size={20} color={item.color} />
+                            <View
+                                style={{
+                                    flexDirection: "row",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                }}
+                            >
+                                <View style={{ flexDirection: "row", alignItems: "center", flex: 1, marginBottom: 10 }}>
+                                    <View
+                                        style={{
+                                            width: 40,
+                                            height: 40,
+                                            borderRadius: 20,
+                                            backgroundColor: `${item.color}40`,
+                                            justifyContent: "center",
+                                            alignItems: "center",
+                                            marginRight: 12,
+                                        }}
+                                    >
+                                        <Ionicons name={item.icon} size={20} color={item.color} />
+                                    </View>
+                                    <Text style={{ fontSize: 14, color: "#000000" }}>
+                                        {item.label}
+                                    </Text>
                                 </View>
-                                <Text style={{ fontSize: 14, color: "#000000" }}>
-                                    {item.label}
-                                </Text>
+                                <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
                             </View>
-                            <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
                         </Pressable>
                     ))}
                 </Card>

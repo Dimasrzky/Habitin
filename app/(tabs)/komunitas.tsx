@@ -319,7 +319,7 @@ export default function CommunityScreen() {
         <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            className="px-4 py-3"
+            className="px-4 py-4"
             contentContainerStyle={{ gap: 8 }}
         >
             {FILTER_OPTIONS.map(filter => {
@@ -328,9 +328,9 @@ export default function CommunityScreen() {
                     <Pressable
                         key={filter.id}
                         onPress={() => setSelectedFilter(filter.value)}
-                        className={`px-4 py-2 rounded-full border ${isActive
-                                ? 'bg-[#ABE7B2] border-[#ABE7B2]'
-                                : 'bg-white border-[#E5E7EB]'
+                        className={`px-4 py-4 rounded-full border ${isActive
+                            ? 'bg-[#ABE7B2] border-[#ABE7B2]'
+                            : 'bg-white border-[#E5E7EB]'
                             }`}
                         style={{ opacity: 1 }}
                     >

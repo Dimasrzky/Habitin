@@ -124,6 +124,7 @@ const QuickAccessCard: React.FC<QuickAccessCardProps> = ({ onPress }) => (
                         alignItems: "center",
                         marginBottom: index < 3 ? 16 : 0,
                         opacity: pressed ? 0.7 : 1,
+                        minHeight: 90,
                     })}
                 >
                     <View
@@ -140,11 +141,14 @@ const QuickAccessCard: React.FC<QuickAccessCardProps> = ({ onPress }) => (
                         <Ionicons name={item.icon} size={24} color="#1F2937" />
                     </View>
                     <Text
+                        numberOfLines={2}
                         style={{
                             fontSize: 12,
                             color: "#1F2937",
                             textAlign: "center",
                             lineHeight: 16,
+                            width: "100%",
+                            height: 32,
                         }}
                     >
                         {item.label}
