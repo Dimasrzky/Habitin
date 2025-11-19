@@ -5,12 +5,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router'; // Ganti useNavigation dengan useRouter
 import React from 'react';
 import {
-    Dimensions,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
@@ -24,18 +24,20 @@ const Landing = () => {
       await AsyncStorage.setItem('hasSeenLanding', 'true');
       
       // Navigasi ke login
-      router.push('/screens/loginSistem/login');
-    } catch (error) {
-      console.error('Error saving landing status:', error);
-    }
-  };
+      router.push({
+      pathname: '/(tabs)' as any,
+    });
+  } catch (error) {
+    console.error('Error:', error);
+  }
+};
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
       
       <LinearGradient
-        colors={['#6B2DD8', '#5B21B6', '#3B19A6', '#2D1694']}
+        colors={['#ffffffff', '#fbfbfbff', '#99e2bbff', '#00c777ff']}
         style={styles.gradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -80,12 +82,6 @@ const Landing = () => {
             <View style={[styles.dot, styles.dot3]} />
             <View style={[styles.dot, styles.dot4]} />
           </View>
-
-          {/* Hand Illustration */}
-          <View style={styles.handContainer}>
-            <View style={styles.handPalm} />
-            <View style={styles.handThumb} />
-          </View>
         </View>
 
         {/* Text Content */}
@@ -126,7 +122,7 @@ const styles = StyleSheet.create({
   logo: {
     fontSize: 42,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#54d983ff',
     letterSpacing: 8,
   },
   illustrationContainer: {
@@ -264,7 +260,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   buttonText: {
-    color: '#5B21B6',
+    color: '#4fe38aff',
     fontSize: 18,
     fontWeight: '700',
   },
