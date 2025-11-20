@@ -1,62 +1,96 @@
-// app/_layout.tsx
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Stack, useRouter, useSegments } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Stack, useRouter, useSegments } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, View } from "react-native";
+import "react-native-reanimated";
+import "../global.css";
 
 export default function RootLayout() {
-  const [isFirstTime, setIsFirstTime] = useState<boolean | null>(null);
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isFirstTime, setIsFirstTime] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const segments = useSegments();
   const router = useRouter();
 
+  // Cek status auth saat pertama kali app dibuka
   useEffect(() => {
     checkAuthStatus();
   }, []);
 
+  // Handle navigation berdasarkan auth status
   useEffect(() => {
-    if (isFirstTime === null || isLoggedIn === null) return;
+    if (isLoading) return;
 
-    const inAuthGroup = segments[0] === 'loginSistem';
+    const inAuthGroup = segments[0] === "loginSistem";
+    //const inTabs = segments[0] === "(tabs)";
 
+    // Logika routing
     if (isFirstTime && !inAuthGroup) {
-      // ✅ Gunakan type assertion dengan 'as any' atau Href
-      router.replace('loginSistem/landing' as any);
+      // User pertama kali → ke landing
+      router.replace("loginSistem/landing" as any);
     } else if (!isFirstTime && !isLoggedIn && !inAuthGroup) {
-      router.replace('loginSistem/login' as any);
+      // Sudah pernah lihat landing tapi belum login → ke login
+      router.replace("loginSistem/login" as any);
     } else if (isLoggedIn && inAuthGroup) {
-      router.replace('(tabs)' as any);
+      // Sudah login tapi masih di halaman auth → ke tabs (home)
+      router.replace("(tabs)" as any);
     }
-  }, [isFirstTime, isLoggedIn, segments]);
+  }, [isLoading, isFirstTime, isLoggedIn, segments]);
 
   const checkAuthStatus = async () => {
     try {
-      const hasSeenLanding = await AsyncStorage.getItem('hasSeenLanding');
-      const userToken = await AsyncStorage.getItem('userToken');
-      
+      const hasSeenLanding = await AsyncStorage.getItem("hasSeenLanding");
+      const userToken = await AsyncStorage.getItem("userToken");
+
       setIsFirstTime(hasSeenLanding === null);
       setIsLoggedIn(userToken !== null);
     } catch (error) {
-      console.error('Error checking auth:', error);
+      console.error("Error checking auth:", error);
       setIsFirstTime(true);
       setIsLoggedIn(false);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  if (isFirstTime === null || isLoggedIn === null) {
+  // Loading screen saat cek auth
+  if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#6B2DD8' }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: "#6B2DD8",
+        }}
+      >
         <ActivityIndicator size="large" color="#FFFFFF" />
       </View>
     );
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="loginSistem/landing" />
-      <Stack.Screen name="loginSistem/login" />
-      <Stack.Screen name="loginSistem/register" />
-      <Stack.Screen name="(tabs)" />
-    </Stack>
+    <>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+        }}
+      >
+        {/* Tambahkan screen loginSistem */}
+        <Stack.Screen name="loginSistem/landing" />
+        <Stack.Screen name="loginSistem/login" />
+        <Stack.Screen name="loginSistem/register" />
+        
+        {/* Screen tabs yang sudah ada */}
+        <Stack.Screen
+          name="(tabs)"
+          options={{
+            headerShown: false,
+          }}
+        />
+      </Stack>
+      <StatusBar style="auto" />
+    </>
   );
 }

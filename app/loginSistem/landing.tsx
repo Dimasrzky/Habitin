@@ -24,9 +24,7 @@ const Landing = () => {
       await AsyncStorage.setItem('hasSeenLanding', 'true');
       
       // Navigasi ke login
-      router.push({
-      pathname: '/(tabs)' as any,
-    });
+      router.push('./login');
   } catch (error) {
     console.error('Error:', error);
   }
@@ -37,7 +35,7 @@ const Landing = () => {
       <StatusBar barStyle="light-content" />
       
       <LinearGradient
-        colors={['#ffffffff', '#fbfbfbff', '#99e2bbff', '#00c777ff']}
+        colors={['#ffffffff', '#fbfbfbff', '#99e2bbff', '#7aff83ff']}
         style={styles.gradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -47,7 +45,7 @@ const Landing = () => {
           <Text style={styles.logo}>HABITIN</Text>
         </View>
 
-        {/* Illustration Area dengan Icon-icon */}
+        Illustration Area dengan Icon-icon
         <View style={styles.illustrationContainer}>
           {/* Circle Background */}
           <View style={styles.circleBackground}>

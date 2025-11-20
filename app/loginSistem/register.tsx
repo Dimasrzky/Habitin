@@ -58,7 +58,7 @@ export default function Register() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <LinearGradient
-        colors={['#6B2DD8', '#5B21B6']}
+        colors={['#ffffffff', '#1cb65cff']}
         style={styles.gradient}
       >
         <ScrollView contentContainerStyle={styles.scrollContent}>

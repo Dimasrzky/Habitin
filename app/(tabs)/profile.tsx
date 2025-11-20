@@ -1,6 +1,7 @@
-import { Ionicons } from "@expo/vector-icons"
-import React, { useState } from "react"
-import { Pressable, ScrollView, StatusBar, Text, View } from "react-native"
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from 'expo-router';
+import React, { useState } from "react";
+import { Pressable, ScrollView, StatusBar, Text, View } from "react-native";
 
 // TypeScript Interfaces
 interface UserProfile {
@@ -123,8 +124,10 @@ export default function ProfileScreen() {
     const handleAvatarStorePress = () => {
         console.log("Navigate to Avatar Store")
     }
+    const router = useRouter();
 
     const handleLogout = () => {
+        router.push('/app/loginSistem/login' as any);
         console.log("Logout pressed")
     }
 
