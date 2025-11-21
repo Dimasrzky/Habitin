@@ -1,7 +1,9 @@
+// app/(tabs)/profile.tsx
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from 'expo-router';
 import React, { useState } from "react";
-import { Pressable, ScrollView, StatusBar, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, StatusBar, Text, View } from "react-native";
 
 // TypeScript Interfaces
 interface UserProfile {
@@ -18,8 +20,8 @@ interface HealthData {
     fullName: string
     age: number
     gender: 'Laki-laki' | 'Perempuan'
-    height: number // cm
-    weight: number // kg
+    height: number
+    weight: number
     bmi: number
     physicalActivity: string
     dietPattern: string
@@ -38,6 +40,7 @@ interface SettingsItem {
     icon: keyof typeof Ionicons.glyphMap
     label: string
     color: string
+    route: string
 }
 
 // Mock Data
@@ -70,14 +73,6 @@ const MOCK_BADGES: Badge[] = [
     { id: "4", name: "Community Star", icon: "star", earned: false },
 ]
 
-const SETTINGS_ITEMS: SettingsItem[] = [
-    { icon: "notifications-outline", label: "Pengaturan Notifikasi", color: "#ABE7B2" },
-    { icon: "shield-checkmark-outline", label: "Privasi & Keamanan", color: "#93BFC7" },
-    { icon: "help-circle-outline", label: "Bantuan & Dukungan", color: "#ABE7B2" },
-    { icon: "information-circle-outline", label: "Tentang Habitin", color: "#93BFC7" },
-]
-
-// Helper function for BMI status
 const getBMIStatus = (bmi: number): { text: string; color: string } => {
     if (bmi < 18.5) return { text: "Kurang", color: "#FFD580" }
     if (bmi < 25) return { text: "Normal", color: "#ABE7B2" }
@@ -85,13 +80,7 @@ const getBMIStatus = (bmi: number): { text: string; color: string } => {
     return { text: "Obesitas", color: "#FF8A8A" }
 }
 
-// Card Component
-interface CardProps {
-    children: React.ReactNode
-    style?: object
-}
-
-const Card: React.FC<CardProps> = ({ children, style }) => (
+const Card: React.FC<{ children: React.ReactNode; style?: object }> = ({ children, style }) => (
     <View
         style={{
             backgroundColor: "#FFFFFF",
@@ -113,29 +102,94 @@ const Card: React.FC<CardProps> = ({ children, style }) => (
 )
 
 export default function ProfileScreen() {
-    const [healthDataExpanded, setHealthDataExpanded] = useState(false)
-
-    const bmiStatus = getBMIStatus(MOCK_HEALTH_DATA.bmi)
-
-    const handleSettingsPress = (label: string) => {
-        console.log(`Pressed: ${label}`)
-    }
-
-    const handleAvatarStorePress = () => {
-        console.log("Navigate to Avatar Store")
-    }
     const router = useRouter();
+    const [healthDataExpanded, setHealthDataExpanded] = useState(false);
+    const [userData] = useState(MOCK_USER);
+
+    const bmiStatus = getBMIStatus(MOCK_HEALTH_DATA.bmi);
+
+    // Settings Items dengan route
+    const SETTINGS_ITEMS: SettingsItem[] = [
+        { 
+            icon: "notifications", 
+            label: "Pengaturan Notifikasi", 
+            color: "#ABE7B2",
+            route: "/screens/Profile/NotificationSettings"
+        },
+        { 
+            icon: "shield-checkmark", 
+            label: "Privasi & Keamanan", 
+            color: "#93BFC7",
+            route: "/screens/Profile/PrivacySecurity"
+        },
+        { 
+            icon: "help-circle", 
+            label: "Bantuan & Dukungan", 
+            color: "#ABE7B2",
+            route: "/screens/Profile/HelpSupport"
+        },
+        { 
+            icon: "information-circle", 
+            label: "Tentang Habitin", 
+            color: "#93BFC7",
+            route: "/screens/Profile/AboutHabitin"
+        },
+    ];
+
+    const handleEditProfile = () => {
+        router.push("/screens/Profile/EditProfile" as any);
+    };
+
+    const handleEditHealthData = () => {
+        router.push("/screens/Profile/EditHealthData" as any);
+    };
+
+    const handleAllBadges = () => {
+        router.push("/screens/Profile/AllBadges" as any);
+    };
+
+    const handleAvatarStore = () => {
+        router.push("/screens/Profile/AvatarStore" as any);
+    };
+
+    const handleSettingsPress = (route: string) => {
+        router.push(route as any);
+    };
 
     const handleLogout = () => {
-        router.push('/app/loginSistem/login' as any);
-        console.log("Logout pressed")
-    }
+        Alert.alert(
+            "Keluar",
+            "Apakah Anda yakin ingin keluar?",
+            [
+                {
+                    text: "Batal",
+                    style: "cancel"
+                },
+                {
+                    text: "Keluar",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            // Hapus token dan data auth
+                            await AsyncStorage.removeItem('userToken');
+                            await AsyncStorage.removeItem('userData');
+                            
+                            // Redirect ke login
+                            router.replace('loginSistem/login' as any);
+                        } catch (error) {
+                            console.error('Error during logout:', error);
+                            Alert.alert('Error', 'Gagal logout. Silakan coba lagi.');
+                        }
+                    }
+                }
+            ]
+        );
+    };
 
     return (
         <View style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
             <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-            {/* Header */}
             <View
                 style={{
                     flexDirection: "row",
@@ -157,6 +211,7 @@ export default function ProfileScreen() {
                         padding: 4,
                         opacity: pressed ? 0.7 : 1,
                     })}
+                    onPress={() => router.push("/screens/Profile/NotificationSettings" as any)}
                 >
                     <Ionicons name="notifications-outline" size={24} color="#1F2937" />
                 </Pressable>
@@ -169,7 +224,6 @@ export default function ProfileScreen() {
                 {/* Profile Info Card */}
                 <Card>
                     <View style={{ alignItems: "center" }}>
-                        {/* Avatar with camera overlay */}
                         <View style={{ position: "relative", marginBottom: 12 }}>
                             <View
                                 style={{
@@ -198,21 +252,19 @@ export default function ProfileScreen() {
                                     borderColor: "#FFFFFF",
                                     opacity: pressed ? 0.7 : 1,
                                 })}
-                                onPress={handleAvatarStorePress}
+                                onPress={handleAvatarStore}
                             >
                                 <Ionicons name="camera" size={14} color="#1F2937" />
                             </Pressable>
                         </View>
 
-                        {/* User Info */}
                         <Text style={{ fontSize: 20, fontWeight: "700", color: "#000000", marginBottom: 4 }}>
-                            {MOCK_USER.name}
+                            {userData.name}
                         </Text>
                         <Text style={{ fontSize: 14, color: "#6B7280", marginBottom: 12 }}>
-                            {MOCK_USER.email}
+                            {userData.email}
                         </Text>
 
-                        {/* Edit Profile Button */}
                         <Pressable
                             style={({ pressed }) => ({
                                 borderWidth: 1,
@@ -222,6 +274,7 @@ export default function ProfileScreen() {
                                 paddingVertical: 8,
                                 opacity: pressed ? 0.7 : 1,
                             })}
+                            onPress={handleEditProfile}
                         >
                             <Text style={{ fontSize: 14, fontWeight: "500", color: "#1F2937" }}>
                                 Edit Profile
@@ -233,7 +286,6 @@ export default function ProfileScreen() {
                 {/* Gamification Stats Card */}
                 <Card>
                     <View style={{ flexDirection: "row", justifyContent: "space-around" }}>
-                        {/* Level */}
                         <View style={{ alignItems: "center", flex: 1 }}>
                             <View
                                 style={{
@@ -249,15 +301,13 @@ export default function ProfileScreen() {
                                 <Ionicons name="arrow-up" size={24} color="#ABE7B2" />
                             </View>
                             <Text style={{ fontSize: 20, fontWeight: "700", color: "#000000" }}>
-                                {MOCK_USER.level}
+                                {userData.level}
                             </Text>
                             <Text style={{ fontSize: 12, color: "#6B7280" }}>Level</Text>
                         </View>
 
-                        {/* Divider */}
                         <View style={{ width: 1, backgroundColor: "#E5E7EB", marginHorizontal: 8 }} />
 
-                        {/* Points */}
                         <View style={{ alignItems: "center", flex: 1 }}>
                             <View
                                 style={{
@@ -273,15 +323,13 @@ export default function ProfileScreen() {
                                 <Ionicons name="diamond" size={24} color="#FFD580" />
                             </View>
                             <Text style={{ fontSize: 20, fontWeight: "700", color: "#000000" }}>
-                                {MOCK_USER.points}
+                                {userData.points}
                             </Text>
                             <Text style={{ fontSize: 12, color: "#6B7280" }}>Poin</Text>
                         </View>
 
-                        {/* Divider */}
                         <View style={{ width: 1, backgroundColor: "#E5E7EB", marginHorizontal: 8 }} />
 
-                        {/* Badges */}
                         <View style={{ alignItems: "center", flex: 1 }}>
                             <View
                                 style={{
@@ -297,14 +345,14 @@ export default function ProfileScreen() {
                                 <Ionicons name="trophy" size={24} color="#93BFC7" />
                             </View>
                             <Text style={{ fontSize: 20, fontWeight: "700", color: "#000000" }}>
-                                {MOCK_USER.badges}
+                                {userData.badges}
                             </Text>
                             <Text style={{ fontSize: 12, color: "#6B7280" }}>Badge</Text>
                         </View>
                     </View>
                 </Card>
 
-                {/* Personal Health Data Card (Collapsible) */}
+                {/* Health Data Card */}
                 <Card>
                     <View
                         style={{
@@ -328,7 +376,6 @@ export default function ProfileScreen() {
                         </Pressable>
                     </View>
 
-                    {/* Collapsed View - Show only BMI */}
                     {!healthDataExpanded && (
                         <View style={{ marginTop: 12, flexDirection: "row", alignItems: "center" }}>
                             <View
@@ -350,10 +397,8 @@ export default function ProfileScreen() {
                         </View>
                     )}
 
-                    {/* Expanded View - Full Health Data */}
                     {healthDataExpanded && (
                         <View style={{ marginTop: 16 }}>
-                            {/* Data Rows */}
                             {[
                                 { label: "Nama Lengkap", value: MOCK_HEALTH_DATA.fullName },
                                 { label: "Umur", value: `${MOCK_HEALTH_DATA.age} tahun` },
@@ -401,7 +446,6 @@ export default function ProfileScreen() {
                                 </View>
                             ))}
 
-                            {/* Edit Data Button */}
                             <Pressable
                                 style={({ pressed }) => ({
                                     backgroundColor: "#ECF4E8",
@@ -411,6 +455,7 @@ export default function ProfileScreen() {
                                     marginTop: 16,
                                     opacity: pressed ? 0.7 : 1,
                                 })}
+                                onPress={handleEditHealthData}
                             >
                                 <Text style={{ fontSize: 14, fontWeight: "500", color: "#1F2937" }}>
                                     Edit Data
@@ -420,7 +465,7 @@ export default function ProfileScreen() {
                     )}
                 </Card>
 
-                {/* Achievement Section Card */}
+                {/* Achievement Section */}
                 <Card>
                     <View
                         style={{
@@ -433,12 +478,14 @@ export default function ProfileScreen() {
                         <Text style={{ fontSize: 16, fontWeight: "600", color: "#000000" }}>
                             Pencapaian Saya
                         </Text>
-                        <Pressable style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
+                        <Pressable 
+                            style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+                            onPress={handleAllBadges}
+                        >
                             <Ionicons name="arrow-forward" size={20} color="#93BFC7" />
                         </Pressable>
                     </View>
 
-                    {/* Horizontal Badge List */}
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                         <View style={{ flexDirection: "row", gap: 16 }}>
                             {MOCK_BADGES.map((badge) => (
@@ -475,13 +522,13 @@ export default function ProfileScreen() {
                         </View>
                     </ScrollView>
 
-                    {/* View All Link */}
                     <Pressable
                         style={({ pressed }) => ({
                             marginTop: 16,
                             alignItems: "center",
                             opacity: pressed ? 0.7 : 1,
                         })}
+                        onPress={handleAllBadges}
                     >
                         <Text style={{ fontSize: 13, fontWeight: "500", color: "#93BFC7" }}>
                             Lihat Semua Badge →
@@ -489,12 +536,10 @@ export default function ProfileScreen() {
                     </Pressable>
                 </Card>
 
-                {/* Avatar Store Access Card */}
+                {/* Avatar Store */}
                 <Pressable
-                    onPress={handleAvatarStorePress}
-                    style={({ pressed }) => ({
-                        opacity: pressed ? 0.95 : 1,
-                    })}
+                    onPress={handleAvatarStore}
+                    style={({ pressed }) => ({ opacity: pressed ? 0.95 : 1 })}
                 >
                     <Card>
                         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
@@ -526,7 +571,7 @@ export default function ProfileScreen() {
                     </Card>
                 </Pressable>
 
-                {/* Settings Menu List */}
+                {/* Settings Menu */}
                 <Card>
                     <Text style={{ fontSize: 16, fontWeight: "600", color: "#000000", marginBottom: 12 }}>
                         Pengaturan
@@ -534,12 +579,14 @@ export default function ProfileScreen() {
                     {SETTINGS_ITEMS.map((item, index) => (
                         <Pressable
                             key={index}
-                            onPress={() => handleSettingsPress(item.label)}
+                            onPress={() => handleSettingsPress(item.route)}
                             style={({ pressed }) => ({
-                                paddingVertical: 12,
-                                borderBottomWidth: index < SETTINGS_ITEMS.length - 1 ? 1 : 0,
-                                borderBottomColor: "#F3F4F6",
-                                opacity: pressed ? 0.7 : 1,
+                                paddingVertical: 14,
+                                paddingHorizontal: 4, 
+                                marginBottom: index < SETTINGS_ITEMS.length - 1 ? 12 : 0, 
+                                borderRadius: 8, 
+                                backgroundColor: pressed ? "#F9FAFB" : "transparent", 
+                                borderBottomWidth: 0, 
                             })}
                         >
                             <View
@@ -549,19 +596,19 @@ export default function ProfileScreen() {
                                     justifyContent: "space-between",
                                 }}
                             >
-                                <View style={{ flexDirection: "row", alignItems: "center", flex: 1, marginBottom: 10 }}>
+                                <View style={{ flexDirection: "row", alignItems: "center", flex: 1, marginBottom: 12 }}>
                                     <View
                                         style={{
-                                            width: 40,
-                                            height: 40,
-                                            borderRadius: 20,
+                                            width: 44, 
+                                            height: 44,
+                                            borderRadius: 22,
                                             backgroundColor: `${item.color}40`,
                                             justifyContent: "center",
                                             alignItems: "center",
-                                            marginRight: 12,
+                                            marginRight: 14,
                                         }}
                                     >
-                                        <Ionicons name={item.icon} size={20} color={item.color} />
+                                        <Ionicons name={item.icon} size={23} color={item.color} />
                                     </View>
                                     <Text style={{ fontSize: 14, color: "#000000" }}>
                                         {item.label}
@@ -573,7 +620,7 @@ export default function ProfileScreen() {
                     ))}
                 </Card>
 
-                {/* Logout Section */}
+                {/* Logout */}
                 <Pressable
                     onPress={handleLogout}
                     style={({ pressed }) => ({
