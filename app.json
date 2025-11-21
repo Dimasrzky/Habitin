@@ -18,7 +18,8 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.Habitin"
+      "package": "com.anonymous.Habitin",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "bundler": "metro",
@@ -27,6 +28,8 @@
     },
     "plugins": [
       "expo-router",
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth",
       [
         "expo-splash-screen",
         {

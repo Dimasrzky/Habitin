@@ -6,12 +6,30 @@ import { ActivityIndicator, View } from "react-native";
 import "react-native-reanimated";
 import "../global.css";
 
+// Import Firebase - CARA YANG BENAR
+import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
+
 export default function RootLayout() {
   const [isLoading, setIsLoading] = useState(true);
   const [isFirstTime, setIsFirstTime] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [initializing, setInitializing] = useState(true);
+  const [user, setUser] = useState<FirebaseAuthTypes.User | null>(null);
+  
   const segments = useSegments();
   const router = useRouter();
+
+  // Firebase auth state listener
+  useEffect(() => {
+    const subscriber = auth().onAuthStateChanged((firebaseUser) => {
+      setUser(firebaseUser);
+      setIsLoggedIn(firebaseUser !== null);
+      
+      if (initializing) setInitializing(false);
+    });
+
+    return subscriber; // Unsubscribe on unmount
+  }, [initializing]);
 
   // Cek status auth saat pertama kali app dibuka
   useEffect(() => {
@@ -20,31 +38,27 @@ export default function RootLayout() {
 
   // Handle navigation berdasarkan auth status
   useEffect(() => {
-    if (isLoading) return;
+    if (isLoading || initializing) return;
 
     const inAuthGroup = segments[0] === "loginSistem";
-    //const inTabs = segments[0] === "(tabs)";
 
     // Logika routing
     if (isFirstTime && !inAuthGroup) {
-      // User pertama kali → ke landing
-      router.replace("loginSistem/landing" as any);
+      router.replace("/loginSistem/landing" as any);
     } else if (!isFirstTime && !isLoggedIn && !inAuthGroup) {
-      // Sudah pernah lihat landing tapi belum login → ke login
-      router.replace("loginSistem/login" as any);
+      router.replace("/loginSistem/login" as any);
     } else if (isLoggedIn && inAuthGroup) {
-      // Sudah login tapi masih di halaman auth → ke tabs (home)
-      router.replace("(tabs)" as any);
+      router.replace("/(tabs)" as any);
     }
-  }, [isLoading, isFirstTime, isLoggedIn, segments]);
+  }, [isLoading, initializing, isFirstTime, isLoggedIn, segments, router]);
 
   const checkAuthStatus = async () => {
     try {
       const hasSeenLanding = await AsyncStorage.getItem("hasSeenLanding");
-      const userToken = await AsyncStorage.getItem("userToken");
-
+      const currentUser = auth().currentUser;
+      
       setIsFirstTime(hasSeenLanding === null);
-      setIsLoggedIn(userToken !== null);
+      setIsLoggedIn(currentUser !== null);
     } catch (error) {
       console.error("Error checking auth:", error);
       setIsFirstTime(true);
@@ -55,7 +69,7 @@ export default function RootLayout() {
   };
 
   // Loading screen saat cek auth
-  if (isLoading) {
+  if (isLoading || initializing) {
     return (
       <View
         style={{
@@ -77,12 +91,10 @@ export default function RootLayout() {
           headerShown: false,
         }}
       >
-        {/* Tambahkan screen loginSistem */}
         <Stack.Screen name="loginSistem/landing" />
         <Stack.Screen name="loginSistem/login" />
         <Stack.Screen name="loginSistem/register" />
         
-        {/* Screen tabs yang sudah ada */}
         <Stack.Screen
           name="(tabs)"
           options={{
