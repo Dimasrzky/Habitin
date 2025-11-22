@@ -1,44 +1,16 @@
-import auth from '@react-native-firebase/auth';
+import { getApp, getApps, initializeApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { ENV_CONFIG } from './env.config';
 
-export const firebaseAuth = auth();
+// Initialize Firebase
+let app;
+if (getApps().length === 0) {
+  app = initializeApp(ENV_CONFIG.firebase);
+} else {
+  app = getApp();
+}
 
-// Fungsi Register
-export const registerWithEmail = async (email: string, password: string) => {
-  try {
-    const userCredential = await firebaseAuth.createUserWithEmailAndPassword(
-      email,
-      password
-    );
-    return { success: true, user: userCredential.user };
-  } catch (error: any) {
-    return { success: false, error: error.message };
-  }
-};
+// Initialize Auth (tanpa custom persistence, Firebase akan handle otomatis)
+const auth = getAuth(app);
 
-// Fungsi Login
-export const loginWithEmail = async (email: string, password: string) => {
-  try {
-    const userCredential = await firebaseAuth.signInWithEmailAndPassword(
-      email,
-      password
-    );
-    return { success: true, user: userCredential.user };
-  } catch (error: any) {
-    return { success: false, error: error.message };
-  }
-};
-
-// Fungsi Logout
-export const logout = async () => {
-  try {
-    await firebaseAuth.signOut();
-    return { success: true };
-  } catch (error: any) {
-    return { success: false, error: error.message };
-  }
-};
-
-// Fungsi cek user saat ini
-export const getCurrentUser = () => {
-  return firebaseAuth.currentUser;
-};
+export { app, auth };

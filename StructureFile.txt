@@ -1,0 +1,95 @@
+habitin/
+│
+├── android/
+│   └── app/
+│       └── google-services.json          # Firebase config Android
+│
+│
+├── src/
+│   ├── config/
+│   │   ├── firebase.config.ts            # ✅ Setup Firebase Auth
+│   │   ├── supabase.config.ts            # 🆕 Setup Supabase Client
+│   │   └── env.config.ts                 # 🆕 Centralized env config
+│   │
+│   ├── services/
+│   │   ├── auth/
+│   │   │   ├── firebase-auth.service.ts  # 🆕 Firebase auth operations
+│   │   │   └── auth-sync.service.ts      # 🆕 Sync Firebase ↔ Supabase
+│   │   │
+│   │   ├── database/
+│   │   │   ├── user.service.ts           # 🆕 User CRUD Supabase
+│   │   │   ├── health.service.ts         # 🆕 Health check data
+│   │   │   └── challenge.service.ts      # 🆕 Challenge data
+│   │   │
+│   │   └── storage/
+│   │       ├── image.service.ts          # 🆕 Image upload Supabase
+│   │       └── file.service.ts           # 🆕 File operations
+│   │
+│   ├── context/
+│   │   ├── AuthContext.tsx               # ✅ Modified - Global auth state
+│   │   └── UserContext.tsx               # 🆕 User data from Supabase
+│   │
+│   ├── types/
+│   │   ├── auth.types.ts                 # Auth types
+│   │   ├── user.types.ts                 # User types
+│   │   ├── database.types.ts             # 🆕 Supabase table types
+│   │   └── storage.types.ts              # 🆕 Storage types
+│   │
+│   ├── utils/
+│   │   ├── validation.ts                 # Input validation
+│   │   ├── storage.ts                    # AsyncStorage helpers
+│   │   └── image-picker.ts               # 🆕 Image picker helper
+│   │
+│   └── hooks/                            # 🆕 Custom hooks
+│       ├── useAuth.ts                    # Hook untuk auth
+│       ├── useUser.ts                    # Hook untuk user data
+│       └── useStorage.ts                 # Hook untuk storage
+│
+├── app/
+│   ├── loginSistem/
+│   │   ├── landing.tsx
+│   │   ├── login.tsx
+│   │   └── register.tsx
+│   │
+│   ├── screens/
+│   │   ├── HomeScreen.tsx
+│   │   ├── cekKesehatan/
+│   │   │   └── index.tsx
+│   │   ├── gameChallenge/
+│   │   │   └── index.tsx
+│   │   └── profile/
+│   │       ├── index.tsx
+│   │       └── edit-profile.tsx          # 🆕 Edit profile with image
+│   │
+│   ├── (tabs)/
+│   │   ├── _layout.tsx
+│   │   ├── index.tsx
+│   │   ├── cekKesehatan.tsx
+│   │   ├── komunitas.tsx
+│   │   ├── profile.tsx
+│   │   └── tantangan.tsx
+│   │
+│   └── _layout.tsx
+│
+├── supabase/                             # 🆕 Supabase SQL & migrations
+│   ├── migrations/
+│   │   ├── 001_create_users_table.sql
+│   │   ├── 002_create_health_table.sql
+│   │   └── 003_create_challenges_table.sql
+│   │
+│   └── seed.sql                          # Sample data
+│
+├── assets/
+│   ├── images/
+│   ├── fonts/
+│   └── icons/
+│
+├── .env.example                          # 🆕 Template env
+├── .env                                  # Environment variables
+├── .gitignore
+├── app.json
+├── babel.config.js
+├── metro.config.js
+├── package.json
+├── tsconfig.json
+└── README.md
