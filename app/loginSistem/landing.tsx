@@ -1,82 +1,137 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-const LandingScreen = () => {
+export default function Landing() {
   const router = useRouter();
-
-  const handleGetStarted = async () => {
-    try {
-      await AsyncStorage.setItem('hasSeenLanding', 'true');
-      router.replace('/loginSistem/login');
-    } catch (error) {
-      console.error('Error setting landing flag:', error);
-    }
-  };
 
   return (
     <View style={styles.container}>
-      <Image 
-        source={require('../../assets/images/Logo_Lauch.png')} 
-        style={styles.logo}
-        resizeMode="contain"
-      />
-      <Text style={styles.title}>Selamat Datang di Habitin</Text>
-      <Text style={styles.subtitle}>
-        Bangun kebiasaan baik, raih tujuan Anda
-      </Text>
+      <StatusBar style="light" />
+      <LinearGradient
+        colors={['#667eea', '#764ba2']}
+        style={styles.gradient}
+      >
+        <View style={styles.content}>
+          {/* Logo/Icon */}
+          <View style={styles.logoContainer}>
+            <Text style={styles.logoText}>🏃‍♂️</Text>
+          </View>
 
-      <TouchableOpacity style={styles.button} onPress={handleGetStarted}>
-        <Text style={styles.buttonText}>Mulai Sekarang</Text>
-      </TouchableOpacity>
+          {/* Title */}
+          <Text style={styles.title}>Habitin</Text>
+          <Text style={styles.subtitle}>
+            Bangun Kebiasaan Sehat Bersama
+          </Text>
+
+          {/* Buttons */}
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={styles.button}
+              onPress={() => router.push('/loginSistem/login')}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.buttonText}>Masuk</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.button, styles.buttonOutline]}
+              onPress={() => router.push('/loginSistem/register')}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.buttonText, styles.buttonTextOutline]}>
+                Daftar Sekarang
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Footer */}
+          <Text style={styles.footer}>
+            Mulai perjalanan sehat Anda hari ini
+          </Text>
+        </View>
+      </LinearGradient>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  gradient: {
+    flex: 1,
+  },
+  content: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 20,
+    paddingHorizontal: 30,
   },
-  logo: {
-    width: 150,
-    height: 150,
+  logoContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 30,
   },
+  logoText: {
+    fontSize: 60,
+  },
   title: {
-    fontSize: 28,
+    fontSize: 48,
     fontWeight: 'bold',
+    color: '#fff',
     marginBottom: 10,
-    color: '#333',
-    textAlign: 'center',
+    letterSpacing: 1,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: 18,
+    color: '#fff',
+    opacity: 0.9,
+    marginBottom: 60,
     textAlign: 'center',
-    marginBottom: 50,
     paddingHorizontal: 20,
   },
+  buttonContainer: {
+    width: '100%',
+    gap: 15,
+  },
   button: {
-    backgroundColor: '#6B2DD8',
-    paddingVertical: 15,
-    paddingHorizontal: 60,
-    borderRadius: 25,
-    elevation: 3,
+    backgroundColor: '#fff',
+    paddingVertical: 16,
+    paddingHorizontal: 30,
+    borderRadius: 30,
+    alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 8,
+  },
+  buttonOutline: {
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderColor: '#fff',
+    shadowOpacity: 0,
+    elevation: 0,
   },
   buttonText: {
-    color: '#fff',
-    fontSize: 18,
+    color: '#667eea',
+    fontSize: 16,
     fontWeight: '600',
   },
+  buttonTextOutline: {
+    color: '#fff',
+  },
+  footer: {
+    position: 'absolute',
+    bottom: 30,
+    color: '#fff',
+    opacity: 0.7,
+    fontSize: 14,
+  },
 });
-
-export default LandingScreen;
