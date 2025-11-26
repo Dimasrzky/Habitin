@@ -1,7 +1,6 @@
 import { supabase } from '../../config/supabase.config';
 import { HealthCheckInsert } from '../../types/database.types';
 
-// Simple interface untuk hasil query
 interface HealthCheckRow {
   id: string;
   user_id: string;
@@ -32,7 +31,7 @@ export class HealthService {
         throw error;
       }
 
-      const healthChecks = (data || []) as HealthCheckRow[];
+      const healthChecks = (data as HealthCheckRow[]) || [];
       const healthCheck = healthChecks.length > 0 ? healthChecks[0] : null;
 
       return { data: healthCheck, error: null };
@@ -53,16 +52,17 @@ export class HealthService {
 
       if (error) throw error;
 
-      return { data: (data || []) as HealthCheckRow[], error: null };
+      return { data: (data as HealthCheckRow[]) || [], error: null };
     } catch (error: any) {
       console.error('Error getting health checks:', error);
-      return { data: [] as HealthCheckRow[], error: error.message };
+      return { data: [], error: error.message };
     }
   }
 
   // Create new health check
   static async createHealthCheck(healthCheck: HealthCheckInsert) {
     try {
+      // @ts-ignore - Supabase type inference issue
       const { data, error } = await supabase
         .from('health_checks')
         .insert(healthCheck)

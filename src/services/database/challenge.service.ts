@@ -1,7 +1,6 @@
 import { supabase } from '../../config/supabase.config';
 import { ChallengeInsert } from '../../types/database.types';
 
-// Simple interface untuk hasil query
 interface ChallengeRow {
   id: string;
   user_id: string;
@@ -32,10 +31,10 @@ export class ChallengeService {
 
       if (error) throw error;
 
-      return { data: (data || []) as ChallengeRow[], error: null };
+      return { data: (data as ChallengeRow[]) || [], error: null };
     } catch (error: any) {
       console.error('Error getting active challenges:', error);
-      return { data: [] as ChallengeRow[], error: error.message };
+      return { data: [], error: error.message };
     }
   }
 
@@ -49,7 +48,7 @@ export class ChallengeService {
 
       if (error) throw error;
 
-      const challenges = (data || []) as ChallengeStatus[];
+      const challenges = (data as ChallengeStatus[]) || [];
 
       const stats = {
         total: challenges.length,
@@ -70,6 +69,7 @@ export class ChallengeService {
   // Create new challenge
   static async createChallenge(challenge: ChallengeInsert) {
     try {
+      // @ts-ignore - Supabase type inference issue
       const { data, error } = await supabase
         .from('challenges')
         .insert(challenge)
@@ -91,9 +91,13 @@ export class ChallengeService {
       const validProgress = Math.max(0, Math.min(100, progress));
       const status: 'active' | 'completed' = validProgress >= 100 ? 'completed' : 'active';
 
+      // @ts-ignore - Supabase type inference issue
       const { data, error } = await supabase
         .from('challenges')
-        .update({ progress: validProgress, status })
+        .update({
+          progress: validProgress,
+          status: status,
+        })
         .eq('id', challengeId)
         .select()
         .single();
