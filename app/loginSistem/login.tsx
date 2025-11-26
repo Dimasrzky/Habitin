@@ -1,62 +1,58 @@
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { AuthSyncService } from '../../src/services/auth/auth-sync.service';
-import { FirebaseAuthService } from '../../src/services/auth/firebase-auth.service';
+import { auth } from '../../src/config/firebase.config';
 
-export default function Login() {
+function Login() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
-    // Validasi input
     if (!email || !password) {
-      Alert.alert('Error', 'Email dan password harus diisi');
+      Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
     setLoading(true);
-
     try {
-      // Login dengan Firebase
-      const { user, error } = await FirebaseAuthService.login(email, password);
-
-      if (error) {
-        Alert.alert('Login Gagal', error);
-        setLoading(false);
-        return;
+      console.log('Attempting login...');
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      console.log('Login successful:', userCredential.user.email);
+      
+      Alert.alert('Success', 'Welcome back!', [
+        {
+          text: 'OK',
+          onPress: () => router.replace('/(tabs)'),
+        },
+      ]);
+    } catch (error: any) {
+      console.error('Login error:', error);
+      
+      let errorMessage = 'Login failed. Please try again.';
+      
+      if (error.code === 'auth/user-not-found') {
+        errorMessage = 'No account found with this email.';
+      } else if (error.code === 'auth/wrong-password') {
+        errorMessage = 'Incorrect password.';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = 'Invalid email address.';
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Too many failed attempts. Please try again later.';
       }
-
-      if (user) {
-        // Fetch user data dari Supabase
-        const { data: userData } = await AuthSyncService.fetchUserFromSupabase(
-          user.uid
-        );
-
-        console.log('User logged in:', userData);
-
-        // Redirect ke home
-        router.replace('/(tabs)');
-      }
-    } catch (err: any) {
-      Alert.alert('Error', err.message);
+      
+      Alert.alert('Login Failed', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -64,220 +60,137 @@ export default function Login() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" />
-      <LinearGradient colors={['#667eea', '#764ba2']} style={styles.gradient}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.keyboardView}
+      <Text style={styles.title}>Login</Text>
+      <Text style={styles.subtitle}>Welcome back to Habitin</Text>
+
+      <TextInput
+        style={styles.input}
+        placeholder="Email"
+        value={email}
+        onChangeText={setEmail}
+        autoCapitalize="none"
+        keyboardType="email-address"
+        editable={!loading}
+      />
+
+      <View style={styles.passwordContainer}>
+        <TextInput
+          style={[styles.input, styles.passwordInput]}
+          placeholder="Password"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry={!showPassword}
+          editable={!loading}
+        />
+        <TouchableOpacity
+          style={styles.eyeIcon}
+          onPress={() => setShowPassword(!showPassword)}
         >
-          <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-          >
-            {/* Back Button */}
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => router.back()}
-            >
-              <Ionicons name="arrow-back" size={24} color="#fff" />
-            </TouchableOpacity>
+          <Text style={styles.eyeText}>{showPassword ? '👁️' : '👁️‍🗨️'}</Text>
+        </TouchableOpacity>
+      </View>
 
-            {/* Header */}
-            <View style={styles.header}>
-              <Text style={styles.title}>Selamat Datang</Text>
-              <Text style={styles.subtitle}>Masuk ke akun Anda</Text>
-            </View>
+      <TouchableOpacity
+        style={[styles.button, loading && styles.buttonDisabled]}
+        onPress={handleLogin}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.buttonText}>Login</Text>
+        )}
+      </TouchableOpacity>
 
-            {/* Form */}
-            <View style={styles.form}>
-              {/* Email Input */}
-              <View style={styles.inputContainer}>
-                <Ionicons
-                  name="mail-outline"
-                  size={20}
-                  color="#667eea"
-                  style={styles.inputIcon}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Email"
-                  placeholderTextColor="#999"
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoComplete="email"
-                />
-              </View>
+      <TouchableOpacity
+        onPress={() => router.push('/loginSistem/register')}
+        disabled={loading}
+      >
+        <Text style={styles.link}>Dont have an account? Register</Text>
+      </TouchableOpacity>
 
-              {/* Password Input */}
-              <View style={styles.inputContainer}>
-                <Ionicons
-                  name="lock-closed-outline"
-                  size={20}
-                  color="#667eea"
-                  style={styles.inputIcon}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Password"
-                  placeholderTextColor="#999"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
-                />
-                <TouchableOpacity
-                  onPress={() => setShowPassword(!showPassword)}
-                  style={styles.eyeIcon}
-                >
-                  <Ionicons
-                    name={showPassword ? 'eye-outline' : 'eye-off-outline'}
-                    size={20}
-                    color="#999"
-                  />
-                </TouchableOpacity>
-              </View>
-
-              {/* Forgot Password */}
-              <TouchableOpacity style={styles.forgotPassword}>
-                <Text style={styles.forgotPasswordText}>Lupa Password?</Text>
-              </TouchableOpacity>
-
-              {/* Login Button */}
-              <TouchableOpacity
-                style={[styles.loginButton, loading && styles.loginButtonDisabled]}
-                onPress={handleLogin}
-                disabled={loading}
-                activeOpacity={0.8}
-              >
-                {loading ? (
-                  <ActivityIndicator color="#667eea" />
-                ) : (
-                  <Text style={styles.loginButtonText}>Masuk</Text>
-                )}
-              </TouchableOpacity>
-
-              {/* Register Link */}
-              <View style={styles.registerContainer}>
-                <Text style={styles.registerText}>Belum punya akun? </Text>
-                <TouchableOpacity
-                  onPress={() => router.push('/loginSistem/register')}
-                >
-                  <Text style={styles.registerLink}>Daftar Sekarang</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </LinearGradient>
+      <TouchableOpacity
+        onPress={() => router.back()}
+        disabled={loading}
+      >
+        <Text style={styles.backLink}>← Back to Landing</Text>
+      </TouchableOpacity>
     </View>
   );
 }
 
+export default Login;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  gradient: {
-    flex: 1,
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 30,
-    paddingTop: 60,
-    paddingBottom: 30,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  header: {
-    marginBottom: 40,
+    padding: 20,
+    backgroundColor: '#fff',
   },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 10,
+    marginBottom: 8,
+    textAlign: 'center',
+    color: '#667eea',
   },
   subtitle: {
-    fontSize: 16,
-    color: '#fff',
-    opacity: 0.9,
-  },
-  form: {
-    flex: 1,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    marginBottom: 15,
-    paddingHorizontal: 15,
-    height: 55,
-  },
-  inputIcon: {
-    marginRight: 10,
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+    marginBottom: 30,
   },
   input: {
-    flex: 1,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 15,
     fontSize: 16,
-    color: '#333',
+    backgroundColor: '#f9f9f9',
+  },
+  passwordContainer: {
+    position: 'relative',
+    marginBottom: 15,
+  },
+  passwordInput: {
+    marginBottom: 0,
+    paddingRight: 50,
   },
   eyeIcon: {
-    padding: 5,
+    position: 'absolute',
+    right: 15,
+    top: 15,
   },
-  forgotPassword: {
-    alignSelf: 'flex-end',
-    marginBottom: 25,
+  eyeText: {
+    fontSize: 20,
   },
-  forgotPasswordText: {
-    color: '#fff',
-    fontSize: 14,
-  },
-  loginButton: {
-    backgroundColor: '#fff',
-    paddingVertical: 16,
-    borderRadius: 30,
+  button: {
+    backgroundColor: '#667eea',
+    padding: 15,
+    borderRadius: 10,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 8,
-    marginBottom: 20,
+    marginTop: 10,
   },
-  loginButtonDisabled: {
-    opacity: 0.7,
+  buttonDisabled: {
+    backgroundColor: '#9ca3af',
   },
-  loginButtonText: {
-    color: '#667eea',
+  buttonText: {
+    color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: 'bold',
   },
-  registerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+  link: {
+    color: '#667eea',
+    textAlign: 'center',
     marginTop: 20,
-  },
-  registerText: {
-    color: '#fff',
     fontSize: 14,
   },
-  registerLink: {
-    color: '#fff',
+  backLink: {
+    color: '#999',
+    textAlign: 'center',
+    marginTop: 15,
     fontSize: 14,
-    fontWeight: '600',
-    textDecorationLine: 'underline',
   },
 });

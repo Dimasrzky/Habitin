@@ -1,89 +1,109 @@
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { AuthSyncService } from '../../src/services/auth/auth-sync.service';
-import { FirebaseAuthService } from '../../src/services/auth/firebase-auth.service';
+import { auth } from '../../src/config/firebase.config';
+import { supabase } from '../../src/config/supabase.config';
 
-export default function Register() {
+function Register() {
   const router = useRouter();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleRegister = async () => {
-    // Validasi input
+    // Validation
     if (!fullName || !email || !password || !confirmPassword) {
-      Alert.alert('Error', 'Semua field harus diisi');
+      Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert('Error', 'Password tidak cocok');
+      Alert.alert('Error', 'Passwords do not match');
       return;
     }
 
     if (password.length < 6) {
-      Alert.alert('Error', 'Password minimal 6 karakter');
+      Alert.alert('Error', 'Password must be at least 6 characters');
       return;
     }
 
     setLoading(true);
-
     try {
-      // Register dengan Firebase
-      const { user, error } = await FirebaseAuthService.register(
+      console.log('Creating Firebase user...');
+      
+      // Step 1: Create Firebase Auth user
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
         email,
-        password,
-        fullName
+        password
       );
+      const user = userCredential.user;
+      
+      console.log('Firebase user created:', user.uid);
 
-      if (error) {
-        Alert.alert('Registrasi Gagal', error);
-        setLoading(false);
-        return;
+      // Step 2: Update display name
+      await updateProfile(user, {
+        displayName: fullName,
+      });
+      
+      console.log('Display name updated');
+
+      // Step 3: Create Supabase user record
+      console.log('Creating Supabase user record...');
+      const { error: supabaseError } = await supabase
+        .from('users')
+        .insert({
+          id: user.uid,
+          email: user.email,
+          full_name: fullName,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+
+      if (supabaseError) {
+        console.error('Supabase error:', supabaseError);
+        // Don't block registration if Supabase fails
+        console.warn('User created in Firebase but not in Supabase');
+      } else {
+        console.log('Supabase user record created');
       }
 
-      if (user) {
-        // Sync user ke Supabase
-        const { error: syncError } = await AuthSyncService.syncUserToSupabase(
-          user
-        );
-
-        if (syncError) {
-          console.warn('Failed to sync user to Supabase:', syncError);
-        }
-
-        Alert.alert(
-          'Berhasil!',
-          'Akun Anda telah dibuat',
-          [
-            {
-              text: 'OK',
-              onPress: () => router.replace('/(tabs)'),
-            },
-          ]
-        );
+      Alert.alert(
+        'Success',
+        'Your account has been created successfully!',
+        [
+          {
+            text: 'OK',
+            onPress: () => router.replace('/(tabs)'),
+          },
+        ]
+      );
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      
+      let errorMessage = 'Registration failed. Please try again.';
+      
+      if (error.code === 'auth/email-already-in-use') {
+        errorMessage = 'This email is already registered.';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = 'Invalid email address.';
+      } else if (error.code === 'auth/weak-password') {
+        errorMessage = 'Password is too weak. Use at least 6 characters.';
       }
-    } catch (err: any) {
-      Alert.alert('Error', err.message);
+      
+      Alert.alert('Registration Failed', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -91,255 +111,154 @@ export default function Register() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" />
-      <LinearGradient colors={['#667eea', '#764ba2']} style={styles.gradient}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.keyboardView}
+      <Text style={styles.title}>Register</Text>
+      <Text style={styles.subtitle}>Create your Habitin account</Text>
+
+      <TextInput
+        style={styles.input}
+        placeholder="Full Name"
+        value={fullName}
+        onChangeText={setFullName}
+        editable={!loading}
+      />
+
+      <TextInput
+        style={styles.input}
+        placeholder="Email"
+        value={email}
+        onChangeText={setEmail}
+        autoCapitalize="none"
+        keyboardType="email-address"
+        editable={!loading}
+      />
+
+      <View style={styles.passwordContainer}>
+        <TextInput
+          style={[styles.input, styles.passwordInput]}
+          placeholder="Password"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry={!showPassword}
+          editable={!loading}
+        />
+        <TouchableOpacity
+          style={styles.eyeIcon}
+          onPress={() => setShowPassword(!showPassword)}
         >
-          <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-          >
-            {/* Back Button */}
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => router.back()}
-            >
-              <Ionicons name="arrow-back" size={24} color="#fff" />
-            </TouchableOpacity>
+          <Text style={styles.eyeText}>{showPassword ? '👁️' : '👁️‍🗨️'}</Text>
+        </TouchableOpacity>
+      </View>
 
-            {/* Header */}
-            <View style={styles.header}>
-              <Text style={styles.title}>Daftar Akun</Text>
-              <Text style={styles.subtitle}>Buat akun baru Anda</Text>
-            </View>
+      <TextInput
+        style={styles.input}
+        placeholder="Confirm Password"
+        value={confirmPassword}
+        onChangeText={setConfirmPassword}
+        secureTextEntry={!showPassword}
+        editable={!loading}
+      />
 
-            {/* Form */}
-            <View style={styles.form}>
-              {/* Full Name Input */}
-              <View style={styles.inputContainer}>
-                <Ionicons
-                  name="person-outline"
-                  size={20}
-                  color="#667eea"
-                  style={styles.inputIcon}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Nama Lengkap"
-                  placeholderTextColor="#999"
-                  value={fullName}
-                  onChangeText={setFullName}
-                  autoCapitalize="words"
-                />
-              </View>
+      <TouchableOpacity
+        style={[styles.button, loading && styles.buttonDisabled]}
+        onPress={handleRegister}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.buttonText}>Register</Text>
+        )}
+      </TouchableOpacity>
 
-              {/* Email Input */}
-              <View style={styles.inputContainer}>
-                <Ionicons
-                  name="mail-outline"
-                  size={20}
-                  color="#667eea"
-                  style={styles.inputIcon}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Email"
-                  placeholderTextColor="#999"
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoComplete="email"
-                />
-              </View>
+      <TouchableOpacity
+        onPress={() => router.push('/loginSistem/login')}
+        disabled={loading}
+      >
+        <Text style={styles.link}>Already have an account? Login</Text>
+      </TouchableOpacity>
 
-              {/* Password Input */}
-              <View style={styles.inputContainer}>
-                <Ionicons
-                  name="lock-closed-outline"
-                  size={20}
-                  color="#667eea"
-                  style={styles.inputIcon}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Password"
-                  placeholderTextColor="#999"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
-                />
-                <TouchableOpacity
-                  onPress={() => setShowPassword(!showPassword)}
-                  style={styles.eyeIcon}
-                >
-                  <Ionicons
-                    name={showPassword ? 'eye-outline' : 'eye-off-outline'}
-                    size={20}
-                    color="#999"
-                  />
-                </TouchableOpacity>
-              </View>
-
-              {/* Confirm Password Input */}
-              <View style={styles.inputContainer}>
-                <Ionicons
-                  name="lock-closed-outline"
-                  size={20}
-                  color="#667eea"
-                  style={styles.inputIcon}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Konfirmasi Password"
-                  placeholderTextColor="#999"
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  secureTextEntry={!showConfirmPassword}
-                  autoCapitalize="none"
-                />
-                <TouchableOpacity
-                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                  style={styles.eyeIcon}
-                >
-                  <Ionicons
-                    name={showConfirmPassword ? 'eye-outline' : 'eye-off-outline'}
-                    size={20}
-                    color="#999"
-                  />
-                </TouchableOpacity>
-              </View>
-
-              {/* Register Button */}
-              <TouchableOpacity
-                style={[styles.registerButton, loading && styles.registerButtonDisabled]}
-                onPress={handleRegister}
-                disabled={loading}
-                activeOpacity={0.8}
-              >
-                {loading ? (
-                  <ActivityIndicator color="#667eea" />
-                ) : (
-                  <Text style={styles.registerButtonText}>Daftar</Text>
-                )}
-              </TouchableOpacity>
-
-              {/* Login Link */}
-              <View style={styles.loginContainer}>
-                <Text style={styles.loginText}>Sudah punya akun? </Text>
-                <TouchableOpacity
-                  onPress={() => router.push('/loginSistem/login')}
-                >
-                  <Text style={styles.loginLink}>Masuk</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </LinearGradient>
+      <TouchableOpacity
+        onPress={() => router.back()}
+        disabled={loading}
+      >
+        <Text style={styles.backLink}>← Back to Landing</Text>
+      </TouchableOpacity>
     </View>
   );
 }
 
+export default Register;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  gradient: {
-    flex: 1,
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 30,
-    paddingTop: 60,
-    paddingBottom: 30,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  header: {
-    marginBottom: 40,
+    padding: 20,
+    backgroundColor: '#fff',
   },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 10,
+    marginBottom: 8,
+    textAlign: 'center',
+    color: '#667eea',
   },
   subtitle: {
-    fontSize: 16,
-    color: '#fff',
-    opacity: 0.9,
-  },
-  form: {
-    flex: 1,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    marginBottom: 15,
-    paddingHorizontal: 15,
-    height: 55,
-  },
-  inputIcon: {
-    marginRight: 10,
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+    marginBottom: 30,
   },
   input: {
-    flex: 1,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 15,
     fontSize: 16,
-    color: '#333',
+    backgroundColor: '#f9f9f9',
+  },
+  passwordContainer: {
+    position: 'relative',
+    marginBottom: 15,
+  },
+  passwordInput: {
+    marginBottom: 0,
+    paddingRight: 50,
   },
   eyeIcon: {
-    padding: 5,
+    position: 'absolute',
+    right: 15,
+    top: 15,
   },
-  registerButton: {
-    backgroundColor: '#fff',
-    paddingVertical: 16,
-    borderRadius: 30,
+  eyeText: {
+    fontSize: 20,
+  },
+  button: {
+    backgroundColor: '#667eea',
+    padding: 15,
+    borderRadius: 10,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 8,
     marginTop: 10,
-    marginBottom: 20,
   },
-  registerButtonDisabled: {
-    opacity: 0.7,
+  buttonDisabled: {
+    backgroundColor: '#9ca3af',
   },
-  registerButtonText: {
-    color: '#667eea',
+  buttonText: {
+    color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: 'bold',
   },
-  loginContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+  link: {
+    color: '#667eea',
+    textAlign: 'center',
     marginTop: 20,
-  },
-  loginText: {
-    color: '#fff',
     fontSize: 14,
   },
-  loginLink: {
-    color: '#fff',
+  backLink: {
+    color: '#999',
+    textAlign: 'center',
+    marginTop: 15,
     fontSize: 14,
-    fontWeight: '600',
-    textDecorationLine: 'underline',
   },
 });

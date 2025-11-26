@@ -17,29 +17,17 @@ export const ENV_CONFIG = {
   },
 };
 
+// Validation
 export const validateConfig = () => {
   const missing: string[] = [];
 
-  if (!ENV_CONFIG.firebase.apiKey) {
-    console.warn('⚠️ Firebase API Key not found');
-    missing.push('Firebase API Key');
-  }
-  if (!ENV_CONFIG.firebase.projectId) {
-    console.warn('⚠️ Firebase Project ID not found');
-    missing.push('Firebase Project ID');
-  }
-  if (!ENV_CONFIG.supabase.url) {
-    console.warn('⚠️ Supabase URL not found');
-    missing.push('Supabase URL');
-  }
-  if (!ENV_CONFIG.supabase.anonKey) {
-    console.warn('⚠️ Supabase Anon Key not found');
-    missing.push('Supabase Anon Key');
-  }
+  if (!ENV_CONFIG.firebase.apiKey) missing.push('Firebase API Key');
+  if (!ENV_CONFIG.firebase.projectId) missing.push('Firebase Project ID');
+  if (!ENV_CONFIG.supabase.url) missing.push('Supabase URL');
+  if (!ENV_CONFIG.supabase.anonKey) missing.push('Supabase Anon Key');
 
   if (missing.length > 0) {
-    console.warn('Missing configuration:', missing.join(', '));
-    console.warn('App may not work correctly');
+    console.warn('⚠️ Missing configuration:', missing.join(', '));
     return false;
   }
 
@@ -47,5 +35,4 @@ export const validateConfig = () => {
   return true;
 };
 
-// Auto-validate on import
 validateConfig();

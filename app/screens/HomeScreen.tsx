@@ -1,13 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
-    ActivityIndicator,
-    Pressable,
-    RefreshControl,
-    ScrollView,
-    StatusBar,
-    Text,
-    View,
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StatusBar,
+  Text,
+  View,
 } from 'react-native';
 import { auth } from '../../src/config/firebase.config';
 import { useDashboard } from '../../src/hooks/useDashboard';
@@ -159,9 +159,8 @@ export default function HomeScreen() {
   const [dailyMissionChecked, setDailyMissionChecked] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Fetch user data
   const { user, loading: userLoading } = useUser();
-  const { data: dashboardData, loading: dashboardLoading } = useDashboard();
+  const { data: dashboardData, loading: dashboardLoading, refetch } = useDashboard();
 
   // Get current user from Firebase
   const currentUser = auth.currentUser;
@@ -184,8 +183,8 @@ export default function HomeScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    // TODO: Implement refresh logic
-    setTimeout(() => setRefreshing(false), 1000);
+    await refetch(); 
+    setRefreshing(false);
   };
 
   if (userLoading || dashboardLoading) {

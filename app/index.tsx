@@ -1,9 +1,25 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useEffect } from 'react';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
-export default function Index() {
+export default function IndexScreen() {
+  const router = useRouter();
+
+  useEffect(() => {
+    // Simple redirect tanpa Firebase dulu
+    const timer = setTimeout(() => {
+      console.log('Redirecting to landing...');
+      router.replace('/loginSistem/landing');
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [router]);
+
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>Hello Habitin!</Text>
+      <Text style={styles.logo}>🏃‍♂️</Text>
+      <Text style={styles.title}>Habitin</Text>
+      <ActivityIndicator size="large" color="#667eea" style={styles.loader} />
     </View>
   );
 }
@@ -15,7 +31,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#fff',
   },
-  text: {
-    fontSize: 20,
+  logo: {
+    fontSize: 80,
+    marginBottom: 20,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#667eea',
+    marginBottom: 20,
+  },
+  loader: {
+    marginTop: 20,
   },
 });

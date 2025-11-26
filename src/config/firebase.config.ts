@@ -2,56 +2,46 @@ import { FirebaseApp, getApp, getApps, initializeApp } from 'firebase/app';
 import { Auth, getAuth } from 'firebase/auth';
 import { ENV_CONFIG } from './env.config';
 
-// Validate config before initializing
-const validateFirebaseConfig = () => {
-  const required = ['apiKey', 'authDomain', 'projectId'];
-  const missing = required.filter(
-    (key) => !ENV_CONFIG.firebase[key as keyof typeof ENV_CONFIG.firebase]
-  );
-
-  if (missing.length > 0) {
-    console.error('Missing Firebase config:', missing);
-    throw new Error(`Missing Firebase configuration: ${missing.join(', ')}`);
-  }
-};
-
 let app: FirebaseApp;
 let auth: Auth;
 
 try {
-  // Validate config first
-  validateFirebaseConfig();
-
-  // Initialize Firebase
-  if (getApps().length === 0) {
-    console.log('Initializing Firebase...');
-    app = initializeApp(ENV_CONFIG.firebase);
-    console.log('Firebase initialized successfully');
-  } else {
-    app = getApp();
-    console.log('Firebase already initialized');
-  }
-
-  // Initialize Auth (simple version without custom persistence)
-  auth = getAuth(app);
-  console.log('Firebase Auth initialized');
-} catch (error) {
-  console.error('Firebase initialization error:', error);
-  
-  // Create a fallback to prevent crashes
+  // Check if Firebase already initialized
   if (getApps().length > 0) {
     app = getApp();
+    auth = getAuth(app);
+    console.log('ℹ️ Using existing Firebase instance');
   } else {
-    app = initializeApp({
-      apiKey: 'dummy',
-      authDomain: 'dummy',
-      projectId: 'dummy',
-      storageBucket: 'dummy',
-      messagingSenderId: 'dummy',
-      appId: 'dummy',
-    });
+    // First time initialization
+    const firebaseConfig = ENV_CONFIG.firebase;
+    
+    console.log('🔥 Initializing Firebase...');
+    app = initializeApp(firebaseConfig);
+    
+    // Use getAuth directly (simpler and more compatible)
+    auth = getAuth(app);
+    
+    console.log('✅ Firebase initialized successfully');
   }
+} catch (error: any) {
+  console.error('❌ Firebase initialization error:', error.message);
+  
+  // Fallback: Create basic instance
+  if (getApps().length === 0) {
+    app = initializeApp({
+      apiKey: 'AIzaSyDummy-Key-For-Development',
+      authDomain: 'dummy.firebaseapp.com',
+      projectId: 'dummy-project',
+      storageBucket: 'dummy.appspot.com',
+      messagingSenderId: '123456789',
+      appId: '1:123456789:web:dummy',
+    });
+  } else {
+    app = getApp();
+  }
+  
   auth = getAuth(app);
+  console.log('⚠️ Using fallback Firebase configuration');
 }
 
 export { app, auth };
