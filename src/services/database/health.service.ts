@@ -1,6 +1,19 @@
 import { supabase } from '../../config/supabase.config';
 import { HealthCheckInsert } from '../../types/database.types';
 
+// Simple interface untuk hasil query
+interface HealthCheckRow {
+  id: string;
+  user_id: string;
+  weight: number | null;
+  height: number | null;
+  blood_pressure: string | null;
+  heart_rate: number | null;
+  check_date: string;
+  notes: string | null;
+  created_at: string;
+}
+
 export class HealthService {
   // Get latest health check for user
   static async getLatestHealthCheck(userId: string) {
@@ -12,18 +25,19 @@ export class HealthService {
         .order('check_date', { ascending: false })
         .limit(1);
 
-      // Return first item if exists, otherwise null
       if (error) {
-        // PGRST116 = no rows found, not an error
         if (error.code === 'PGRST116') {
           return { data: null, error: null };
         }
         throw error;
       }
 
-      // Return first item or null
-      return { data: data && data.length > 0 ? data[0] : null, error: null };
+      const healthChecks = (data || []) as HealthCheckRow[];
+      const healthCheck = healthChecks.length > 0 ? healthChecks[0] : null;
+
+      return { data: healthCheck, error: null };
     } catch (error: any) {
+      console.error('Error getting latest health check:', error);
       return { data: null, error: error.message };
     }
   }
@@ -38,9 +52,11 @@ export class HealthService {
         .order('check_date', { ascending: false });
 
       if (error) throw error;
-      return { data, error: null };
+
+      return { data: (data || []) as HealthCheckRow[], error: null };
     } catch (error: any) {
-      return { data: null, error: error.message };
+      console.error('Error getting health checks:', error);
+      return { data: [] as HealthCheckRow[], error: error.message };
     }
   }
 
@@ -54,8 +70,10 @@ export class HealthService {
         .single();
 
       if (error) throw error;
-      return { data, error: null };
+
+      return { data: data as HealthCheckRow, error: null };
     } catch (error: any) {
+      console.error('Error creating health check:', error);
       return { data: null, error: error.message };
     }
   }

@@ -1,6 +1,24 @@
 import { supabase } from '../../config/supabase.config';
 import { ChallengeInsert } from '../../types/database.types';
 
+// Simple interface untuk hasil query
+interface ChallengeRow {
+  id: string;
+  user_id: string;
+  title: string;
+  description: string | null;
+  target: number;
+  progress: number;
+  status: 'active' | 'completed' | 'failed';
+  start_date: string;
+  end_date: string;
+  created_at: string;
+}
+
+interface ChallengeStatus {
+  status: 'active' | 'completed' | 'failed';
+}
+
 export class ChallengeService {
   // Get active challenges for user
   static async getActiveChallenges(userId: string) {
@@ -13,9 +31,11 @@ export class ChallengeService {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return { data, error: null };
+
+      return { data: (data || []) as ChallengeRow[], error: null };
     } catch (error: any) {
-      return { data: null, error: error.message };
+      console.error('Error getting active challenges:', error);
+      return { data: [] as ChallengeRow[], error: error.message };
     }
   }
 
@@ -29,15 +49,21 @@ export class ChallengeService {
 
       if (error) throw error;
 
+      const challenges = (data || []) as ChallengeStatus[];
+
       const stats = {
-        total: data?.length || 0,
-        active: data?.filter((c) => c.status === 'active').length || 0,
-        completed: data?.filter((c) => c.status === 'completed').length || 0,
+        total: challenges.length,
+        active: challenges.filter((c) => c.status === 'active').length,
+        completed: challenges.filter((c) => c.status === 'completed').length,
       };
 
       return { data: stats, error: null };
     } catch (error: any) {
-      return { data: null, error: error.message };
+      console.error('Error getting challenge stats:', error);
+      return {
+        data: { total: 0, active: 0, completed: 0 },
+        error: error.message,
+      };
     }
   }
 
@@ -51,34 +77,32 @@ export class ChallengeService {
         .single();
 
       if (error) throw error;
-      return { data, error: null };
+
+      return { data: data as ChallengeRow, error: null };
     } catch (error: any) {
+      console.error('Error creating challenge:', error);
       return { data: null, error: error.message };
     }
   }
 
   // Update challenge progress
-  static async updateChallengeProgress(
-    challengeId: string,
-    progress: number
-  ) {
+  static async updateChallengeProgress(challengeId: string, progress: number) {
     try {
-      // Calculate status based on progress
-      let status: 'active' | 'completed' | 'failed' = 'active';
-      if (progress >= 100) {
-        status = 'completed';
-      }
+      const validProgress = Math.max(0, Math.min(100, progress));
+      const status: 'active' | 'completed' = validProgress >= 100 ? 'completed' : 'active';
 
       const { data, error } = await supabase
         .from('challenges')
-        .update({ progress, status })
+        .update({ progress: validProgress, status })
         .eq('id', challengeId)
         .select()
         .single();
 
       if (error) throw error;
-      return { data, error: null };
+
+      return { data: data as ChallengeRow, error: null };
     } catch (error: any) {
+      console.error('Error updating challenge progress:', error);
       return { data: null, error: error.message };
     }
   }

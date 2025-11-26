@@ -99,12 +99,15 @@ export interface Database {
   };
 }
 
+// Exported types
 export type User = Database['public']['Tables']['users']['Row'];
 export type UserInsert = Database['public']['Tables']['users']['Insert'];
 export type UserUpdate = Database['public']['Tables']['users']['Update'];
 
 export type HealthCheck = Database['public']['Tables']['health_checks']['Row'];
 export type HealthCheckInsert = Database['public']['Tables']['health_checks']['Insert'];
+export type HealthCheckUpdate = Database['public']['Tables']['health_checks']['Update'];
 
 export type Challenge = Database['public']['Tables']['challenges']['Row'];
 export type ChallengeInsert = Database['public']['Tables']['challenges']['Insert'];
+export type ChallengeUpdate = Database['public']['Tables']['challenges']['Update'];

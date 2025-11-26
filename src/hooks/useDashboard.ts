@@ -5,10 +5,35 @@ import { HealthService } from '../services/database/health.service';
 
 type RiskLevel = 'rendah' | 'sedang' | 'tinggi';
 
+interface HealthCheckData {
+  id: string;
+  user_id: string;
+  weight: number | null;
+  height: number | null;
+  blood_pressure: string | null;
+  heart_rate: number | null;
+  check_date: string;
+  notes: string | null;
+  created_at: string;
+}
+
+interface ChallengeData {
+  id: string;
+  user_id: string;
+  title: string;
+  description: string | null;
+  target: number;
+  progress: number;
+  status: 'active' | 'completed' | 'failed';
+  start_date: string;
+  end_date: string;
+  created_at: string;
+}
+
 interface DashboardData {
   riskLevel: RiskLevel;
-  latestHealthCheck: any;
-  activeChallenge: any;
+  latestHealthCheck: HealthCheckData | null;
+  activeChallenge: ChallengeData | null;
   challengeStats: {
     total: number;
     active: number;
@@ -16,107 +41,93 @@ interface DashboardData {
   };
 }
 
+const calculateRiskLevel = (healthCheck: HealthCheckData | null): RiskLevel => {
+  if (!healthCheck) {
+    return 'rendah';
+  }
+
+  const bloodPressure = healthCheck.blood_pressure;
+  if (!bloodPressure || typeof bloodPressure !== 'string') {
+    return 'rendah';
+  }
+
+  const parts = bloodPressure.split('/');
+  if (parts.length !== 2) {
+    return 'rendah';
+  }
+
+  const systolic = parseInt(parts[0], 10);
+  if (isNaN(systolic)) {
+    return 'rendah';
+  }
+
+  if (systolic > 140) return 'tinggi';
+  if (systolic > 120) return 'sedang';
+  return 'rendah';
+};
+
 export const useDashboard = () => {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      const currentUser = auth.currentUser;
-      if (!currentUser) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        // Fetch health check data
-        const { data: healthData } = await HealthService.getLatestHealthCheck(
-          currentUser.uid
-        );
-
-        // Fetch active challenges
-        const { data: challenges } = await ChallengeService.getActiveChallenges(
-          currentUser.uid
-        );
-
-        // Fetch challenge stats
-        const { data: stats } = await ChallengeService.getChallengeStats(
-          currentUser.uid
-        );
-
-        // Calculate risk level (simplified logic)
-        let riskLevel: RiskLevel = 'rendah';
-        if (healthData && healthData.blood_pressure) {
-          // Parse blood pressure (format: "120/80")
-          const parts = healthData.blood_pressure.split('/');
-          if (parts.length === 2) {
-            const systolic = parseInt(parts[0], 10);
-            if (!isNaN(systolic)) {
-              if (systolic > 140) riskLevel = 'tinggi';
-              else if (systolic > 120) riskLevel = 'sedang';
-            }
-          }
-        }
-
-        setData({
-          riskLevel,
-          latestHealthCheck: healthData,
-          activeChallenge: challenges && challenges.length > 0 ? challenges[0] : null,
-          challengeStats: stats || { total: 0, active: 0, completed: 0 },
-        });
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDashboardData();
-  }, []);
-
-  const refetch = async () => {
-    setLoading(true);
+  const fetchData = async () => {
     const currentUser = auth.currentUser;
     if (!currentUser) {
       setLoading(false);
+      setData({
+        riskLevel: 'rendah',
+        latestHealthCheck: null,
+        activeChallenge: null,
+        challengeStats: { total: 0, active: 0, completed: 0 },
+      });
       return;
     }
 
     try {
-      const { data: healthData } = await HealthService.getLatestHealthCheck(
-        currentUser.uid
-      );
-      const { data: challenges } = await ChallengeService.getActiveChallenges(
-        currentUser.uid
-      );
-      const { data: stats } = await ChallengeService.getChallengeStats(
-        currentUser.uid
-      );
+      const [healthResult, challengesResult, statsResult] = await Promise.all([
+        HealthService.getLatestHealthCheck(currentUser.uid),
+        ChallengeService.getActiveChallenges(currentUser.uid),
+        ChallengeService.getChallengeStats(currentUser.uid),
+      ]);
 
-      let riskLevel: RiskLevel = 'rendah';
-      if (healthData && healthData.blood_pressure) {
-        const parts = healthData.blood_pressure.split('/');
-        if (parts.length === 2) {
-          const systolic = parseInt(parts[0], 10);
-          if (!isNaN(systolic)) {
-            if (systolic > 140) riskLevel = 'tinggi';
-            else if (systolic > 120) riskLevel = 'sedang';
-          }
-        }
-      }
+      const healthData = healthResult.data;
+      const challenges = challengesResult.data || [];
+      const stats = statsResult.data || { total: 0, active: 0, completed: 0 };
+
+      const activeChallenge = challenges.length > 0 ? challenges[0] : null;
+      const riskLevel = calculateRiskLevel(healthData);
 
       setData({
         riskLevel,
         latestHealthCheck: healthData,
-        activeChallenge: challenges && challenges.length > 0 ? challenges[0] : null,
-        challengeStats: stats || { total: 0, active: 0, completed: 0 },
+        activeChallenge,
+        challengeStats: stats,
       });
+
+      setError(null);
     } catch (err: any) {
+      console.error('Error fetching dashboard data:', err);
       setError(err.message);
+
+      setData({
+        riskLevel: 'rendah',
+        latestHealthCheck: null,
+        activeChallenge: null,
+        challengeStats: { total: 0, active: 0, completed: 0 },
+      });
     } finally {
       setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const refetch = async () => {
+    setLoading(true);
+    await fetchData();
   };
 
   return { data, loading, error, refetch };
