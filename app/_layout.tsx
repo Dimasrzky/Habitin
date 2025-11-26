@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router';
+import "../global.css";
 
 export default function RootLayout() {
   return (
@@ -11,9 +12,6 @@ export default function RootLayout() {
       <Stack.Screen name="loginSistem/landing" />
       <Stack.Screen name="loginSistem/login" />
       <Stack.Screen name="loginSistem/register" />
-      
-      {/* Screen routes - removed nested declaration */}
-      {/* No need to declare individual screen files, Expo Router auto-discovers them */}
     </Stack>
   );
 }

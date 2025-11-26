@@ -6,10 +6,10 @@ module.exports = {
     slug: 'habitin',
     version: '1.0.0',
     orientation: 'portrait',
-    icon: './assets/icon.png',
+    icon: './assets/images/Launcher_logos.jpeg',
     userInterfaceStyle: 'light',
     splash: {
-      image: './assets/splash.png',
+      image: './assets/images/splash-icon.png',
       resizeMode: 'contain',
       backgroundColor: '#ffffff',
     },
@@ -19,10 +19,10 @@ module.exports = {
       bundleIdentifier: 'com.yourcompany.habitin',
     },
     android: {
-      package: 'com.yourcompany.habitin',
+      package: 'com.anonymous.Habitin',
       googleServicesFile: './google-services.json',
       adaptiveIcon: {
-        foregroundImage: './assets/adaptive-icon.png',
+        foregroundImage: './assets/images/Launcher_logos.jpeg',
         backgroundColor: '#ffffff',
       },
     },
@@ -42,6 +42,7 @@ module.exports = {
     },
     plugins: [
       'expo-router',
+      // ← HAPUS expo-build-properties untuk sekarang
     ],
   },
 };
