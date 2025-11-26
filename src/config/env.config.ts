@@ -1,30 +1,51 @@
-// Centralized configuration untuk environment variables
+import Constants from 'expo-constants';
+
+const extra = Constants.expoConfig?.extra || {};
+
 export const ENV_CONFIG = {
   firebase: {
-    apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || '',
-    authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || '',
-    projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || '',
-    storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || '',
-    messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '',
-    appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || '',
+    apiKey: extra.firebase?.apiKey || '',
+    authDomain: extra.firebase?.authDomain || '',
+    projectId: extra.firebase?.projectId || '',
+    storageBucket: extra.firebase?.storageBucket || '',
+    messagingSenderId: extra.firebase?.messagingSenderId || '',
+    appId: extra.firebase?.appId || '',
   },
   supabase: {
-    url: process.env.EXPO_PUBLIC_SUPABASE_URL || '',
-    anonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '',
+    url: extra.supabase?.url || '',
+    anonKey: extra.supabase?.anonKey || '',
   },
 };
 
-// Validasi config saat startup
 export const validateConfig = () => {
-  const requiredKeys = [
-    'EXPO_PUBLIC_FIREBASE_API_KEY',
-    'EXPO_PUBLIC_SUPABASE_URL',
-    'EXPO_PUBLIC_SUPABASE_ANON_KEY',
-  ];
+  const missing: string[] = [];
 
-  const missing = requiredKeys.filter(key => !process.env[key]);
-  
-  if (missing.length > 0) {
-    throw new Error(`Missing environment variables: ${missing.join(', ')}`);
+  if (!ENV_CONFIG.firebase.apiKey) {
+    console.warn('⚠️ Firebase API Key not found');
+    missing.push('Firebase API Key');
   }
+  if (!ENV_CONFIG.firebase.projectId) {
+    console.warn('⚠️ Firebase Project ID not found');
+    missing.push('Firebase Project ID');
+  }
+  if (!ENV_CONFIG.supabase.url) {
+    console.warn('⚠️ Supabase URL not found');
+    missing.push('Supabase URL');
+  }
+  if (!ENV_CONFIG.supabase.anonKey) {
+    console.warn('⚠️ Supabase Anon Key not found');
+    missing.push('Supabase Anon Key');
+  }
+
+  if (missing.length > 0) {
+    console.warn('Missing configuration:', missing.join(', '));
+    console.warn('App may not work correctly');
+    return false;
+  }
+
+  console.log('✅ All environment variables validated');
+  return true;
 };
+
+// Auto-validate on import
+validateConfig();
