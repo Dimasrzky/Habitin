@@ -6,7 +6,6 @@ export default function IndexScreen() {
   const router = useRouter();
 
   useEffect(() => {
-    // Simple redirect tanpa Firebase dulu
     const timer = setTimeout(() => {
       console.log('Redirecting to landing...');
       router.replace('/loginSistem/landing');
