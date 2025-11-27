@@ -84,7 +84,7 @@ habitin/
 │   ├── fonts/
 │   └── icons/
 │
-├── .env.example                          # 🆕 Template env
+├── .env.example                          
 ├── .env                                  # Environment variables
 ├── .gitignore
 ├── app.json
