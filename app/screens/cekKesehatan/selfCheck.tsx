@@ -1,6 +1,6 @@
 // app/screens/cekKesehatan/selfCheck.tsx
 
-import SwipeToStartButton from '@/components/SwipeToStartButton';
+import SwipeToStartButton from '@components/SwipeToStartButton';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React from 'react';

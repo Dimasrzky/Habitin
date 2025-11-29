@@ -14,6 +14,10 @@ export const ENV_CONFIG = {
   supabase: {
     url: extra.supabase?.url || '',
     anonKey: extra.supabase?.anonKey || '',
+    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+  },
+  googleVision: {
+    apiKey: process.env.EXPO_PUBLIC_GOOGLE_VISION_API_KEY || '',
   },
 };
 

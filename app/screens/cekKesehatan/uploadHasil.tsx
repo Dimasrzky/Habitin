@@ -1,9 +1,12 @@
-// app/screens/cekKesehatan/uploadResult.tsx
+// app/screens/cekKesehatan/uploadHasil.tsx
 
+import { supabase } from '@/config/supabase.config';
+import { LabResult } from '@/types/health.types';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StatusBar,
@@ -12,56 +15,45 @@ import {
   View,
 } from 'react-native';
 
-// Mock data hasil analisis
-const MOCK_RESULT = {
-  date: '9 November 2025',
-  riskLevel: 'sedang' as 'rendah' | 'sedang' | 'tinggi',
-  tests: [
-    {
-      name: 'Gula Darah Puasa',
-      value: 110,
-      unit: 'mg/dL',
-      status: 'tinggi' as 'normal' | 'tinggi' | 'rendah',
-      percentage: 70,
-      normalRange: '< 100 mg/dL',
-    },
-    {
-      name: 'Kolesterol Total',
-      value: 220,
-      unit: 'mg/dL',
-      status: 'tinggi' as 'normal' | 'tinggi' | 'rendah',
-      percentage: 80,
-      normalRange: '< 200 mg/dL',
-    },
-    {
-      name: 'Trigliserida',
-      value: 140,
-      unit: 'mg/dL',
-      status: 'normal' as 'normal' | 'tinggi' | 'rendah',
-      percentage: 40,
-      normalRange: '< 150 mg/dL',
-    },
-    {
-      name: 'HDL (Kolesterol Baik)',
-      value: 55,
-      unit: 'mg/dL',
-      status: 'normal' as 'normal' | 'tinggi' | 'rendah',
-      percentage: 60,
-      normalRange: '> 40 mg/dL',
-    },
-  ],
-  recommendations: [
-    'Kurangi konsumsi gula dan makanan manis',
-    'Olahraga minimal 30 menit per hari',
-    'Konsultasi dengan dokter untuk pemeriksaan lanjutan',
-    'Perbanyak konsumsi sayur dan buah',
-  ],
-};
+type RiskLevel = 'rendah' | 'sedang' | 'tinggi';
 
 export default function UploadResultScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  
+  const [loading, setLoading] = useState(true);
+  const [labResult, setLabResult] = useState<LabResult | null>(null);
+  
+  const resultId = params.resultId as string;
 
-  const getRiskColor = (level: string) => {
+  // ✅ FETCH DATA DARI DATABASE
+  useEffect(() => {
+    const fetchLabResult = async () => {
+      try {
+        setLoading(true);
+        
+        const { data, error } = await supabase
+          .from('lab_results')
+          .select('*')
+          .eq('id', resultId)
+          .single();
+
+        if (error) throw error;
+        
+        setLabResult(data as LabResult);
+      } catch (error) {
+        console.error('Error fetching lab result:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (resultId) {
+      fetchLabResult();
+    }
+  }, [resultId]);
+
+  const getRiskColor = (level: RiskLevel) => {
     switch (level) {
       case 'rendah': return '#CBF3BB';
       case 'sedang': return '#FFE8B6';
@@ -70,7 +62,7 @@ export default function UploadResultScreen() {
     }
   };
 
-  const getRiskText = (level: string) => {
+  const getRiskText = (level: RiskLevel) => {
     switch (level) {
       case 'rendah': return 'RISIKO RENDAH';
       case 'sedang': return 'RISIKO SEDANG';
@@ -79,32 +71,124 @@ export default function UploadResultScreen() {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'normal': return '#ABE7B2';
-      case 'tinggi': return '#FFB4B4';
-      case 'rendah': return '#FFD580';
-      default: return '#D1D5DB';
+  const getRiskDescription = (level: RiskLevel) => {
+    switch (level) {
+      case 'rendah':
+        return 'Selamat! Hasil lab Anda menunjukkan kondisi yang baik. Pertahankan pola hidup sehat Anda.';
+      case 'sedang':
+        return 'Anda memiliki beberapa faktor risiko. Perlu perbaikan pada gaya hidup untuk mencegah risiko lebih tinggi.';
+      case 'tinggi':
+        return 'Hasil lab Anda menunjukkan risiko tinggi. Sangat disarankan untuk segera konsultasi dengan dokter.';
+      default:
+        return '';
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'normal': return 'checkmark-circle';
-      case 'tinggi': return 'warning';
-      case 'rendah': return 'alert-circle';
-      default: return 'information-circle';
+  const getStatusColor = (value: number | null, type: string) => {
+    if (value === null) return '#D1D5DB';
+    
+    switch (type) {
+      case 'glucose':
+        if (value < 100) return '#ABE7B2';
+        if (value < 126) return '#FFD580';
+        return '#FFB4B4';
+      case 'cholesterol_total':
+        if (value < 200) return '#ABE7B2';
+        if (value < 240) return '#FFD580';
+        return '#FFB4B4';
+      case 'ldl':
+        if (value < 100) return '#ABE7B2';
+        if (value < 160) return '#FFD580';
+        return '#FFB4B4';
+      case 'hdl':
+        if (value >= 40) return '#ABE7B2';
+        return '#FFB4B4';
+      case 'triglycerides':
+        if (value < 150) return '#ABE7B2';
+        if (value < 200) return '#FFD580';
+        return '#FFB4B4';
+      default:
+        return '#D1D5DB';
     }
   };
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'normal': return 'Normal';
-      case 'tinggi': return 'Tinggi';
-      case 'rendah': return 'Rendah';
-      default: return '-';
-    }
+  const getStatusIcon = (value: number | null, type: string) => {
+    const color = getStatusColor(value, type);
+    if (color === '#ABE7B2') return 'checkmark-circle';
+    if (color === '#FFD580') return 'alert-circle';
+    if (color === '#FFB4B4') return 'warning';
+    return 'information-circle';
   };
+
+  const getStatusText = (value: number | null, type: string) => {
+    const color = getStatusColor(value, type);
+    if (color === '#ABE7B2') return 'Normal';
+    if (color === '#FFD580') return 'Borderline';
+    if (color === '#FFB4B4') return 'Tinggi';
+    return '-';
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#ABE7B2" />
+        <Text style={styles.loadingText}>Memuat hasil...</Text>
+      </View>
+    );
+  }
+
+  if (!labResult) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Ionicons name="alert-circle" size={64} color="#EF4444" />
+        <Text style={styles.errorText}>Data tidak ditemukan</Text>
+        <Pressable
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
+          <Text style={styles.backButtonText}>Kembali</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  const testResults = [
+    {
+      name: 'Gula Darah',
+      value: labResult.glucose_level,
+      unit: 'mg/dL',
+      type: 'glucose',
+      normalRange: '< 100 mg/dL',
+    },
+    {
+      name: 'Kolesterol Total',
+      value: labResult.cholesterol_total,
+      unit: 'mg/dL',
+      type: 'cholesterol_total',
+      normalRange: '< 200 mg/dL',
+    },
+    {
+      name: 'LDL',
+      value: labResult.cholesterol_ldl,
+      unit: 'mg/dL',
+      type: 'ldl',
+      normalRange: '< 100 mg/dL',
+    },
+    {
+      name: 'HDL',
+      value: labResult.cholesterol_hdl,
+      unit: 'mg/dL',
+      type: 'hdl',
+      normalRange: '> 40 mg/dL',
+    },
+    {
+      name: 'Trigliserida',
+      value: labResult.triglycerides,
+      unit: 'mg/dL',
+      type: 'triglycerides',
+      normalRange: '< 150 mg/dL',
+    },
+  ].filter(test => test.value !== null); // Hanya tampilkan yang ada datanya
 
   return (
     <View style={styles.container}>
@@ -112,7 +196,7 @@ export default function UploadResultScreen() {
       
       {/* Header */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
+        <Pressable onPress={() => router.back()} style={styles.headerBackButton}>
           <Ionicons name="chevron-back" size={24} color="#1F2937" />
         </Pressable>
         <Text style={styles.headerTitle}>Hasil Analisis</Text>
@@ -129,28 +213,41 @@ export default function UploadResultScreen() {
         {/* Status Card */}
         <View style={styles.statusCard}>
           <Text style={styles.statusLabel}>Status Kesehatan</Text>
-          <View style={[styles.riskBadge, { backgroundColor: getRiskColor(MOCK_RESULT.riskLevel) }]}>
+          <View style={[
+            styles.riskBadge, 
+            { backgroundColor: getRiskColor(labResult.risk_level) }
+          ]}>
             <View style={styles.riskCircle} />
-            <Text style={styles.riskText}>{getRiskText(MOCK_RESULT.riskLevel)}</Text>
+            <Text style={styles.riskText}>
+              {getRiskText(labResult.risk_level)}
+            </Text>
           </View>
-          <Text style={styles.dateText}>Tanggal: {MOCK_RESULT.date}</Text>
+          <Text style={styles.scoreText}>Skor: {labResult.risk_score}/100</Text>
+          <Text style={styles.resultDescription}>
+            {getRiskDescription(labResult.risk_level)}
+          </Text>
         </View>
 
         {/* Results Title */}
         <Text style={styles.sectionTitle}>📊 Detail Pemeriksaan</Text>
 
         {/* Test Results */}
-        {MOCK_RESULT.tests.map((test, index) => (
+        {testResults.map((test, index) => (
           <View key={index} style={styles.testCard}>
             <View style={styles.testHeader}>
               <Text style={styles.testName}>{test.name}</Text>
-              <View style={[styles.statusBadge, { backgroundColor: getStatusColor(test.status) }]}>
+              <View style={[
+                styles.statusBadge, 
+                { backgroundColor: getStatusColor(test.value, test.type) }
+              ]}>
                 <Ionicons 
-                  name={getStatusIcon(test.status) as any} 
+                  name={getStatusIcon(test.value, test.type) as any}
                   size={14} 
                   color="#FFFFFF" 
                 />
-                <Text style={styles.statusText}>{getStatusText(test.status)}</Text>
+                <Text style={styles.statusText}>
+                  {getStatusText(test.value, test.type)}
+                </Text>
               </View>
             </View>
 
@@ -167,30 +264,14 @@ export default function UploadResultScreen() {
                 style={[
                   styles.progressFill, 
                   { 
-                    width: `${test.percentage}%`,
-                    backgroundColor: getStatusColor(test.status)
+                    width: `${Math.min((test.value! / 300) * 100, 100)}%`,
+                    backgroundColor: getStatusColor(test.value, test.type)
                   }
                 ]} 
               />
             </View>
           </View>
         ))}
-
-        {/* Recommendations */}
-        <View style={styles.recommendationsCard}>
-          <View style={styles.recommendationsHeader}>
-            <Ionicons name="bulb" size={24} color="#FFD580" />
-            <Text style={styles.recommendationsTitle}>Rekomendasi</Text>
-          </View>
-          <View style={styles.recommendationsList}>
-            {MOCK_RESULT.recommendations.map((rec, index) => (
-              <View key={index} style={styles.recommendationItem}>
-                <Ionicons name="checkmark-circle" size={18} color="#ABE7B2" />
-                <Text style={styles.recommendationText}>{rec}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
 
         {/* Action Buttons */}
         <View style={styles.actionsContainer}>
@@ -200,10 +281,10 @@ export default function UploadResultScreen() {
               styles.secondaryButton,
               { opacity: pressed ? 0.8 : 1 }
             ]}
-            //onPress={() => router.push('/screens/cekKesehatan/history')}
+            onPress={() => router.push('/(tabs)' as any)}
           >
-            <Ionicons name="folder-open-outline" size={20} color="#6B7280" />
-            <Text style={styles.secondaryButtonText}>Simpan ke Riwayat</Text>
+            <Ionicons name="home" size={20} color="#6B7280" />
+            <Text style={styles.secondaryButtonText}>Kembali ke Beranda</Text>
           </Pressable>
 
           <Pressable
@@ -212,10 +293,10 @@ export default function UploadResultScreen() {
               styles.primaryButton,
               { opacity: pressed ? 0.9 : 1 }
             ]}
-            onPress={() => router.push('/(tabs)')}
+            onPress={() => router.push('/(tabs)/tantangan' as any)}
           >
-            <Ionicons name="home" size={20} color="#FFFFFF" />
-            <Text style={styles.primaryButtonText}>Kembali ke Beranda</Text>
+            <Ionicons name="trophy" size={20} color="#FFFFFF" />
+            <Text style={styles.primaryButtonText}>Mulai Tantangan</Text>
           </Pressable>
         </View>
 
@@ -230,6 +311,35 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F9FAFB',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    padding: 20,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  errorText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#EF4444',
+    textAlign: 'center',
+  },
+  backButton: {
+    marginTop: 20,
+    backgroundColor: '#ABE7B2',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  backButtonText: {
+    color: '#1F2937',
+    fontWeight: '600',
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -240,7 +350,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
-  backButton: {
+  headerBackButton: {
     padding: 4,
   },
   headerTitle: {
@@ -261,7 +371,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 24,
-    marginBottom: 24,
+    marginBottom: 16,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E5E7EB',
@@ -296,9 +406,16 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1F2937',
   },
-  dateText: {
-    fontSize: 13,
+  scoreText: {
+    fontSize: 14,
     color: '#6B7280',
+    marginBottom: 12,
+  },
+  resultDescription: {
+    fontSize: 14,
+    color: '#374151',
+    textAlign: 'center',
+    lineHeight: 20,
   },
   sectionTitle: {
     fontSize: 18,
@@ -369,41 +486,9 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 4,
   },
-  recommendationsCard: {
-    backgroundColor: '#FFFBEB',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#FEF3C7',
-  },
-  recommendationsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    gap: 8,
-  },
-  recommendationsTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#92400E',
-  },
-  recommendationsList: {
-    gap: 10,
-  },
-  recommendationItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-  },
-  recommendationText: {
-    fontSize: 14,
-    color: '#78350F',
-    flex: 1,
-    lineHeight: 20,
-  },
   actionsContainer: {
     gap: 12,
+    marginTop: 8,
   },
   actionButton: {
     flexDirection: 'row',

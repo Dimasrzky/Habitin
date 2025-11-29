@@ -1,4 +1,4 @@
-// app/(tabs)/cekKesehatan/upload-lab.tsx
+// app/screens/cekKesehatan/uploadLab.tsx
 
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
@@ -15,9 +15,63 @@ import {
   View,
 } from 'react-native';
 
+// =====================================================
+// CONSTANTS
+// =====================================================
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png'];
+const ALLOWED_PDF_TYPE = 'application/pdf';
+
+// =====================================================
+// VALIDATION FUNCTIONS
+// =====================================================
+
+const validateFileSize = (fileSize?: number): boolean => {
+  if (!fileSize) return true;
+  
+  if (fileSize > MAX_FILE_SIZE) {
+    Alert.alert(
+      'File Terlalu Besar',
+      `Ukuran file maksimal 5MB. File Anda: ${(fileSize / (1024 * 1024)).toFixed(2)}MB`
+    );
+    return false;
+  }
+  return true;
+};
+
+const validateImageType = (mimeType?: string): boolean => {
+  if (!mimeType) return true;
+  
+  if (!ALLOWED_IMAGE_TYPES.includes(mimeType.toLowerCase())) {
+    Alert.alert(
+      'Format Tidak Didukung',
+      'Hanya file JPG, JPEG, dan PNG yang diperbolehkan.'
+    );
+    return false;
+  }
+  return true;
+};
+
+const validatePdfType = (mimeType?: string): boolean => {
+  if (!mimeType) return true;
+  
+  if (mimeType.toLowerCase() !== ALLOWED_PDF_TYPE) {
+    Alert.alert(
+      'Format Tidak Didukung',
+      'Hanya file PDF yang diperbolehkan.'
+    );
+    return false;
+  }
+  return true;
+};
+
+// =====================================================
+// MAIN COMPONENT
+// =====================================================
+
 export default function UploadLabScreen() {
   const router = useRouter();
-  //const [isLoading, setIsLoading] = useState(false);
 
   const handleTakePhoto = async () => {
     try {
@@ -28,41 +82,71 @@ export default function UploadLabScreen() {
         return;
       }
 
+      // ✅ FIX: Gunakan MediaTypeOptions untuk versi lama
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         quality: 0.8,
+        base64: false,
       });
 
       if (!result.canceled && result.assets[0]) {
+        const asset = result.assets[0];
+        
+        if (!validateFileSize(asset.fileSize)) {
+          return;
+        }
+        
+        if (!validateImageType(asset.mimeType)) {
+          return;
+        }
+
         router.push({
           pathname: '/screens/cekKesehatan/uploadPreview' as any,
-          params: { imageUri: result.assets[0].uri, type: 'photo' }
+          params: { 
+            imageUri: asset.uri, 
+            type: 'photo' 
+          }
         });
       }
     } catch (error) {
+      console.error('Camera error:', error);
       Alert.alert('Error', 'Gagal mengambil foto');
-      console.error(error);
     }
   };
 
   const handlePickImage = async () => {
     try {
+      // ✅ FIX: Gunakan MediaTypeOptions untuk versi lama
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         quality: 0.8,
+        base64: false,
       });
 
       if (!result.canceled && result.assets[0]) {
+        const asset = result.assets[0];
+        
+        if (!validateFileSize(asset.fileSize)) {
+          return;
+        }
+        
+        if (!validateImageType(asset.mimeType)) {
+          return;
+        }
+
         router.push({
           pathname: '/screens/cekKesehatan/uploadPreview' as any,
-          params: { imageUri: result.assets[0].uri, type: 'gallery' }
+          params: { 
+            imageUri: asset.uri, 
+            type: 'gallery' 
+          }
         });
       }
     } catch (error) {
+      console.error('Gallery error:', error);
       Alert.alert('Error', 'Gagal memilih gambar');
-      console.error(error);
     }
   };
 
@@ -74,18 +158,28 @@ export default function UploadLabScreen() {
       });
 
       if (!result.canceled && result.assets && result.assets[0]) {
+        const asset = result.assets[0];
+        
+        if (!validateFileSize(asset.size)) {
+          return;
+        }
+        
+        if (!validatePdfType(asset.mimeType)) {
+          return;
+        }
+
         router.push({
           pathname: '/screens/cekKesehatan/uploadPreview' as any,
           params: { 
-            documentUri: result.assets[0].uri, 
-            documentName: result.assets[0].name, 
+            documentUri: asset.uri, 
+            documentName: asset.name, 
             type: 'pdf' 
           }
         });
       }
     } catch (error) {
+      console.error('Document picker error:', error);
       Alert.alert('Error', 'Gagal memilih dokumen');
-      console.error(error);
     }
   };
 
@@ -93,7 +187,6 @@ export default function UploadLabScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       
-      {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="chevron-back" size={24} color="#1F2937" />
@@ -107,22 +200,19 @@ export default function UploadLabScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Icon Section */}
         <View style={styles.iconSection}>
           <View style={styles.mainIcon}>
             <Ionicons name="cloud-upload" size={64} color="#ABE7B2" />
           </View>
         </View>
 
-        {/* Title */}
         <View style={styles.titleSection}>
           <Text style={styles.title}>Upload Hasil Laboratorium</Text>
           <Text style={styles.subtitle}>
-            Format: JPG, PNG, PDF (Maksimal 5MB)
+            Format: JPG, PNG, atau PDF (Maksimal 5MB)
           </Text>
         </View>
 
-        {/* Upload Options */}
         <View style={styles.optionsContainer}>
           <Pressable
             style={({ pressed }) => [
@@ -132,7 +222,7 @@ export default function UploadLabScreen() {
             onPress={handleTakePhoto}
           >
             <View style={styles.optionIcon}>
-                <Ionicons name="camera" size={32} color="#ABE7B2" />
+              <Ionicons name="camera" size={32} color="#ABE7B2" />
               <View style={styles.optionContent}>
                 <Text style={styles.optionTitle}>Ambil Foto</Text>
               </View>
@@ -147,7 +237,7 @@ export default function UploadLabScreen() {
             onPress={handlePickImage}
           >
             <View style={styles.optionIcon}>
-                <Ionicons name="images" size={32} color="#93BFC7" />
+              <Ionicons name="images" size={32} color="#93BFC7" />
               <View style={styles.optionContent}>
                 <Text style={styles.optionTitle}>Pilih Galeri</Text>
               </View>
@@ -162,7 +252,7 @@ export default function UploadLabScreen() {
             onPress={handlePickDocument}
           >
             <View style={styles.optionIcon}>
-                <Ionicons name="document" size={32} color="#FFD580" />
+              <Ionicons name="document" size={32} color="#FFD580" />
               <View style={styles.optionContent}>
                 <Text style={styles.optionTitle}>Upload PDF</Text>
               </View>
@@ -170,7 +260,6 @@ export default function UploadLabScreen() {
           </Pressable>
         </View>
 
-        {/* Tips Section */}
         <View style={styles.tipsCard}>
           <View style={styles.tipsHeader}>
             <Ionicons name="bulb" size={20} color="#FFD580" />
@@ -181,6 +270,7 @@ export default function UploadLabScreen() {
             <TipItem text="Pencahayaan cukup terang" />
             <TipItem text="Tampilkan seluruh hasil lab" />
             <TipItem text="Hindari bayangan atau refleksi" />
+            <TipItem text="Format: JPG, PNG, atau PDF" />
           </View>
         </View>
       </ScrollView>
@@ -258,7 +348,6 @@ const styles = StyleSheet.create({
     gap: 25,
     marginBottom: 24,
     justifyContent: 'center',
-    
   },
   optionCard: {
     flexDirection: 'row',
@@ -291,11 +380,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#1F2937',
     marginTop: 8,
-
-  },
-  optionDescription: {
-    fontSize: 13,
-    color: '#6B7280',
   },
   tipsCard: {
     backgroundColor: '#FFFBEB',

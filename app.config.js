@@ -14,10 +14,12 @@ module.exports = {
       backgroundColor: '#ffffff',
     },
     assetBundlePatterns: ['**/*'],
+    
     ios: {
       supportsTablet: true,
       bundleIdentifier: 'com.yourcompany.habitin',
     },
+
     android: {
       package: 'com.anonymous.Habitin',
       googleServicesFile: './google-services.json',
@@ -26,6 +28,11 @@ module.exports = {
         backgroundColor: '#ffffff',
       },
     },
+
+    plugins: [
+      'expo-router',
+    ],
+
     extra: {
       firebase: {
         apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
@@ -39,10 +46,9 @@ module.exports = {
         url: process.env.EXPO_PUBLIC_SUPABASE_URL,
         anonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
       },
-    },
-    plugins: [
-      'expo-router',
-      // ← HAPUS expo-build-properties untuk sekarang
-    ],
+      eas: {
+        projectId: "65a2803d-fb97-470d-a9ff-61804c1f1d39"
+      }
+    }
   },
 };

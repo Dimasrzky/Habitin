@@ -1,34 +1,80 @@
 // app/screens/cekKesehatan/uploadPreview.tsx
-
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Image,
-    Pressable,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  Pressable,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
+import { auth } from '../../../src/config/firebase.config';
+import { useLabUpload } from '../../../src/hooks/useLabUpload';
 
 export default function UploadPreviewScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { processLabUpload } = useLabUpload();
   const [isProcessing, setIsProcessing] = useState(false);
 
   const { imageUri, documentName, type } = params;
 
+  // ✅ Check auth on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        Alert.alert(
+          'Authentication Required',
+          'Please login first to upload lab results.',
+          [
+            {
+              text: 'OK',
+              onPress: () => router.back(),
+            },
+          ]
+        );
+      }
+    };
+    checkAuth();
+  }, [router]);
+
   const handleConfirm = async () => {
-    setIsProcessing(true);
-    
-    // Simulate API call untuk OCR processing
-    setTimeout(() => {
+    try {
+      setIsProcessing(true);
+
+      // ✅ Verify auth again before upload
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        Alert.alert('Session Expired', 'Please login again.');
+        router.replace('/loginSistem/login' as any);
+        return;
+      }
+
+      const uri = (imageUri || params.documentUri) as string;
+      if (!uri) {
+        throw new Error('No file selected');
+      }
+
+      console.log('🚀 Starting upload process...');
+      const resultId = await processLabUpload(uri);
+
+      if (resultId) {
+        router.replace({
+          pathname: '/screens/cekKesehatan/uploadHasil' as any,
+          params: { resultId },
+        });
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+    } finally {
       setIsProcessing(false);
-      router.replace('/screens/cekKesehatan/uploadHasil' as any);
-    }, 3000);
+    }
   };
 
   const handleRetake = () => {
