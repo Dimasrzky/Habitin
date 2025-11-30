@@ -1,4 +1,5 @@
 // app/screens/cekKesehatan/uploadHasil.tsx
+import { auth } from '@/config/firebase.config';
 import { supabase } from '@/config/supabase.config';
 import { LabResult } from '@/types/health.types';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,39 +31,54 @@ export default function UploadResultScreen() {
 
   console.log('📊 Received params:', { labResultId, riskLevel, imageUrl });
 
-  // ✅ FETCH DATA DARI DATABASE
- useEffect(() => {
+  // ✅ FETCH WITH AUTH CHECK
+  useEffect(() => {
     const fetchLabResult = async () => {
       try {
         console.log('🔍 Fetching lab result with ID:', labResultId);
         setLoading(true);
         
-        // ✅ METHOD 1: Try dengan auth context
-        const { data: authData } = await supabase.auth.getUser();
-        console.log('👤 Current user:', authData.user?.id);
+        // ✅ GET FIREBASE USER
+        const firebaseUser = auth.currentUser;
+        console.log('🔐 Firebase user:', firebaseUser?.uid);
         
-        // ✅ METHOD 2: Fetch dengan maybeSingle() untuk avoid error
+        if (!firebaseUser) {
+          console.error('❌ No Firebase user authenticated!');
+          setLoading(false);
+          return;
+        }
+
+        // ✅ METHOD 1: Query dengan explicit user_id filter
         const { data, error } = await supabase
           .from('lab_results')
           .select('*')
           .eq('id', labResultId)
+          .eq('user_id', firebaseUser.uid)  // ← EXPLICIT FILTER
           .maybeSingle();
+
+        console.log('📊 Query result:', { data, error });
 
         if (error) {
           console.error('❌ Supabase error:', error);
           
-          // ✅ FALLBACK: Coba tanpa filter by user_id (untuk debug)
-          const { data: allData, error: allError } = await supabase
+          // ✅ FALLBACK: Try without user_id filter (for debugging)
+          console.log('🔄 Trying fallback query...');
+          const { data: fallbackData, error: fallbackError } = await supabase
             .from('lab_results')
             .select('*')
-            .eq('id', labResultId);
+            .eq('id', labResultId)
+            .limit(1)
+            .single();
           
-          console.log('🔄 Fallback query result:', { allData, allError });
+          console.log('🔄 Fallback result:', { fallbackData, fallbackError });
           
-          if (allError) throw allError;
-          if (allData && allData.length > 0) {
+          if (fallbackError) {
+            throw fallbackError;
+          }
+          
+          if (fallbackData) {
             console.log('✅ Found via fallback!');
-            setLabResult(allData[0] as LabResult);
+            setLabResult(fallbackData as LabResult);
             return;
           }
           
@@ -385,8 +401,7 @@ export default function UploadResultScreen() {
             ]}
             onPress={() => router.push('/(tabs)' as any)}
           >
-            <Ionicons name="home" size={20} color="#6B7280" />
-            <Text style={styles.secondaryButtonText}>Kembali ke Beranda</Text>
+            <Ionicons name="home" size={20} color="#6B7280" left={40} top={32} />
           </Pressable>
 
           <Pressable
@@ -397,7 +412,7 @@ export default function UploadResultScreen() {
             ]}
             onPress={() => router.push('/(tabs)/tantangan' as any)}
           >
-            <Ionicons name="trophy" size={20} color="#FFFFFF" />
+            <Ionicons name="trophy" size={20} color="#eeb300ff" left={120} />
             <Text style={styles.primaryButtonText}>Mulai Tantangan Sehat</Text>
           </Pressable>
         </View>
@@ -660,12 +675,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   secondaryButton: {
-    backgroundColor: '#F3F4F6',
-  },
-  secondaryButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#6B7280',
+    backgroundColor: '#12357cff',
   },
   primaryButton: {
     backgroundColor: '#ABE7B2',
@@ -673,6 +683,8 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#FFFFFF',
+    left: 150,
+    bottom: 22,
+    color: '#000000ff',
   },
 });

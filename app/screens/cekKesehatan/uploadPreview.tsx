@@ -206,7 +206,6 @@ export default function UploadPreviewScreen() {
           onPress={handleRetake}
           disabled={isProcessing}
         >
-          <Ionicons name="refresh" size={20} color="#6B7280" />
           <Text style={styles.retakeText}>Ambil Ulang</Text>
         </Pressable>
 
@@ -226,7 +225,6 @@ export default function UploadPreviewScreen() {
             </>
           ) : (
             <>
-              <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
               <Text style={styles.confirmText}>Konfirmasi & Analisis</Text>
             </>
           )}
@@ -471,7 +469,7 @@ const styles = StyleSheet.create({
     right: 0,
     backgroundColor: '#FFFFFF',
     flexDirection: 'row',
-    padding: 16,
+    padding: 25,
     gap: 12,
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
@@ -487,8 +485,10 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   retakeText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
+    left: 30,
+    bottom: 5,
     color: '#6B7280',
   },
   confirmButton: {
@@ -502,9 +502,11 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   confirmText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '500',
+    left: 90,
+    bottom: 5,
+    color: '#60d955ff',
   },
   buttonDisabled: {
     opacity: 0.6,
