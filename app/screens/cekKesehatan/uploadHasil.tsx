@@ -1,5 +1,4 @@
 // app/screens/cekKesehatan/uploadHasil.tsx
-
 import { supabase } from '@/config/supabase.config';
 import { LabResult } from '@/types/health.types';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,34 +23,73 @@ export default function UploadResultScreen() {
   const [loading, setLoading] = useState(true);
   const [labResult, setLabResult] = useState<LabResult | null>(null);
   
-  const resultId = params.resultId as string;
+  // ✅ FIX: Ambil labResultId dari params (bukan resultId)
+  const labResultId = params.labResultId as string;
+  const riskLevel = params.riskLevel as RiskLevel;
+  const imageUrl = params.imageUrl as string;
+
+  console.log('📊 Received params:', { labResultId, riskLevel, imageUrl });
 
   // ✅ FETCH DATA DARI DATABASE
-  useEffect(() => {
+ useEffect(() => {
     const fetchLabResult = async () => {
       try {
+        console.log('🔍 Fetching lab result with ID:', labResultId);
         setLoading(true);
         
+        // ✅ METHOD 1: Try dengan auth context
+        const { data: authData } = await supabase.auth.getUser();
+        console.log('👤 Current user:', authData.user?.id);
+        
+        // ✅ METHOD 2: Fetch dengan maybeSingle() untuk avoid error
         const { data, error } = await supabase
           .from('lab_results')
           .select('*')
-          .eq('id', resultId)
-          .single();
+          .eq('id', labResultId)
+          .maybeSingle();
 
-        if (error) throw error;
+        if (error) {
+          console.error('❌ Supabase error:', error);
+          
+          // ✅ FALLBACK: Coba tanpa filter by user_id (untuk debug)
+          const { data: allData, error: allError } = await supabase
+            .from('lab_results')
+            .select('*')
+            .eq('id', labResultId);
+          
+          console.log('🔄 Fallback query result:', { allData, allError });
+          
+          if (allError) throw allError;
+          if (allData && allData.length > 0) {
+            console.log('✅ Found via fallback!');
+            setLabResult(allData[0] as LabResult);
+            return;
+          }
+          
+          throw error;
+        }
         
+        if (!data) {
+          console.error('❌ No data found for ID:', labResultId);
+          return;
+        }
+        
+        console.log('✅ Lab result fetched:', data);
         setLabResult(data as LabResult);
       } catch (error) {
-        console.error('Error fetching lab result:', error);
+        console.error('❌ Error fetching lab result:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    if (resultId) {
+    if (labResultId) {
       fetchLabResult();
+    } else {
+      console.error('❌ No labResultId provided!');
+      setLoading(false);
     }
-  }, [resultId]);
+  }, [labResultId]);
 
   const getRiskColor = (level: RiskLevel) => {
     switch (level) {
@@ -92,6 +130,10 @@ export default function UploadResultScreen() {
         if (value < 100) return '#ABE7B2';
         if (value < 126) return '#FFD580';
         return '#FFB4B4';
+      case 'hba1c':
+        if (value < 5.7) return '#ABE7B2';
+        if (value < 6.5) return '#FFD580';
+        return '#FFB4B4';
       case 'cholesterol_total':
         if (value < 200) return '#ABE7B2';
         if (value < 240) return '#FFD580';
@@ -128,6 +170,18 @@ export default function UploadResultScreen() {
     return '-';
   };
 
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+  };
+
+  // =====================================================
+  // LOADING STATE
+  // =====================================================
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -137,14 +191,20 @@ export default function UploadResultScreen() {
     );
   }
 
+  // =====================================================
+  // ERROR STATE
+  // =====================================================
   if (!labResult) {
     return (
       <View style={styles.loadingContainer}>
         <Ionicons name="alert-circle" size={64} color="#EF4444" />
         <Text style={styles.errorText}>Data tidak ditemukan</Text>
+        <Text style={styles.errorSubtext}>
+          ID: {labResultId || 'Tidak ada ID'}
+        </Text>
         <Pressable
           style={styles.backButton}
-          onPress={() => router.back()}
+          onPress={() => router.push('/(tabs)/cekKesehatan' as any)}
         >
           <Text style={styles.backButtonText}>Kembali</Text>
         </Pressable>
@@ -152,13 +212,23 @@ export default function UploadResultScreen() {
     );
   }
 
+  // =====================================================
+  // PREPARE TEST RESULTS
+  // =====================================================
   const testResults = [
     {
-      name: 'Gula Darah',
+      name: 'Gula Darah Puasa',
       value: labResult.glucose_level,
       unit: 'mg/dL',
       type: 'glucose',
       normalRange: '< 100 mg/dL',
+    },
+    {
+      name: 'HbA1c',
+      value: labResult.hba1c,
+      unit: '%',
+      type: 'hba1c',
+      normalRange: '< 5.7%',
     },
     {
       name: 'Kolesterol Total',
@@ -168,14 +238,14 @@ export default function UploadResultScreen() {
       normalRange: '< 200 mg/dL',
     },
     {
-      name: 'LDL',
+      name: 'Kolesterol LDL',
       value: labResult.cholesterol_ldl,
       unit: 'mg/dL',
       type: 'ldl',
       normalRange: '< 100 mg/dL',
     },
     {
-      name: 'HDL',
+      name: 'Kolesterol HDL',
       value: labResult.cholesterol_hdl,
       unit: 'mg/dL',
       type: 'hdl',
@@ -190,13 +260,19 @@ export default function UploadResultScreen() {
     },
   ].filter(test => test.value !== null); // Hanya tampilkan yang ada datanya
 
+  // =====================================================
+  // MAIN RENDER
+  // =====================================================
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       
       {/* Header */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.headerBackButton}>
+        <Pressable 
+          onPress={() => router.push('/(tabs)' as any)} 
+          style={styles.headerBackButton}
+        >
           <Ionicons name="chevron-back" size={24} color="#1F2937" />
         </Pressable>
         <Text style={styles.headerTitle}>Hasil Analisis</Text>
@@ -210,9 +286,20 @@ export default function UploadResultScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Success Icon */}
+        <View style={styles.successIconContainer}>
+          <View style={styles.successIcon}>
+            <Ionicons name="checkmark-circle" size={64} color="#ABE7B2" />
+          </View>
+          <Text style={styles.successTitle}>Analisis Selesai!</Text>
+          <Text style={styles.successSubtitle}>
+            Hasil lab berhasil dianalisis
+          </Text>
+        </View>
+
         {/* Status Card */}
         <View style={styles.statusCard}>
-          <Text style={styles.statusLabel}>Status Kesehatan</Text>
+          <Text style={styles.statusLabel}>Status Kesehatan Anda</Text>
           <View style={[
             styles.riskBadge, 
             { backgroundColor: getRiskColor(labResult.risk_level) }
@@ -223,6 +310,9 @@ export default function UploadResultScreen() {
             </Text>
           </View>
           <Text style={styles.scoreText}>Skor: {labResult.risk_score}/100</Text>
+          <Text style={styles.dateText}>
+            {formatDate(labResult.created_at)}
+          </Text>
           <Text style={styles.resultDescription}>
             {getRiskDescription(labResult.risk_level)}
           </Text>
@@ -273,6 +363,18 @@ export default function UploadResultScreen() {
           </View>
         ))}
 
+        {/* Info Card */}
+        <View style={styles.infoCard}>
+          <View style={styles.infoHeader}>
+            <Ionicons name="information-circle" size={20} color="#93BFC7" />
+            <Text style={styles.infoTitle}>Catatan</Text>
+          </View>
+          <Text style={styles.infoText}>
+            Hasil analisis ini berdasarkan data yang terdeteksi dari hasil lab Anda. 
+            Untuk diagnosis yang akurat, konsultasikan dengan dokter.
+          </Text>
+        </View>
+
         {/* Action Buttons */}
         <View style={styles.actionsContainer}>
           <Pressable
@@ -296,7 +398,7 @@ export default function UploadResultScreen() {
             onPress={() => router.push('/(tabs)/tantangan' as any)}
           >
             <Ionicons name="trophy" size={20} color="#FFFFFF" />
-            <Text style={styles.primaryButtonText}>Mulai Tantangan</Text>
+            <Text style={styles.primaryButtonText}>Mulai Tantangan Sehat</Text>
           </Pressable>
         </View>
 
@@ -305,6 +407,10 @@ export default function UploadResultScreen() {
     </View>
   );
 }
+
+// =====================================================
+// STYLES
+// =====================================================
 
 const styles = StyleSheet.create({
   container: {
@@ -326,19 +432,27 @@ const styles = StyleSheet.create({
   errorText: {
     marginTop: 12,
     fontSize: 16,
+    fontWeight: '600',
     color: '#EF4444',
+    textAlign: 'center',
+  },
+  errorSubtext: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#9CA3AF',
     textAlign: 'center',
   },
   backButton: {
     marginTop: 20,
     backgroundColor: '#ABE7B2',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
   },
   backButtonText: {
     color: '#1F2937',
     fontWeight: '600',
+    fontSize: 15,
   },
   header: {
     flexDirection: 'row',
@@ -346,6 +460,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
+    marginTop: 30,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
@@ -367,11 +482,29 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
   },
+  successIconContainer: {
+    alignItems: 'center',
+    marginBottom: 24,
+    paddingVertical: 16,
+  },
+  successIcon: {
+    marginBottom: 12,
+  },
+  successTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  successSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
   statusCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 24,
-    marginBottom: 16,
+    marginBottom: 24,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E5E7EB',
@@ -408,7 +541,13 @@ const styles = StyleSheet.create({
   },
   scoreText: {
     fontSize: 14,
+    fontWeight: '600',
     color: '#6B7280',
+    marginBottom: 4,
+  },
+  dateText: {
+    fontSize: 12,
+    color: '#9CA3AF',
     marginBottom: 12,
   },
   resultDescription: {
@@ -485,6 +624,28 @@ const styles = StyleSheet.create({
   progressFill: {
     height: '100%',
     borderRadius: 4,
+  },
+  infoCard: {
+    backgroundColor: '#E3F2FD',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  infoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  infoTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  infoText: {
+    fontSize: 13,
+    color: '#6B7280',
+    lineHeight: 18,
   },
   actionsContainer: {
     gap: 12,

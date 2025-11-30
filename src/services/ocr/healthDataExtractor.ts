@@ -1,55 +1,143 @@
 // src/services/ocr/healthDataExtractor.ts
-
 import { ExtractedHealthData } from '../../types/health.types';
 
 /**
- * ✅ Extract health data from OCR text
- * @param ocrText - Raw text from OCR
- * @returns Extracted health data with numerical values
+ * Extract health data from OCR text
+ * Supports various lab result formats
  */
-export const extractHealthData = (ocrText: string): ExtractedHealthData => {
+export function extractHealthData(ocrText: string): ExtractedHealthData {
   console.log('📊 Extracting health data from OCR text...');
   
-  // Normalize text: lowercase, remove extra spaces
-  const normalizedText = ocrText.toLowerCase().replace(/\s+/g, ' ');
+  // Normalize text: lowercase, remove extra spaces/newlines
+  const normalizedText = ocrText
+    .toLowerCase()
+    .replace(/\s+/g, ' ')  // Replace multiple spaces/newlines with single space
+    .trim();
   
   console.log('📝 Normalized text preview:', normalizedText.substring(0, 200));
 
-  // ✅ Regex patterns untuk ekstrak data
-  const patterns = {
-    glucose: /gula\s*darah\s*(?:puasa)?\s*[:\-]?\s*(\d{2,3})/i,
-    cholesterolTotal: /kolesterol\s*total\s*[:\-]?\s*(\d{2,3})/i,
-    ldl: /ldl\s*[:\-]?\s*(\d{2,3})/i,
-    hdl: /hdl\s*[:\-]?\s*(\d{2,3})/i,
-    triglycerides: /trigliserida?\s*[:\-]?\s*(\d{2,3})/i,
-    hba1c: /hba1c\s*[:\-]?\s*(\d{1,2}\.?\d?)/i,
-  };
-
-  // ✅ Extract values
-  const glucose = patterns.glucose.exec(normalizedText);
-  const cholesterolTotal = patterns.cholesterolTotal.exec(normalizedText);
-  const ldl = patterns.ldl.exec(normalizedText);
-  const hdl = patterns.hdl.exec(normalizedText);
-  const triglycerides = patterns.triglycerides.exec(normalizedText);
-  const hba1c = patterns.hba1c.exec(normalizedText);
-
   const result: ExtractedHealthData = {
-    glucose_level: glucose ? parseInt(glucose[1], 10) : null,
-    cholesterol_total: cholesterolTotal ? parseInt(cholesterolTotal[1], 10) : null,
-    cholesterol_ldl: ldl ? parseInt(ldl[1], 10) : null,
-    cholesterol_hdl: hdl ? parseInt(hdl[1], 10) : null,
-    triglycerides: triglycerides ? parseInt(triglycerides[1], 10) : null,
-    hba1c: hba1c ? parseFloat(hba1c[1]) : null,
+    glucose_level: null,
+    cholesterol_total: null,
+    cholesterol_ldl: null,
+    cholesterol_hdl: null,
+    triglycerides: null,
+    hba1c: null,
   };
 
-  console.log('✅ Extracted health data:', result);
+  // ==============================================
+  // GLUCOSE PATTERNS
+  // ==============================================
+  const glucosePatterns = [
+    /glukosa\s*puasa[:\s]*(\d+(?:[.,]\d+)?)/i,
+    /gula\s*darah\s*puasa[:\s]*(\d+(?:[.,]\d+)?)/i,
+    /glucose\s*fasting[:\s]*(\d+(?:[.,]\d+)?)/i,
+    /fasting\s*glucose[:\s]*(\d+(?:[.,]\d+)?)/i,
+    /gdp[:\s]*(\d+(?:[.,]\d+)?)/i,
+  ];
 
-  // Check if at least one value was extracted
-  const hasAnyData = Object.values(result).some(value => value !== null);
-  
-  if (!hasAnyData) {
-    console.warn('⚠️ No health data could be extracted from OCR text');
+  for (const pattern of glucosePatterns) {
+    const match = normalizedText.match(pattern);
+    if (match) {
+      result.glucose_level = parseFloat(match[1].replace(',', '.'));
+      console.log('✅ Found glucose:', result.glucose_level);
+      break;
+    }
   }
 
+  // ==============================================
+  // HbA1c PATTERNS
+  // ==============================================
+  const hba1cPatterns = [
+    /hb\s*a1c[:\s]*(\d+(?:[.,]\d+)?)/i,
+    /hemoglobin\s*a1c[:\s]*(\d+(?:[.,]\d+)?)/i,
+    /glycated\s*hemoglobin[:\s]*(\d+(?:[.,]\d+)?)/i,
+  ];
+
+  for (const pattern of hba1cPatterns) {
+    const match = normalizedText.match(pattern);
+    if (match) {
+      result.hba1c = parseFloat(match[1].replace(',', '.'));
+      console.log('✅ Found HbA1c:', result.hba1c);
+      break;
+    }
+  }
+
+  // ==============================================
+  // CHOLESTEROL TOTAL PATTERNS
+  // ==============================================
+  const cholesterolTotalPatterns = [
+    /cholesterol\s*total[:\s]*(\d+(?:[.,]\d+)?)/i,
+    /kolesterol\s*total[:\s]*(\d+(?:[.,]\d+)?)/i,
+    /total\s*cholesterol[:\s]*(\d+(?:[.,]\d+)?)/i,
+    /total\s*kolesterol[:\s]*(\d+(?:[.,]\d+)?)/i,
+  ];
+
+  for (const pattern of cholesterolTotalPatterns) {
+    const match = normalizedText.match(pattern);
+    if (match) {
+      result.cholesterol_total = parseFloat(match[1].replace(',', '.'));
+      console.log('✅ Found cholesterol total:', result.cholesterol_total);
+      break;
+    }
+  }
+
+  // ==============================================
+  // LDL PATTERNS
+  // ==============================================
+  const ldlPatterns = [
+    /cholesterol\s*ldl[:\s]*(\d+(?:[.,]\d+)?)/i,
+    /kolesterol\s*ldl[:\s]*(\d+(?:[.,]\d+)?)/i,
+    /ldl\s*cholesterol[:\s]*(\d+(?:[.,]\d+)?)/i,
+    /ldl[:\s]*(\d+(?:[.,]\d+)?)/i,
+  ];
+
+  for (const pattern of ldlPatterns) {
+    const match = normalizedText.match(pattern);
+    if (match) {
+      result.cholesterol_ldl = parseFloat(match[1].replace(',', '.'));
+      console.log('✅ Found LDL:', result.cholesterol_ldl);
+      break;
+    }
+  }
+
+  // ==============================================
+  // HDL PATTERNS
+  // ==============================================
+  const hdlPatterns = [
+    /cholesterol\s*hdl[:\s]*(\d+(?:[.,]\d+)?)/i,
+    /kolesterol\s*hdl[:\s]*(\d+(?:[.,]\d+)?)/i,
+    /hdl\s*cholesterol[:\s]*(\d+(?:[.,]\d+)?)/i,
+    /hdl[:\s]*(\d+(?:[.,]\d+)?)/i,
+  ];
+
+  for (const pattern of hdlPatterns) {
+    const match = normalizedText.match(pattern);
+    if (match) {
+      result.cholesterol_hdl = parseFloat(match[1].replace(',', '.'));
+      console.log('✅ Found HDL:', result.cholesterol_hdl);
+      break;
+    }
+  }
+
+  // ==============================================
+  // TRIGLYCERIDES PATTERNS
+  // ==============================================
+  const triglyceridesPatterns = [
+    /trigliserida[:\s]*(\d+(?:[.,]\d+)?)/i,
+    /triglycerides[:\s]*(\d+(?:[.,]\d+)?)/i,
+    /trigliserid[:\s]*(\d+(?:[.,]\d+)?)/i,
+  ];
+
+  for (const pattern of triglyceridesPatterns) {
+    const match = normalizedText.match(pattern);
+    if (match) {
+      result.triglycerides = parseFloat(match[1].replace(',', '.'));
+      console.log('✅ Found triglycerides:', result.triglycerides);
+      break;
+    }
+  }
+
+  console.log('✅ Extracted health data:', result);
   return result;
-};
+}

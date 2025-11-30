@@ -1,7 +1,9 @@
 // app/screens/cekKesehatan/uploadPreview.tsx
+
+import { useLabUpload } from '@/hooks/useLabUpload';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -13,72 +15,108 @@ import {
   Text,
   View,
 } from 'react-native';
-import { auth } from '../../../src/config/firebase.config';
-import { useLabUpload } from '../../../src/hooks/useLabUpload';
 
 export default function UploadPreviewScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { processLabUpload } = useLabUpload();
   const [isProcessing, setIsProcessing] = useState(false);
+  const { processLabUpload, uploadProgress } = useLabUpload();
 
   const { imageUri, documentName, type } = params;
 
-  // ✅ Check auth on mount
-  useEffect(() => {
-    const checkAuth = async () => {
-      const currentUser = auth.currentUser;
-      if (!currentUser) {
+  const handleConfirm = async () => {
+    if (isProcessing) return;
+    
+    setIsProcessing(true);
+
+    try {
+      console.log('🚀 Starting upload process...');
+      
+      const result = await processLabUpload(imageUri as string);
+      
+      console.log('📊 Upload result:', result);
+
+      if (result.success) {
+        console.log('✅ Upload process complete!');
+        
+        // Navigate to result screen with data
+        router.replace({
+          pathname: '/screens/cekKesehatan/uploadHasil',
+          params: {
+            imageUrl: result.imageUrl,
+            riskLevel: result.riskLevel,
+            labResultId: result.labResultId,
+          },
+        });
+      } else {
+        // Show error
         Alert.alert(
-          'Authentication Required',
-          'Please login first to upload lab results.',
-          [
-            {
-              text: 'OK',
-              onPress: () => router.back(),
-            },
-          ]
+          'Upload Gagal',
+          result.error || 'Terjadi kesalahan saat mengupload hasil lab',
+          [{ text: 'OK', onPress: () => setIsProcessing(false) }]
         );
       }
-    };
-    checkAuth();
-  }, [router]);
-
-  const handleConfirm = async () => {
-    try {
-      setIsProcessing(true);
-
-      // ✅ Verify auth again before upload
-      const currentUser = auth.currentUser;
-      if (!currentUser) {
-        Alert.alert('Session Expired', 'Please login again.');
-        router.replace('/loginSistem/login' as any);
-        return;
-      }
-
-      const uri = (imageUri || params.documentUri) as string;
-      if (!uri) {
-        throw new Error('No file selected');
-      }
-
-      console.log('🚀 Starting upload process...');
-      const resultId = await processLabUpload(uri);
-
-      if (resultId) {
-        router.replace({
-          pathname: '/screens/cekKesehatan/uploadHasil' as any,
-          params: { resultId },
-        });
-      }
     } catch (error) {
-      console.error('Upload error:', error);
-    } finally {
-      setIsProcessing(false);
+      console.error('❌ Upload error:', error);
+      Alert.alert(
+        'Error',
+        'Terjadi kesalahan tak terduga. Silakan coba lagi.',
+        [{ text: 'OK', onPress: () => setIsProcessing(false) }]
+      );
     }
   };
 
   const handleRetake = () => {
     router.back();
+  };
+
+  // Get loading message based on progress
+  const getLoadingMessage = () => {
+    switch (uploadProgress) {
+      case 'uploading':
+        return {
+          title: 'Mengupload File...',
+          subtitle: 'Menyimpan gambar ke server',
+          icon: 'cloud-upload' as const,
+        };
+      case 'ocr':
+        return {
+          title: 'Membaca Hasil Lab...',
+          subtitle: 'Mengekstrak teks dari gambar',
+          icon: 'scan' as const,
+        };
+      case 'analyzing':
+        return {
+          title: 'Menganalisis Data...',
+          subtitle: 'Menghitung risiko kesehatan',
+          icon: 'analytics' as const,
+        };
+      case 'saving':
+        return {
+          title: 'Menyimpan Hasil...',
+          subtitle: 'Menyimpan ke database',
+          icon: 'save' as const,
+        };
+      default:
+        return {
+          title: 'Memproses...',
+          subtitle: 'Mohon tunggu',
+          icon: 'hourglass' as const,
+        };
+    }
+  };
+
+  const loadingMessage = getLoadingMessage();
+
+  // Get progress step status
+  const getStepStatus = (step: number): 'completed' | 'active' | 'pending' => {
+    const steps = ['uploading', 'ocr', 'analyzing', 'saving'];
+    const currentStepIndex = uploadProgress ? steps.indexOf(uploadProgress) : -1;
+    
+    if (currentStepIndex === -1) return 'pending';
+    if (step < currentStepIndex) return 'completed';
+    if (step === currentStepIndex) return 'active';
+    return 'pending';
   };
 
   return (
@@ -136,6 +174,12 @@ export default function UploadPreviewScreen() {
             <InfoItem text="Trigliserida" />
             <InfoItem text="HbA1c (jika ada)" />
           </View>
+          <View style={styles.autoDetectNote}>
+            <Ionicons name="sparkles" size={16} color="#FFD580" />
+            <Text style={styles.autoDetectText}>
+              Sistem akan otomatis mendeteksi jenis pemeriksaan (Diabetes/Kolesterol)
+            </Text>
+          </View>
         </View>
 
         {/* Privacy Notice */}
@@ -157,6 +201,7 @@ export default function UploadPreviewScreen() {
           style={({ pressed }) => [
             styles.retakeButton,
             { opacity: pressed ? 0.8 : 1 },
+            isProcessing && styles.buttonDisabled,
           ]}
           onPress={handleRetake}
           disabled={isProcessing}
@@ -187,9 +232,52 @@ export default function UploadPreviewScreen() {
           )}
         </Pressable>
       </View>
+
+      {/* Loading Overlay */}
+      {isProcessing && (
+        <View style={styles.loadingOverlay}>
+          <View style={styles.loadingCard}>
+            {/* Icon Container */}
+            <View style={styles.loadingIconContainer}>
+              <Ionicons name={loadingMessage.icon} size={40} color="#ABE7B2" />
+            </View>
+
+            {/* Spinner */}
+            <ActivityIndicator size="large" color="#ABE7B2" style={styles.spinner} />
+
+            {/* Title & Subtitle */}
+            <Text style={styles.loadingTitle}>{loadingMessage.title}</Text>
+            <Text style={styles.loadingSubtitle}>{loadingMessage.subtitle}</Text>
+
+            {/* Progress Steps */}
+            <View style={styles.progressSteps}>
+              <ProgressStep 
+                label="Upload" 
+                status={getStepStatus(0)} 
+              />
+              <ProgressStep 
+                label="OCR" 
+                status={getStepStatus(1)} 
+              />
+              <ProgressStep 
+                label="Analisis" 
+                status={getStepStatus(2)} 
+              />
+              <ProgressStep 
+                label="Simpan" 
+                status={getStepStatus(3)} 
+              />
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
+
+// =====================================================
+// HELPER COMPONENTS
+// =====================================================
 
 const InfoItem = ({ text }: { text: string }) => (
   <View style={styles.infoItem}>
@@ -197,6 +285,45 @@ const InfoItem = ({ text }: { text: string }) => (
     <Text style={styles.infoItemText}>{text}</Text>
   </View>
 );
+
+const ProgressStep = ({ 
+  label, 
+  status 
+}: { 
+  label: string; 
+  status: 'completed' | 'active' | 'pending';
+}) => {
+  const getColor = () => {
+    if (status === 'completed') return '#ABE7B2';
+    if (status === 'active') return '#ABE7B2';
+    return '#E5E7EB';
+  };
+
+  return (
+    <View style={styles.progressStep}>
+      <View style={[styles.progressStepCircle, { backgroundColor: getColor() }]}>
+        {status === 'completed' ? (
+          <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+        ) : (
+          <View style={[
+            styles.progressStepDot, 
+            { backgroundColor: status === 'active' ? '#FFFFFF' : '#9CA3AF' }
+          ]} />
+        )}
+      </View>
+      <Text style={[
+        styles.progressStepLabel,
+        { color: status === 'pending' ? '#9CA3AF' : '#1F2937' }
+      ]}>
+        {label}
+      </Text>
+    </View>
+  );
+};
+
+// =====================================================
+// STYLES
+// =====================================================
 
 const styles = StyleSheet.create({
   container: {
@@ -212,6 +339,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
+    marginTop: 30,
   },
   backButton: {
     padding: 4,
@@ -300,6 +428,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#374151',
   },
+  autoDetectNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(147, 191, 199, 0.2)',
+  },
+  autoDetectText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#6B7280',
+    fontStyle: 'italic',
+  },
   privacyCard: {
     backgroundColor: '#F3F4F6',
     borderRadius: 12,
@@ -365,5 +508,82 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.6,
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999,
+  },
+  loadingCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 32,
+    alignItems: 'center',
+    width: '85%',
+    maxWidth: 340,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  loadingIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#ECF4E8',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  spinner: {
+    marginVertical: 16,
+  },
+  loadingTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  loadingSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  progressSteps: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginTop: 8,
+  },
+  progressStep: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  progressStepCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  progressStepDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  progressStepLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    textAlign: 'center',
   },
 });

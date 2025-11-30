@@ -1,5 +1,4 @@
-// src/services/health/healthAPI.ts
-import { supabaseStorage as supabase } from '@/config/supabase.storage'; // ← CHANGED
+import { supabaseStorage as supabase } from '@/config/supabase.storage';
 import { LabResult } from '@/types/health.types';
 
 /**
@@ -18,7 +17,8 @@ export async function saveLabResult(
     hba1c: number | null;
   },
   riskLevel: 'rendah' | 'sedang' | 'tinggi',
-  riskScore: number
+  riskScore: number,
+  rawOcrText?: string  // ← NEW PARAMETER
 ): Promise<LabResult> {
   try {
     console.log('💾 Saving lab result to database...');
@@ -40,7 +40,9 @@ export async function saveLabResult(
         hba1c: data.hba1c,
         risk_level: riskLevel,
         risk_score: riskScore,
+        raw_ocr_text: rawOcrText || null,  // ← SAVE OCR TEXT
         created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       })
       .select()
       .single();

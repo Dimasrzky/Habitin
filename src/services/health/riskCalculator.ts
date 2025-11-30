@@ -1,130 +1,198 @@
 // src/services/health/riskCalculator.ts
 
-import { ExtractedHealthData, RiskLevel } from '../../types/health.types';
+interface HealthData {
+  glucose_level: number | null;
+  cholesterol_total: number | null;
+  cholesterol_ldl: number | null;
+  cholesterol_hdl: number | null;
+  triglycerides: number | null;
+  hba1c: number | null;
+}
 
-export interface RiskAnalysis {
-  level: RiskLevel;
+interface RiskResult {
+  level: 'rendah' | 'sedang' | 'tinggi';
   score: number;
   recommendations: string[];
+  detectedConditions: ('diabetes' | 'cholesterol')[];
 }
 
 /**
- * ✅ Calculate health risk based on lab values
- * Total score: 0-100 (higher = more risk)
- * 
- * Scoring breakdown:
- * - Glucose: 0-40 points
- * - Cholesterol Total: 0-25 points
- * - LDL: 0-20 points
- * - HDL: 0-10 points (penalty if low)
- * - Triglycerides: 0-15 points
- * - HbA1c: bonus +10 if ≥6.5%
+ * Calculate health risk based on lab results
+ * Auto-detects which conditions are present
  */
-export const calculateRisk = (data: ExtractedHealthData): RiskAnalysis => {
+export function calculateHealthRisk(data: HealthData): RiskResult {
   console.log('⚖️ Calculating health risk...');
-  
-  let score = 0;
+  console.log('📊 Input data:', data);
+
+  let totalScore = 0;
   const recommendations: string[] = [];
+  const detectedConditions: ('diabetes' | 'cholesterol')[] = [];
 
-  // 1. Glucose Level (40 points max)
-  if (data.glucose_level !== null) {
-    if (data.glucose_level < 100) {
-      // Normal
-      score += 0;
-    } else if (data.glucose_level < 126) {
-      // Prediabetes
-      score += 20;
-      recommendations.push('Kadar gula darah Anda dalam kategori prediabetes. Kurangi konsumsi gula dan karbohidrat sederhana.');
-    } else {
-      // Diabetes range
-      score += 40;
-      recommendations.push('⚠️ Kadar gula darah tinggi! Segera konsultasi dengan dokter.');
+  // ==============================================
+  // DETECT WHICH CONDITIONS ARE PRESENT
+  // ==============================================
+  
+  const hasDiabetesData = data.glucose_level !== null || data.hba1c !== null;
+  const hasCholesterolData = 
+    data.cholesterol_total !== null || 
+    data.cholesterol_ldl !== null || 
+    data.cholesterol_hdl !== null || 
+    data.triglycerides !== null;
+
+  console.log('🔍 Detected conditions:', {
+    diabetes: hasDiabetesData,
+    cholesterol: hasCholesterolData,
+  });
+
+  // ==============================================
+  // DIABETES RISK (if data available)
+  // ==============================================
+  
+  if (hasDiabetesData) {
+    detectedConditions.push('diabetes');
+    console.log('🩺 Analyzing diabetes markers...');
+
+    // Glucose Level
+    if (data.glucose_level !== null) {
+      if (data.glucose_level < 100) {
+        console.log('✅ Glucose normal:', data.glucose_level);
+      } else if (data.glucose_level < 126) {
+        totalScore += 15;
+        recommendations.push('Gula darah prediabetes. Kurangi konsumsi gula dan karbohidrat sederhana.');
+        console.log('⚠️ Glucose prediabetes:', data.glucose_level);
+      } else {
+        totalScore += 30;
+        recommendations.push('⚠️ Gula darah tinggi (diabetes). Segera konsultasi dokter!');
+        console.log('🚨 Glucose diabetes:', data.glucose_level);
+      }
+    }
+
+    // HbA1c
+    if (data.hba1c !== null) {
+      if (data.hba1c < 5.7) {
+        console.log('✅ HbA1c normal:', data.hba1c);
+      } else if (data.hba1c < 6.5) {
+        totalScore += 15;
+        recommendations.push('HbA1c prediabetes. Jaga pola makan dan olahraga rutin.');
+        console.log('⚠️ HbA1c prediabetes:', data.hba1c);
+      } else {
+        totalScore += 30;
+        recommendations.push('⚠️ HbA1c tinggi (diabetes). Konsultasi dokter untuk terapi.');
+        console.log('🚨 HbA1c diabetes:', data.hba1c);
+      }
     }
   }
 
-  // 2. Cholesterol Total (25 points max)
-  if (data.cholesterol_total !== null) {
-    if (data.cholesterol_total < 200) {
-      // Normal
-      score += 0;
-    } else if (data.cholesterol_total < 240) {
-      // Borderline high
-      score += 12;
-      recommendations.push('Kolesterol total borderline tinggi. Kurangi makanan berlemak jenuh.');
-    } else {
-      // High
-      score += 25;
-      recommendations.push('⚠️ Kolesterol total tinggi! Perbanyak serat dan olahraga rutin.');
+  // ==============================================
+  // CHOLESTEROL RISK (if data available)
+  // ==============================================
+  
+  if (hasCholesterolData) {
+    detectedConditions.push('cholesterol');
+    console.log('💉 Analyzing cholesterol markers...');
+
+    // Total Cholesterol
+    if (data.cholesterol_total !== null) {
+      if (data.cholesterol_total < 200) {
+        console.log('✅ Total cholesterol normal:', data.cholesterol_total);
+      } else if (data.cholesterol_total < 240) {
+        totalScore += 10;
+        recommendations.push('Kolesterol total borderline. Batasi lemak jenuh.');
+        console.log('⚠️ Total cholesterol borderline:', data.cholesterol_total);
+      } else {
+        totalScore += 25;
+        recommendations.push('⚠️ Kolesterol total tinggi. Hindari gorengan dan fast food.');
+        console.log('🚨 Total cholesterol high:', data.cholesterol_total);
+      }
+    }
+
+    // LDL Cholesterol
+    if (data.cholesterol_ldl !== null) {
+      if (data.cholesterol_ldl < 100) {
+        console.log('✅ LDL optimal:', data.cholesterol_ldl);
+      } else if (data.cholesterol_ldl < 130) {
+        totalScore += 5;
+        recommendations.push('LDL di atas optimal. Hindari makanan tinggi lemak trans.');
+        console.log('⚠️ LDL near optimal:', data.cholesterol_ldl);
+      } else if (data.cholesterol_ldl < 160) {
+        totalScore += 15;
+        recommendations.push('LDL borderline tinggi. Tingkatkan konsumsi serat.');
+        console.log('⚠️ LDL borderline high:', data.cholesterol_ldl);
+      } else {
+        totalScore += 25;
+        recommendations.push('⚠️ LDL tinggi. Konsultasi dokter untuk terapi penurun kolesterol.');
+        console.log('🚨 LDL high:', data.cholesterol_ldl);
+      }
+    }
+
+    // HDL Cholesterol
+    if (data.cholesterol_hdl !== null) {
+      if (data.cholesterol_hdl >= 60) {
+        totalScore -= 5; // Bonus untuk HDL tinggi
+        console.log('✅ HDL excellent (protective):', data.cholesterol_hdl);
+      } else if (data.cholesterol_hdl >= 40) {
+        console.log('✅ HDL normal:', data.cholesterol_hdl);
+      } else {
+        totalScore += 10;
+        recommendations.push('HDL rendah. Tingkatkan dengan olahraga aerobik.');
+        console.log('⚠️ HDL low:', data.cholesterol_hdl);
+      }
+    }
+
+    // Triglycerides
+    if (data.triglycerides !== null) {
+      if (data.triglycerides < 150) {
+        console.log('✅ Triglycerides normal:', data.triglycerides);
+      } else if (data.triglycerides < 200) {
+        totalScore += 10;
+        recommendations.push('Trigliserida borderline. Kurangi konsumsi gula dan alkohol.');
+        console.log('⚠️ Triglycerides borderline:', data.triglycerides);
+      } else {
+        totalScore += 20;
+        recommendations.push('⚠️ Trigliserida tinggi. Batasi karbohidrat dan lemak.');
+        console.log('🚨 Triglycerides high:', data.triglycerides);
+      }
     }
   }
 
-  // 3. LDL Cholesterol (20 points max)
-  if (data.cholesterol_ldl !== null) {
-    if (data.cholesterol_ldl < 100) {
-      // Optimal
-      score += 0;
-    } else if (data.cholesterol_ldl < 160) {
-      // Near/above optimal
-      score += 10;
-      recommendations.push('LDL kolesterol di atas optimal. Hindari makanan tinggi lemak trans.');
-    } else {
-      // High
-      score += 20;
-      recommendations.push('⚠️ LDL kolesterol tinggi! Konsultasi dokter untuk penanganan lebih lanjut.');
-    }
+  // ==============================================
+  // NO DATA CASE
+  // ==============================================
+  
+  if (!hasDiabetesData && !hasCholesterolData) {
+    console.log('⚠️ No health data detected in lab result');
+    return {
+      level: 'rendah',
+      score: 0,
+      recommendations: ['Data lab tidak lengkap. Upload ulang dengan foto yang lebih jelas.'],
+      detectedConditions: [],
+    };
   }
 
-  // 4. HDL Cholesterol (10 points penalty if low)
-  if (data.cholesterol_hdl !== null) {
-    if (data.cholesterol_hdl < 40) {
-      score += 10;
-      recommendations.push('HDL (kolesterol baik) rendah. Tingkatkan dengan olahraga aerobik.');
-    }
-    // No penalty if normal/high HDL
-  }
-
-  // 5. Triglycerides (15 points max)
-  if (data.triglycerides !== null) {
-    if (data.triglycerides < 150) {
-      // Normal
-      score += 0;
-    } else if (data.triglycerides < 200) {
-      // Borderline high
-      score += 7;
-      recommendations.push('Trigliserida borderline tinggi. Kurangi konsumsi karbohidrat dan alkohol.');
-    } else {
-      // High
-      score += 15;
-      recommendations.push('⚠️ Trigliserida tinggi! Hindari makanan tinggi gula dan lemak.');
-    }
-  }
-
-  // 6. HbA1c Bonus (if available)
-  if (data.hba1c !== null && data.hba1c >= 6.5) {
-    score += 10;
-    recommendations.push('⚠️ HbA1c menunjukkan indikasi diabetes. Segera konsultasi dokter!');
-  }
-
-  // Determine risk level
-  let level: RiskLevel;
-  if (score < 30) {
+  // ==============================================
+  // DETERMINE RISK LEVEL
+  // ==============================================
+  
+  let level: 'rendah' | 'sedang' | 'tinggi';
+  
+  if (totalScore < 15) {
     level = 'rendah';
-    if (recommendations.length === 0) {
-      recommendations.push('Hasil lab Anda baik! Pertahankan gaya hidup sehat.');
-    }
-  } else if (score < 60) {
+  } else if (totalScore < 40) {
     level = 'sedang';
-    recommendations.push('✅ Mulai tantangan hidup sehat untuk menurunkan risiko.');
   } else {
     level = 'tinggi';
-    recommendations.push('⚠️ PENTING: Segera konsultasi dengan dokter untuk penanganan lebih lanjut!');
   }
 
-  console.log('✅ Risk calculation complete:', { level, score });
+  console.log('✅ Risk calculation complete:', {
+    level,
+    score: totalScore,
+    conditions: detectedConditions,
+  });
 
   return {
     level,
-    score,
+    score: totalScore,
     recommendations,
+    detectedConditions,
   };
-};
+}
