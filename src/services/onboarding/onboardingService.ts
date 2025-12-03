@@ -1,6 +1,6 @@
 // src/services/onboarding/onboardingService.ts
 
-import auth from '@react-native-firebase/auth'; // Firebase auth
+import { auth } from '../../config/firebase.config'; // Firebase auth
 import { supabase } from '../../config/supabase.config'; // Sesuaikan path
 import { calculateHealthRisks } from './riskCalculation';
 import { OnboardingData, RiskAssessment, UserHealthProfile } from './types';
@@ -12,7 +12,7 @@ export class OnboardingService {
    */
   static async saveOnboarding(data: OnboardingData): Promise<UserHealthProfile> {
     try {
-      const user = auth().currentUser;
+      const user = auth.currentUser;
       if (!user) throw new Error('User not authenticated');
       
       console.log('🔵 Saving onboarding for user:', user.uid);
@@ -110,7 +110,7 @@ export class OnboardingService {
    */
   static async getUserOnboarding(): Promise<UserHealthProfile | null> {
     try {
-      const user = auth().currentUser;
+      const user = auth.currentUser;
       if (!user) {
         console.log('⚠️ No authenticated user');
         return null;
@@ -169,7 +169,7 @@ export class OnboardingService {
    */
   static async deleteOnboarding(): Promise<void> {
     try {
-      const user = auth().currentUser;
+      const user = auth.currentUser;
       if (!user) throw new Error('User not authenticated');
       
       console.log('🗑️ Deleting onboarding for user:', user.uid);
