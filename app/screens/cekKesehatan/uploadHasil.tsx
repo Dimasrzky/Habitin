@@ -1,4 +1,5 @@
 // app/screens/cekKesehatan/uploadHasil.tsx
+
 import { auth } from '@/config/firebase.config';
 import { supabase } from '@/config/supabase.config';
 import { LabResult } from '@/types/health.types';
@@ -24,7 +25,7 @@ export default function UploadResultScreen() {
   const [loading, setLoading] = useState(true);
   const [labResult, setLabResult] = useState<LabResult | null>(null);
   
-  // ✅ FIX: Ambil labResultId dari params (bukan resultId)
+  // ✅ Ambil labResultId dari params
   const labResultId = params.labResultId as string;
   const riskLevel = params.riskLevel as RiskLevel;
   const imageUrl = params.imageUrl as string;
@@ -48,12 +49,12 @@ export default function UploadResultScreen() {
           return;
         }
 
-        // ✅ METHOD 1: Query dengan explicit user_id filter
+        // ✅ Query dengan explicit user_id filter
         const { data, error } = await supabase
           .from('lab_results')
           .select('*')
           .eq('id', labResultId)
-          .eq('user_id', firebaseUser.uid)  // ← EXPLICIT FILTER
+          .eq('user_id', firebaseUser.uid)
           .maybeSingle();
 
         console.log('📊 Query result:', { data, error });
@@ -107,6 +108,10 @@ export default function UploadResultScreen() {
     }
   }, [labResultId]);
 
+  // =====================================================
+  // HELPER FUNCTIONS
+  // =====================================================
+
   const getRiskColor = (level: RiskLevel) => {
     switch (level) {
       case 'rendah': return '#CBF3BB';
@@ -145,6 +150,10 @@ export default function UploadResultScreen() {
       case 'glucose':
         if (value < 100) return '#ABE7B2';
         if (value < 126) return '#FFD580';
+        return '#FFB4B4';
+      case 'glucose_2h':
+        if (value < 140) return '#ABE7B2';
+        if (value < 200) return '#FFD580';
         return '#FFB4B4';
       case 'hba1c':
         if (value < 5.7) return '#ABE7B2';
@@ -238,6 +247,15 @@ export default function UploadResultScreen() {
       unit: 'mg/dL',
       type: 'glucose',
       normalRange: '< 100 mg/dL',
+      progressMax: 200,
+    },
+    {
+      name: 'Glukosa Darah 2 Jam',
+      value: labResult.glucose_2h,
+      unit: 'mg/dL',
+      type: 'glucose_2h',
+      normalRange: '< 140 mg/dL',
+      progressMax: 250,
     },
     {
       name: 'HbA1c',
@@ -245,6 +263,7 @@ export default function UploadResultScreen() {
       unit: '%',
       type: 'hba1c',
       normalRange: '< 5.7%',
+      progressMax: 10,
     },
     {
       name: 'Kolesterol Total',
@@ -252,6 +271,7 @@ export default function UploadResultScreen() {
       unit: 'mg/dL',
       type: 'cholesterol_total',
       normalRange: '< 200 mg/dL',
+      progressMax: 300,
     },
     {
       name: 'Kolesterol LDL',
@@ -259,6 +279,7 @@ export default function UploadResultScreen() {
       unit: 'mg/dL',
       type: 'ldl',
       normalRange: '< 100 mg/dL',
+      progressMax: 200,
     },
     {
       name: 'Kolesterol HDL',
@@ -266,6 +287,7 @@ export default function UploadResultScreen() {
       unit: 'mg/dL',
       type: 'hdl',
       normalRange: '> 40 mg/dL',
+      progressMax: 100,
     },
     {
       name: 'Trigliserida',
@@ -273,6 +295,7 @@ export default function UploadResultScreen() {
       unit: 'mg/dL',
       type: 'triglycerides',
       normalRange: '< 150 mg/dL',
+      progressMax: 250,
     },
   ].filter(test => test.value !== null); // Hanya tampilkan yang ada datanya
 
@@ -325,7 +348,7 @@ export default function UploadResultScreen() {
               {getRiskText(labResult.risk_level)}
             </Text>
           </View>
-          <Text style={styles.scoreText}>Skor: {labResult.risk_score}/100</Text>
+          <Text style={styles.scoreText}>Skor Risiko: {labResult.risk_score}</Text>
           <Text style={styles.dateText}>
             {formatDate(labResult.created_at)}
           </Text>
@@ -337,57 +360,317 @@ export default function UploadResultScreen() {
         {/* Results Title */}
         <Text style={styles.sectionTitle}>📊 Detail Pemeriksaan</Text>
 
-        {/* Test Results */}
-        {testResults.map((test, index) => (
-          <View key={index} style={styles.testCard}>
-            <View style={styles.testHeader}>
-              <Text style={styles.testName}>{test.name}</Text>
-              <View style={[
-                styles.statusBadge, 
-                { backgroundColor: getStatusColor(test.value, test.type) }
-              ]}>
-                <Ionicons 
-                  name={getStatusIcon(test.value, test.type) as any}
-                  size={14} 
-                  color="#FFFFFF" 
-                />
-                <Text style={styles.statusText}>
-                  {getStatusText(test.value, test.type)}
-                </Text>
+        {/* DIABETES SECTION */}
+        {(labResult.glucose_level || labResult.glucose_2h || labResult.hba1c) && (
+          <>
+            <Text style={styles.subsectionTitle}>🩸 Pemeriksaan Diabetes</Text>
+            
+            {/* Glukosa Puasa */}
+            {labResult.glucose_level && (
+              <View style={styles.testCard}>
+                <View style={styles.testHeader}>
+                  <Text style={styles.testName}>Gula Darah Puasa</Text>
+                  <View style={[
+                    styles.statusBadge, 
+                    { backgroundColor: getStatusColor(labResult.glucose_level, 'glucose') }
+                  ]}>
+                    <Ionicons 
+                      name={getStatusIcon(labResult.glucose_level, 'glucose') as any}
+                      size={14} 
+                      color="#FFFFFF" 
+                    />
+                    <Text style={styles.statusText}>
+                      {getStatusText(labResult.glucose_level, 'glucose')}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.testValueRow}>
+                  <Text style={styles.testValue}>
+                    {labResult.glucose_level} <Text style={styles.testUnit}>mg/dL</Text>
+                  </Text>
+                  <Text style={styles.normalRange}>Normal: {'<'} 100 mg/dL</Text>
+                </View>
+
+                <View style={styles.progressBar}>
+                  <View 
+                    style={[
+                      styles.progressFill, 
+                      { 
+                        width: `${Math.min((labResult.glucose_level / 200) * 100, 100)}%`,
+                        backgroundColor: getStatusColor(labResult.glucose_level, 'glucose')
+                      }
+                    ]} 
+                  />
+                </View>
               </View>
-            </View>
+            )}
 
-            <View style={styles.testValueRow}>
-              <Text style={styles.testValue}>
-                {test.value} <Text style={styles.testUnit}>{test.unit}</Text>
-              </Text>
-              <Text style={styles.normalRange}>Normal: {test.normalRange}</Text>
-            </View>
+            {/* Glukosa 2 Jam */}
+            {labResult.glucose_2h && (
+              <View style={styles.testCard}>
+                <View style={styles.testHeader}>
+                  <Text style={styles.testName}>Glukosa Darah 2 Jam</Text>
+                  <View style={[
+                    styles.statusBadge, 
+                    { backgroundColor: getStatusColor(labResult.glucose_2h, 'glucose_2h') }
+                  ]}>
+                    <Ionicons 
+                      name={getStatusIcon(labResult.glucose_2h, 'glucose_2h') as any}
+                      size={14} 
+                      color="#FFFFFF" 
+                    />
+                    <Text style={styles.statusText}>
+                      {getStatusText(labResult.glucose_2h, 'glucose_2h')}
+                    </Text>
+                  </View>
+                </View>
 
-            {/* Progress Bar */}
-            <View style={styles.progressBar}>
-              <View 
-                style={[
-                  styles.progressFill, 
-                  { 
-                    width: `${Math.min((test.value! / 300) * 100, 100)}%`,
-                    backgroundColor: getStatusColor(test.value, test.type)
-                  }
-                ]} 
-              />
-            </View>
-          </View>
-        ))}
+                <View style={styles.testValueRow}>
+                  <Text style={styles.testValue}>
+                    {labResult.glucose_2h} <Text style={styles.testUnit}>mg/dL</Text>
+                  </Text>
+                  <Text style={styles.normalRange}>Normal: {'<'} 140 mg/dL</Text>
+                </View>
+
+                <View style={styles.progressBar}>
+                  <View 
+                    style={[
+                      styles.progressFill, 
+                      { 
+                        width: `${Math.min((labResult.glucose_2h / 250) * 100, 100)}%`,
+                        backgroundColor: getStatusColor(labResult.glucose_2h, 'glucose_2h')
+                      }
+                    ]} 
+                  />
+                </View>
+              </View>
+            )}
+
+            {/* HbA1c */}
+            {labResult.hba1c && (
+              <View style={styles.testCard}>
+                <View style={styles.testHeader}>
+                  <Text style={styles.testName}>HbA1c</Text>
+                  <View style={[
+                    styles.statusBadge, 
+                    { backgroundColor: getStatusColor(labResult.hba1c, 'hba1c') }
+                  ]}>
+                    <Ionicons 
+                      name={getStatusIcon(labResult.hba1c, 'hba1c') as any}
+                      size={14} 
+                      color="#FFFFFF" 
+                    />
+                    <Text style={styles.statusText}>
+                      {getStatusText(labResult.hba1c, 'hba1c')}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.testValueRow}>
+                  <Text style={styles.testValue}>
+                    {labResult.hba1c} <Text style={styles.testUnit}>%</Text>
+                  </Text>
+                  <Text style={styles.normalRange}>Normal: {'<'} 5.7%</Text>
+                </View>
+
+                <View style={styles.progressBar}>
+                  <View 
+                    style={[
+                      styles.progressFill, 
+                      { 
+                        width: `${Math.min((labResult.hba1c / 10) * 100, 100)}%`,
+                        backgroundColor: getStatusColor(labResult.hba1c, 'hba1c')
+                      }
+                    ]} 
+                  />
+                </View>
+              </View>
+            )}
+          </>
+        )}
+
+        {/* CHOLESTEROL SECTION */}
+        {(labResult.cholesterol_total || labResult.cholesterol_ldl || 
+          labResult.cholesterol_hdl || labResult.triglycerides) && (
+          <>
+            <Text style={styles.subsectionTitle}>💊 Pemeriksaan Kolesterol</Text>
+            
+            {/* Kolesterol Total */}
+            {labResult.cholesterol_total && (
+              <View style={styles.testCard}>
+                <View style={styles.testHeader}>
+                  <Text style={styles.testName}>Kolesterol Total</Text>
+                  <View style={[
+                    styles.statusBadge, 
+                    { backgroundColor: getStatusColor(labResult.cholesterol_total, 'cholesterol_total') }
+                  ]}>
+                    <Ionicons 
+                      name={getStatusIcon(labResult.cholesterol_total, 'cholesterol_total') as any}
+                      size={14} 
+                      color="#FFFFFF" 
+                    />
+                    <Text style={styles.statusText}>
+                      {getStatusText(labResult.cholesterol_total, 'cholesterol_total')}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.testValueRow}>
+                  <Text style={styles.testValue}>
+                    {labResult.cholesterol_total} <Text style={styles.testUnit}>mg/dL</Text>
+                  </Text>
+                  <Text style={styles.normalRange}>Normal: {'<'} 200 mg/dL</Text>
+                </View>
+
+                <View style={styles.progressBar}>
+                  <View 
+                    style={[
+                      styles.progressFill, 
+                      { 
+                        width: `${Math.min((labResult.cholesterol_total / 300) * 100, 100)}%`,
+                        backgroundColor: getStatusColor(labResult.cholesterol_total, 'cholesterol_total')
+                      }
+                    ]} 
+                  />
+                </View>
+              </View>
+            )}
+
+            {/* LDL */}
+            {labResult.cholesterol_ldl && (
+              <View style={styles.testCard}>
+                <View style={styles.testHeader}>
+                  <Text style={styles.testName}>Kolesterol LDL (Jahat)</Text>
+                  <View style={[
+                    styles.statusBadge, 
+                    { backgroundColor: getStatusColor(labResult.cholesterol_ldl, 'ldl') }
+                  ]}>
+                    <Ionicons 
+                      name={getStatusIcon(labResult.cholesterol_ldl, 'ldl') as any}
+                      size={14} 
+                      color="#FFFFFF" 
+                    />
+                    <Text style={styles.statusText}>
+                      {getStatusText(labResult.cholesterol_ldl, 'ldl')}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.testValueRow}>
+                  <Text style={styles.testValue}>
+                    {labResult.cholesterol_ldl} <Text style={styles.testUnit}>mg/dL</Text>
+                  </Text>
+                  <Text style={styles.normalRange}>Normal: {'<'} 100 mg/dL</Text>
+                </View>
+
+                <View style={styles.progressBar}>
+                  <View 
+                    style={[
+                      styles.progressFill, 
+                      { 
+                        width: `${Math.min((labResult.cholesterol_ldl / 200) * 100, 100)}%`,
+                        backgroundColor: getStatusColor(labResult.cholesterol_ldl, 'ldl')
+                      }
+                    ]} 
+                  />
+                </View>
+              </View>
+            )}
+
+            {/* HDL */}
+            {labResult.cholesterol_hdl && (
+              <View style={styles.testCard}>
+                <View style={styles.testHeader}>
+                  <Text style={styles.testName}>Kolesterol HDL (Baik)</Text>
+                  <View style={[
+                    styles.statusBadge, 
+                    { backgroundColor: getStatusColor(labResult.cholesterol_hdl, 'hdl') }
+                  ]}>
+                    <Ionicons 
+                      name={getStatusIcon(labResult.cholesterol_hdl, 'hdl') as any}
+                      size={14} 
+                      color="#FFFFFF" 
+                    />
+                    <Text style={styles.statusText}>
+                      {getStatusText(labResult.cholesterol_hdl, 'hdl')}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.testValueRow}>
+                  <Text style={styles.testValue}>
+                    {labResult.cholesterol_hdl} <Text style={styles.testUnit}>mg/dL</Text>
+                  </Text>
+                  <Text style={styles.normalRange}>Normal: {'>'} 40 mg/dL</Text>
+                </View>
+
+                <View style={styles.progressBar}>
+                  <View 
+                    style={[
+                      styles.progressFill, 
+                      { 
+                        width: `${Math.min((labResult.cholesterol_hdl / 100) * 100, 100)}%`,
+                        backgroundColor: getStatusColor(labResult.cholesterol_hdl, 'hdl')
+                      }
+                    ]} 
+                  />
+                </View>
+              </View>
+            )}
+
+            {/* Trigliserida */}
+            {labResult.triglycerides && (
+              <View style={styles.testCard}>
+                <View style={styles.testHeader}>
+                  <Text style={styles.testName}>Trigliserida</Text>
+                  <View style={[
+                    styles.statusBadge, 
+                    { backgroundColor: getStatusColor(labResult.triglycerides, 'triglycerides') }
+                  ]}>
+                    <Ionicons 
+                      name={getStatusIcon(labResult.triglycerides, 'triglycerides') as any}
+                      size={14} 
+                      color="#FFFFFF" 
+                    />
+                    <Text style={styles.statusText}>
+                      {getStatusText(labResult.triglycerides, 'triglycerides')}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.testValueRow}>
+                  <Text style={styles.testValue}>
+                    {labResult.triglycerides} <Text style={styles.testUnit}>mg/dL</Text>
+                  </Text>
+                  <Text style={styles.normalRange}>Normal: {'<'} 150 mg/dL</Text>
+                </View>
+
+                <View style={styles.progressBar}>
+                  <View 
+                    style={[
+                      styles.progressFill, 
+                      { 
+                        width: `${Math.min((labResult.triglycerides / 250) * 100, 100)}%`,
+                        backgroundColor: getStatusColor(labResult.triglycerides, 'triglycerides')
+                      }
+                    ]} 
+                  />
+                </View>
+              </View>
+            )}
+          </>
+        )}
 
         {/* Info Card */}
         <View style={styles.infoCard}>
           <View style={styles.infoHeader}>
             <Ionicons name="information-circle" size={20} color="#93BFC7" />
-            <Text style={styles.infoTitle}>Catatan</Text>
+            <Text style={styles.infoTitle}>Catatan Penting</Text>
           </View>
           <Text style={styles.infoText}>
             Hasil analisis ini berdasarkan data yang terdeteksi dari hasil lab Anda. 
-            Untuk diagnosis yang akurat, konsultasikan dengan dokter.
+            Untuk diagnosis yang akurat dan penanganan lebih lanjut, konsultasikan dengan dokter.
           </Text>
         </View>
 
@@ -401,7 +684,8 @@ export default function UploadResultScreen() {
             ]}
             onPress={() => router.push('/(tabs)' as any)}
           >
-            <Ionicons name="home" size={20} color="#6B7280" left={40} top={32} />
+            <Ionicons name="home" size={20} color="#FFFFFF" />
+            <Text style={styles.secondaryButtonText}>Kembali ke Beranda</Text>
           </Pressable>
 
           <Pressable
@@ -412,7 +696,7 @@ export default function UploadResultScreen() {
             ]}
             onPress={() => router.push('/(tabs)/tantangan' as any)}
           >
-            <Ionicons name="trophy" size={20} color="#eeb300ff" left={120} />
+            <Ionicons name="trophy" size={20} color="#1F2937" />
             <Text style={styles.primaryButtonText}>Mulai Tantangan Sehat</Text>
           </Pressable>
         </View>
@@ -577,6 +861,13 @@ const styles = StyleSheet.create({
     color: '#1F2937',
     marginBottom: 16,
   },
+  subsectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginTop: 8,
+    marginBottom: 12,
+  },
   testCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
@@ -644,6 +935,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E3F2FD',
     borderRadius: 12,
     padding: 16,
+    marginTop: 8,
     marginBottom: 16,
   },
   infoHeader: {
@@ -675,7 +967,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   secondaryButton: {
-    backgroundColor: '#12357cff',
+    backgroundColor: '#6B7280',
+  },
+  secondaryButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   primaryButton: {
     backgroundColor: '#ABE7B2',
@@ -683,8 +980,6 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    left: 150,
-    bottom: 22,
-    color: '#000000ff',
+    color: '#1F2937',
   },
 });

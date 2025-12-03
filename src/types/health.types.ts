@@ -8,6 +8,7 @@ export interface LabResult {
   
   // Data Kesehatan
   glucose_level: number | null; // mg/dL
+  glucose_2h: number | null;   
   cholesterol_total: number | null; // mg/dL
   cholesterol_ldl: number | null; // mg/dL
   cholesterol_hdl: number | null; // mg/dL
@@ -39,6 +40,7 @@ export interface ExtractedHealthData {
   cholesterol_hdl: number | null;
   triglycerides: number | null;
   hba1c: number | null;
+  glucose_2h: number | null;   
 }
 
 export interface RiskAnalysis {
