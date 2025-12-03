@@ -183,6 +183,163 @@ export function extractHealthData(ocrText: string): HealthData {
   };
 
   // ============================================
+  // 🆕 CUSTOM EXTRACTION UNTUK TRIGLISERIDA
+  // ============================================
+  
+  const extractTrigliserida = (): number | null => {
+    const keywords = ['trigliserida', 'triglyceride'];
+    const minVal = 30;
+    const maxVal = 600;
+
+    for (const keyword of keywords) {
+      const rowIndex = lines.findIndex(line => 
+        line.toLowerCase().includes(keyword.toLowerCase())
+      );
+      
+      if (rowIndex === -1) continue;
+      
+      console.log(`\n🔍 [trigliserida] Ditemukan di baris ${rowIndex}:`, lines[rowIndex]);
+      
+      const candidates: {value: number, source: string, priority: number}[] = [];
+      
+      // PATTERN 1: Same row
+      const currentRow = lines[rowIndex];
+      const sameRowNumbers = currentRow.match(/\b(\d{2,3})\b/g);
+      if (sameRowNumbers) {
+        console.log(`🔢 [trigliserida] Pattern 1 (same row):`, sameRowNumbers);
+        sameRowNumbers.forEach(numStr => {
+          const num = parseFloat(numStr);
+          if (num >= minVal && num <= maxVal) {
+            // Check if angka ini dekat dengan operator
+            const isNearOperator = /[<>-]\s*\d+/.test(currentRow) && currentRow.includes(numStr);
+            const priority = isNearOperator ? 8 : 2; // Turunkan priority jika dekat operator
+            console.log(`   ➡️ Value: ${num}, isNearOperator: ${isNearOperator}, priority: ${priority}`);
+            candidates.push({value: num, source: 'same-row', priority});
+          }
+        });
+      }
+      
+      // PATTERN 2: Next row +1 (dengan validasi unit)
+      if (rowIndex + 1 < lines.length) {
+        const nextRow1 = lines[rowIndex + 1];
+        const row1Numbers = nextRow1.match(/\b(\d{2,3})\b/g);
+        
+        if (row1Numbers) {
+          console.log(`🔢 [trigliserida] Pattern 2 (row +1):`, row1Numbers);
+          
+          // ⚠️ VALIDASI 1: Cek ada unit "mg/dL" atau "mg/dl"
+          const hasUnit = /mg\s*\/\s*d?l/i.test(nextRow1);
+          
+          // ⚠️ VALIDASI 2: Cek apakah angka ini bagian dari range (ada operator sebelum/sesudah)
+          const hasOperator = /[<>-]/.test(nextRow1);
+          
+          console.log(`   📏 [trigliserida] Row +1 - hasUnit: ${hasUnit}, hasOperator: ${hasOperator}`);
+          
+          row1Numbers.forEach(numStr => {
+            const num = parseFloat(numStr);
+            if (num >= minVal && num <= maxVal) {
+              // Priority logic:
+              // - Ada unit + TIDAK ada operator → priority 3 (best)
+              // - Ada unit + Ada operator → priority 7 (kemungkinan range)
+              // - Tidak ada unit → priority 6 (noise)
+              let priority = 6;
+              if (hasUnit && !hasOperator) {
+                priority = 3;
+              } else if (hasUnit && hasOperator) {
+                priority = 7; // Turun karena kemungkinan range
+              }
+              
+              console.log(`   ➡️ Value: ${num}, priority: ${priority}`);
+              candidates.push({value: num, source: 'next-row-1', priority});
+            }
+          });
+        }
+      }
+      
+      // PATTERN 3: Next row +2 (boost priority jika ada unit dan bukan range)
+      if (rowIndex + 2 < lines.length) {
+        const nextRow2 = lines[rowIndex + 2];
+        const row2Numbers = nextRow2.match(/\b(\d{2,3})\b/g);
+        
+        if (row2Numbers) {
+          console.log(`🔢 [trigliserida] Pattern 3 (row +2):`, row2Numbers);
+          
+          // Validasi unit dan operator
+          const hasUnit = /mg\s*\/\s*d?l/i.test(nextRow2);
+          const hasOperator = /[<>-]/.test(nextRow2);
+          
+          console.log(`   📏 [trigliserida] Row +2 - hasUnit: ${hasUnit}, hasOperator: ${hasOperator}`);
+          
+          row2Numbers.forEach(numStr => {
+            const num = parseFloat(numStr);
+            if (num >= minVal && num <= maxVal) {
+              // Priority logic sama seperti row +1
+              let priority = 6;
+              if (hasUnit && !hasOperator) {
+                priority = 3;
+              } else if (hasUnit && hasOperator) {
+                priority = 7;
+              } else if (!hasUnit) {
+                priority = 4; // Sedikit lebih rendah dari row +2 biasa
+              }
+              
+              console.log(`   ➡️ Value: ${num}, priority: ${priority}`);
+              candidates.push({value: num, source: 'next-row-2', priority});
+            }
+          });
+        }
+      }
+      
+      // PATTERN 4: Context window (boost priority untuk angka yang standalone)
+      const contextStart = Math.max(0, rowIndex - 1);
+      const contextEnd = Math.min(lines.length, rowIndex + 6); // Diperluas menjadi 6
+      
+      for (let i = contextStart; i < contextEnd; i++) {
+        if (i === rowIndex || i === rowIndex + 1 || i === rowIndex + 2) continue;
+        
+        const contextRow = lines[i];
+        const contextNumbers = contextRow.match(/\b(\d{2,3})\b/g);
+        
+        if (contextNumbers) {
+          contextNumbers.forEach(numStr => {
+            const num = parseFloat(numStr);
+            if (num >= minVal && num <= maxVal) {
+              // Cek apakah angka ini standalone (tidak dekat operator)
+              const hasOperator = /[<>-]/.test(contextRow);
+              const isStandalone = !hasOperator;
+              
+              // Priority: standalone angka di context = priority 4
+              //           angka dekat operator = priority 8
+              const priority = isStandalone ? 4 : 8;
+              
+              console.log(`   🔍 Context row ${i}: ${num}, isStandalone: ${isStandalone}, priority: ${priority}`);
+              candidates.push({value: num, source: `context-${i}`, priority});
+            }
+          });
+        }
+      }
+      
+      // Selection
+      if (candidates.length > 0) {
+        console.log(`🎯 [trigliserida] Valid candidates:`, candidates);
+        
+        // Sort by priority (lower number = higher priority)
+        candidates.sort((a, b) => a.priority - b.priority);
+        
+        const winner = candidates[0];
+        console.log(`✅ [trigliserida] DIPILIH: ${winner.value} (source: ${winner.source}, priority: ${winner.priority})\n`);
+        
+        return winner.value;
+      }
+      
+      break;
+    }
+    
+    console.log(`❌ [trigliserida] Tidak ditemukan nilai valid\n`);
+    return null;
+  };
+
+  // ============================================
   // EKSTRAK SETIAP PARAMETER (DIABETES & KOLESTEROL)
   // ============================================
 
@@ -210,13 +367,8 @@ export function extractHealthData(ocrText: string): HealthData {
     { contextAfter: 4 }
   );
 
-  // 4. Trigliserida
-  result.triglycerides = extractValue(
-    ['trigliserida', 'triglyceride', 'trigliserida'],
-    30,   
-    600,
-    { contextAfter: 5 }
-  );
+  // 4. Trigliserida (CUSTOM EXTRACTION)
+  result.triglycerides = extractTrigliserida();
 
   // 5. Glukosa Puasa
   result.glucose_level = extractValue(
