@@ -1,48 +1,25 @@
 import { Stack } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import React from 'react';
+import { OnboardingProvider } from '../../src/context/OnboardingContext';
 
 export default function OnboardingLayout() {
   return (
-    <View style={styles.container}>
+    <OnboardingProvider>
       <Stack
         screenOptions={{
           headerShown: false,
           animation: 'slide_from_right',
-          contentStyle: { backgroundColor: '#fff' }
         }}
       >
-        <Stack.Screen 
-          name="personal" 
-          options={{ title: 'Data Personal' }}
-        />
-        <Stack.Screen 
-          name="physical" 
-          options={{ title: 'Data Fisik' }}
-        />
-        <Stack.Screen 
-          name="family" 
-          options={{ title: 'Riwayat Keluarga' }}
-        />
-        <Stack.Screen 
-          name="lifestyle" 
-          options={{ title: 'Gaya Hidup' }}
-        />
-        <Stack.Screen 
-          name="symptoms" 
-          options={{ title: 'Gejala' }}
-        />
-        <Stack.Screen 
-          name="summary" 
-          options={{ title: 'Ringkasan' }}
-        />
+        <Stack.Screen name="welcome" />
+        <Stack.Screen name="personal" />
+        <Stack.Screen name="physical" />
+        <Stack.Screen name="lifestyle" />
+        <Stack.Screen name="symptoms" />
+        <Stack.Screen name="notification" />
+        <Stack.Screen name="consent" />
+        <Stack.Screen name="complete" />
       </Stack>
-    </View>
+    </OnboardingProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  }
-});

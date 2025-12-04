@@ -1,292 +1,116 @@
-import { Symptoms } from '@/services/onboarding/types';
-import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import { router } from 'expo-router';
+import React from 'react';
 import {
     SafeAreaView,
     ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
-    View
+    View,
 } from 'react-native';
+import { useOnboarding } from '../../src/context/OnboardingContext';
+
+const SYMPTOM_OPTIONS = [
+  'Mudah lelah',
+  'Sering haus',
+  'Sering buang air kecil',
+  'Pusing/sakit kepala',
+  'Sesak napas',
+  'Nyeri dada',
+  'Berat badan turun drastis',
+  'Tidak ada gejala',
+];
 
 export default function SymptomsScreen() {
-  const router = useRouter();
-  
-  const [formData, setFormData] = useState<Symptoms>({
-    // Diabetes symptoms
-    frequentUrination: false,
-    excessiveThirst: false,
-    unexplainedWeightLoss: false,
-    fatigue: false,
-    blurredVision: false,
-    slowHealingWounds: false,
-    // Cholesterol symptoms
-    chestPain: false,
-    shortnessOfBreath: false,
-    numbness: false,
-    yellowishSkinPatches: false,
-  });
+  const { data, updateData } = useOnboarding();
 
-  const toggleSymptom = (key: keyof Symptoms) => {
-    setFormData(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
+  const toggleSymptom = (option: string) => {
+    if (option === 'Tidak ada gejala') {
+      updateData('symptoms', ['Tidak ada gejala']);
+    } else {
+      const filtered = data.symptoms.filter((s) => s !== 'Tidak ada gejala');
+      const newSymptoms = filtered.includes(option)
+        ? filtered.filter((s) => s !== option)
+        : [...filtered, option];
+      updateData('symptoms', newSymptoms);
+    }
+  };
+
+  const handleSkip = () => {
+    updateData('symptoms', []);
+    router.push('/onboarding/notification');
   };
 
   const handleNext = () => {
-    // Tidak ada validasi wajib, gejala bisa tidak ada
-    router.push('/onboarding/summary');
+    router.push('/onboarding/notification');
   };
-
-  // Diabetes symptoms list
-  const diabetesSymptoms = [
-    {
-      key: 'frequentUrination' as keyof Symptoms,
-      title: 'Sering Buang Air Kecil',
-      description: 'Terutama di malam hari (poliuria)',
-      icon: '🚽',
-    },
-    {
-      key: 'excessiveThirst' as keyof Symptoms,
-      title: 'Rasa Haus Berlebihan',
-      description: 'Merasa haus terus menerus (polidipsia)',
-      icon: '💧',
-    },
-    {
-      key: 'unexplainedWeightLoss' as keyof Symptoms,
-      title: 'Penurunan Berat Badan',
-      description: 'Tanpa alasan yang jelas',
-      icon: '⚖️',
-    },
-    {
-      key: 'fatigue' as keyof Symptoms,
-      title: 'Mudah Lelah',
-      description: 'Merasa lemas sepanjang waktu',
-      icon: '😴',
-    },
-    {
-      key: 'blurredVision' as keyof Symptoms,
-      title: 'Penglihatan Kabur',
-      description: 'Pandangan tidak jelas atau buram',
-      icon: '👓',
-    },
-    {
-      key: 'slowHealingWounds' as keyof Symptoms,
-      title: 'Luka Sulit Sembuh',
-      description: 'Luka atau infeksi lambat pulih',
-      icon: '🩹',
-    },
-  ];
-
-  // Cholesterol symptoms list
-  const cholesterolSymptoms = [
-    {
-      key: 'chestPain' as keyof Symptoms,
-      title: 'Nyeri Dada',
-      description: 'Rasa tidak nyaman atau tekanan di dada',
-      icon: '💔',
-    },
-    {
-      key: 'shortnessOfBreath' as keyof Symptoms,
-      title: 'Sesak Napas',
-      description: 'Kesulitan bernapas saat aktivitas',
-      icon: '🫁',
-    },
-    {
-      key: 'numbness' as keyof Symptoms,
-      title: 'Kesemutan/Mati Rasa',
-      description: 'Terutama di tangan atau kaki',
-      icon: '🤚',
-    },
-    {
-      key: 'yellowishSkinPatches' as keyof Symptoms,
-      title: 'Bercak Kuning di Kulit',
-      description: 'Xanthelasma (timbunan lemak)',
-      icon: '🟡',
-    },
-  ];
-
-  const selectedCount = Object.values(formData).filter(Boolean).length;
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Progress Bar */}
-        <View style={styles.progressContainer}>
-          <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: '83.3%' }]} />
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Text style={styles.backButtonText}>←</Text>
+        </TouchableOpacity>
+        <View style={styles.progressBar}>
+          <View style={[styles.progressFill, { width: '62.5%' }]} />
+        </View>
+        <Text style={styles.stepText}>Step 5 of 8</Text>
+      </View>
+
+      {/* Content */}
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.titleContainer}>
+          <Text style={styles.title}>Gejala yang Dirasakan</Text>
+          <View style={styles.optionalBadge}>
+            <Text style={styles.optionalText}>Opsional</Text>
           </View>
-          <Text style={styles.progressText}>Step 5 of 6</Text>
         </View>
 
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Gejala yang Dialami</Text>
-          <Text style={styles.subtitle}>
-            Pilih gejala yang Anda alami saat ini atau dalam beberapa bulan terakhir
-          </Text>
-        </View>
+        <Text style={styles.subtitle}>
+          Apakah Anda merasakan gejala berikut dalam 3 bulan terakhir?
+        </Text>
 
-        {/* Info Card */}
-        <View style={styles.infoCard}>
-          <Text style={styles.infoIcon}>ℹ️</Text>
+        <View style={styles.infoBox}>
+          <Text style={styles.infoIcon}>💡</Text>
           <Text style={styles.infoText}>
-            Informasi ini membantu kami memberikan rekomendasi yang lebih akurat. 
-            Jika tidak ada gejala, Anda bisa langsung melanjutkan.
+            Informasi ini membantu kami memberikan peringatan dini jika ada kondisi yang
+            perlu perhatian lebih
           </Text>
         </View>
 
-        {/* Selected Count */}
-        {selectedCount > 0 && (
-          <View style={styles.countBadge}>
-            <Text style={styles.countText}>
-              {selectedCount} gejala dipilih
+        {SYMPTOM_OPTIONS.map((option) => (
+          <TouchableOpacity
+            key={option}
+            style={[
+              styles.optionButton,
+              data.symptoms.includes(option) && styles.optionButtonSelected,
+            ]}
+            onPress={() => toggleSymptom(option)}
+          >
+            <View style={styles.checkbox}>
+              {data.symptoms.includes(option) && <View style={styles.checkboxInner} />}
+            </View>
+            <Text
+              style={[
+                styles.optionText,
+                data.symptoms.includes(option) && styles.optionTextSelected,
+              ]}
+            >
+              {option}
             </Text>
-          </View>
-        )}
-
-        {/* Diabetes Symptoms Section */}
-        <View style={styles.categorySection}>
-          <View style={styles.categoryHeader}>
-            <Text style={styles.categoryIcon}>🩸</Text>
-            <View style={styles.categoryTitleContainer}>
-              <Text style={styles.categoryTitle}>Gejala Diabetes</Text>
-              <Text style={styles.categorySubtitle}>
-                Tanda-tanda kadar gula darah tinggi
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.symptomsGrid}>
-            {diabetesSymptoms.map((symptom) => (
-              <TouchableOpacity
-                key={symptom.key}
-                style={[
-                  styles.symptomCard,
-                  formData[symptom.key] && styles.symptomCardActive
-                ]}
-                onPress={() => toggleSymptom(symptom.key)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.symptomHeader}>
-                  <Text style={styles.symptomIcon}>{symptom.icon}</Text>
-                  <View style={[
-                    styles.symptomCheckbox,
-                    formData[symptom.key] && styles.symptomCheckboxActive
-                  ]}>
-                    {formData[symptom.key] && (
-                      <Text style={styles.checkmark}>✓</Text>
-                    )}
-                  </View>
-                </View>
-                <Text style={[
-                  styles.symptomTitle,
-                  formData[symptom.key] && styles.symptomTitleActive
-                ]}>
-                  {symptom.title}
-                </Text>
-                <Text style={styles.symptomDescription}>
-                  {symptom.description}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Cholesterol Symptoms Section */}
-        <View style={styles.categorySection}>
-          <View style={styles.categoryHeader}>
-            <Text style={styles.categoryIcon}>💊</Text>
-            <View style={styles.categoryTitleContainer}>
-              <Text style={styles.categoryTitle}>Gejala Kolesterol</Text>
-              <Text style={styles.categorySubtitle}>
-                Tanda-tanda kolesterol tinggi
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.symptomsGrid}>
-            {cholesterolSymptoms.map((symptom) => (
-              <TouchableOpacity
-                key={symptom.key}
-                style={[
-                  styles.symptomCard,
-                  formData[symptom.key] && styles.symptomCardActive
-                ]}
-                onPress={() => toggleSymptom(symptom.key)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.symptomHeader}>
-                  <Text style={styles.symptomIcon}>{symptom.icon}</Text>
-                  <View style={[
-                    styles.symptomCheckbox,
-                    formData[symptom.key] && styles.symptomCheckboxActive
-                  ]}>
-                    {formData[symptom.key] && (
-                      <Text style={styles.checkmark}>✓</Text>
-                    )}
-                  </View>
-                </View>
-                <Text style={[
-                  styles.symptomTitle,
-                  formData[symptom.key] && styles.symptomTitleActive
-                ]}>
-                  {symptom.title}
-                </Text>
-                <Text style={styles.symptomDescription}>
-                  {symptom.description}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* No Symptoms Message */}
-        {selectedCount === 0 && (
-          <View style={styles.noSymptomsCard}>
-            <Text style={styles.noSymptomsIcon}>✨</Text>
-            <Text style={styles.noSymptomsTitle}>Tidak Ada Gejala</Text>
-            <Text style={styles.noSymptomsText}>
-              Bagus! Anda tidak mengalami gejala apapun saat ini.
-              Tetap jaga pola hidup sehat.
-            </Text>
-          </View>
-        )}
-
-        {/* Warning for multiple symptoms */}
-        {selectedCount >= 3 && (
-          <View style={styles.warningCard}>
-            <Text style={styles.warningIcon}>⚠️</Text>
-            <View style={styles.warningContent}>
-              <Text style={styles.warningTitle}>Perhatian</Text>
-              <Text style={styles.warningText}>
-                Anda memiliki beberapa gejala. Sangat disarankan untuk 
-                berkonsultasi dengan dokter untuk pemeriksaan lebih lanjut.
-              </Text>
-            </View>
-          </View>
-        )}
+          </TouchableOpacity>
+        ))}
       </ScrollView>
 
-      {/* Navigation Buttons */}
-      <View style={styles.navigationContainer}>
-        <TouchableOpacity 
-          style={styles.buttonSecondary}
-          onPress={() => router.back()}
-        >
-          <Text style={styles.buttonSecondaryText}>Kembali</Text>
+      {/* Footer */}
+      <View style={styles.footer}>
+        <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
+          <Text style={styles.skipButtonText}>Lewati</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={styles.buttonPrimary}
-          onPress={handleNext}
-        >
-          <Text style={styles.buttonPrimaryText}>Selanjutnya</Text>
+        <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
+          <Text style={styles.nextButtonText}>Lanjut</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -296,53 +120,74 @@ export default function SymptomsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
   },
-  scrollContent: {
-    padding: 20,
-    paddingBottom: 100,
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 15,
   },
-  progressContainer: {
-    marginBottom: 30,
+  backButton: {
+    marginBottom: 10,
+  },
+  backButtonText: {
+    fontSize: 28,
+    color: '#212121',
   },
   progressBar: {
-    height: 4,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 2,
+    height: 6,
+    backgroundColor: '#E0E0E0',
+    borderRadius: 3,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#4CAF50',
   },
-  progressText: {
+  stepText: {
     marginTop: 8,
     fontSize: 12,
-    color: '#6B7280',
+    color: '#757575',
     textAlign: 'center',
   },
-  header: {
-    marginBottom: 24,
+  content: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 8,
+    color: '#212121',
+    marginRight: 10,
+  },
+  optionalBadge: {
+    backgroundColor: '#FFF3E0',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  optionalText: {
+    fontSize: 12,
+    color: '#F57C00',
+    fontWeight: '600',
   },
   subtitle: {
     fontSize: 16,
-    color: '#6B7280',
+    color: '#757575',
+    marginBottom: 20,
     lineHeight: 24,
   },
-  infoCard: {
+  infoBox: {
     flexDirection: 'row',
-    backgroundColor: '#FEF3C7',
-    borderRadius: 12,
+    backgroundColor: '#E3F2FD',
     padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderRadius: 12,
+    marginBottom: 24,
   },
   infoIcon: {
     fontSize: 20,
@@ -351,196 +196,79 @@ const styles = StyleSheet.create({
   infoText: {
     flex: 1,
     fontSize: 14,
-    color: '#92400E',
+    color: '#1565C0',
     lineHeight: 20,
   },
-  countBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#3B82F6',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginBottom: 24,
-  },
-  countText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  categorySection: {
-    marginBottom: 32,
-  },
-  categoryHeader: {
+  optionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
-    gap: 12,
-  },
-  categoryIcon: {
-    fontSize: 32,
-  },
-  categoryTitleContainer: {
-    flex: 1,
-  },
-  categoryTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 2,
-  },
-  categorySubtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  symptomsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  symptomCard: {
-    flex: 1,
-    minWidth: '47%',
     padding: 16,
+    backgroundColor: '#F5F5F5',
     borderRadius: 12,
+    marginBottom: 10,
     borderWidth: 2,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
+    borderColor: 'transparent',
   },
-  symptomCardActive: {
-    borderColor: '#3B82F6',
-    backgroundColor: '#EFF6FF',
+  optionButtonSelected: {
+    backgroundColor: '#E8F5E9',
+    borderColor: '#4CAF50',
   },
-  symptomHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  symptomIcon: {
-    fontSize: 28,
-  },
-  symptomCheckbox: {
+  checkbox: {
     width: 24,
     height: 24,
-    borderRadius: 12,
+    borderRadius: 6,
     borderWidth: 2,
-    borderColor: '#D1D5DB',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-  },
-  symptomCheckboxActive: {
-    borderColor: '#3B82F6',
-    backgroundColor: '#3B82F6',
-  },
-  checkmark: {
-    fontSize: 14,
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  symptomTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 6,
-  },
-  symptomTitleActive: {
-    color: '#1E40AF',
-  },
-  symptomDescription: {
-    fontSize: 12,
-    color: '#6B7280',
-    lineHeight: 16,
-  },
-  noSymptomsCard: {
-    alignItems: 'center',
-    padding: 32,
-    backgroundColor: '#F0FDF4',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#BBF7D0',
-    marginTop: 16,
-  },
-  noSymptomsIcon: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  noSymptomsTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#166534',
-    marginBottom: 8,
-  },
-  noSymptomsText: {
-    fontSize: 14,
-    color: '#15803D',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  warningCard: {
-    flexDirection: 'row',
-    backgroundColor: '#FEF2F2',
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 16,
-    borderWidth: 1,
-    borderColor: '#FECACA',
-  },
-  warningIcon: {
-    fontSize: 24,
+    borderColor: '#BDBDBD',
     marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  warningContent: {
+  checkboxInner: {
+    width: 14,
+    height: 14,
+    borderRadius: 3,
+    backgroundColor: '#4CAF50',
+  },
+  optionText: {
+    fontSize: 15,
+    color: '#424242',
     flex: 1,
   },
-  warningTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#991B1B',
-    marginBottom: 6,
+  optionTextSelected: {
+    color: '#2E7D32',
+    fontWeight: '600',
   },
-  warningText: {
-    fontSize: 14,
-    color: '#B91C1C',
-    lineHeight: 20,
-  },
-  navigationContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+  footer: {
     flexDirection: 'row',
-    gap: 12,
     padding: 20,
-    backgroundColor: '#fff',
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: '#E0E0E0',
+    gap: 12,
   },
-  buttonSecondary: {
+  skipButton: {
     flex: 1,
-    height: 52,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    backgroundColor: '#F5F5F5',
     borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderColor: '#E0E0E0',
   },
-  buttonSecondaryText: {
+  skipButtonText: {
+    color: '#757575',
     fontSize: 16,
     fontWeight: '600',
-    color: '#374151',
   },
-  buttonPrimary: {
-    flex: 2,
-    height: 52,
-    backgroundColor: '#3B82F6',
+  nextButton: {
+    flex: 1,
+    backgroundColor: '#4CAF50',
+    paddingVertical: 16,
     borderRadius: 12,
-    justifyContent: 'center',
     alignItems: 'center',
   },
-  buttonPrimaryText: {
+  nextButtonText: {
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
   },
 });

@@ -6,15 +6,16 @@ import { auth } from './firebase.config';
 
 const supabaseUrl = ENV_CONFIG.supabase.url;
 const supabaseAnonKey = ENV_CONFIG.supabase.anonKey;
+const supabaseServiceRoleKey = ENV_CONFIG.supabase.serviceRoleKey;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, supabaseServiceRoleKey ? {
   auth: {
     storage: AsyncStorage,
     autoRefreshToken: true,
-    persistSession: true,
+    persistSession: false,
     detectSessionInUrl: false,
   },
-});
+}: undefined);
 
 console.log('✅ Supabase client created');
 

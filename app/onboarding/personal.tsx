@@ -1,12 +1,7 @@
-// app/onboarding/personal.tsx
-
-import { useOnboarding } from '@/context/OnboardingContext';
-import { PersonalData } from '@/services/onboarding/types';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { router } from 'expo-router';
+import React, { useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
     Platform,
     SafeAreaView,
     ScrollView,
@@ -14,219 +9,157 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
-    View
+    View,
 } from 'react-native';
+import { useOnboarding } from '../../src/context/OnboardingContext';
+
+const GENDER_OPTIONS = ['Laki-laki', 'Perempuan', 'Lainnya'];
+const BLOOD_TYPE_OPTIONS = ['A', 'B', 'AB', 'O', 'Tidak tahu'];
 
 export default function PersonalScreen() {
-  const router = useRouter();
-  const { mode } = useLocalSearchParams();
-  const { onboardingData, updatePersonal, setIsEditMode } = useOnboarding();
-  
-  const [formData, setFormData] = useState<PersonalData>(
-    onboardingData.personal || {
-      fullName: '',
-      age: 0,
-      gender: 'male',
-    }
-  );
-  
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const { data, updateData } = useOnboarding();
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
-  // Set edit mode if parameter exists
-  useEffect(() => {
-    if (mode === 'edit') {
-      setIsEditMode(true);
-    }
-  }, [mode, setIsEditMode]);
-
-  // Validasi form
-  const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
-    
-    if (!formData.fullName.trim()) {
-      newErrors.fullName = 'Nama lengkap harus diisi';
-    } else if (formData.fullName.trim().length < 3) {
-      newErrors.fullName = 'Nama minimal 3 karakter';
-    }
-    
-    if (!formData.age || formData.age < 10) {
-      newErrors.age = 'Usia minimal 10 tahun';
-    } else if (formData.age > 100) {
-      newErrors.age = 'Usia tidak valid';
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleNext = () => {
-    if (validateForm()) {
-      updatePersonal(formData);
-      router.push('/onboarding/physical');
-    } else {
-      Alert.alert('Validasi Error', 'Mohon lengkapi data dengan benar');
+  const handleDateChange = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(Platform.OS === 'ios');
+    if (selectedDate) {
+      updateData('dateOfBirth', selectedDate);
     }
   };
 
-  const handleBack = () => {
-    // Check if in edit mode
-    if (mode === 'edit') {
-      Alert.alert(
-        'Batalkan Edit?',
-        'Perubahan yang belum disimpan akan hilang',
-        [
-          { text: 'Lanjut Edit', style: 'cancel' },
-          {
-            text: 'Batalkan',
-            style: 'destructive',
-            onPress: () => {
-              setIsEditMode(false);
-              router.back();
-            },
-          },
-        ]
-      );
-    } else {
-      router.back();
-    }
+  const formatDate = (date: Date | null) => {
+    if (!date) return 'Pilih tanggal lahir';
+    return date.toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
   };
+
+  const canProceed =
+    data.fullName.trim() !== '' && data.dateOfBirth !== null && data.gender !== '';
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
-        <ScrollView 
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Progress Bar */}
-          <View style={styles.progressContainer}>
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: '16.6%' }]} />
-            </View>
-            <Text style={styles.progressText}>
-              {mode === 'edit' ? 'Edit Data Personal' : 'Step 1 of 6'}
-            </Text>
-          </View>
-
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.title}>Data Personal</Text>
-            <Text style={styles.subtitle}>
-              Mari kita mulai dengan informasi dasar tentang diri Anda
-            </Text>
-          </View>
-
-          {/* Form */}
-          <View style={styles.form}>
-            {/* Nama Lengkap */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>
-                Nama Lengkap <Text style={styles.required}>*</Text>
-              </Text>
-              <TextInput
-                style={[styles.input, errors.fullName && styles.inputError]}
-                placeholder="Masukkan nama lengkap Anda"
-                value={formData.fullName}
-                onChangeText={(text) => {
-                  setFormData({ ...formData, fullName: text });
-                  if (errors.fullName) {
-                    setErrors({ ...errors, fullName: '' });
-                  }
-                }}
-                autoCapitalize="words"
-                autoCorrect={false}
-              />
-              {errors.fullName && (
-                <Text style={styles.errorText}>{errors.fullName}</Text>
-              )}
-            </View>
-
-            {/* Usia */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>
-                Usia <Text style={styles.required}>*</Text>
-              </Text>
-              <TextInput
-                style={[styles.input, errors.age && styles.inputError]}
-                placeholder="Masukkan usia Anda"
-                value={formData.age ? formData.age.toString() : ''}
-                onChangeText={(text) => {
-                  const age = parseInt(text) || 0;
-                  setFormData({ ...formData, age });
-                  if (errors.age) {
-                    setErrors({ ...errors, age: '' });
-                  }
-                }}
-                keyboardType="numeric"
-                maxLength={3}
-              />
-              {errors.age && (
-                <Text style={styles.errorText}>{errors.age}</Text>
-              )}
-            </View>
-
-            {/* Jenis Kelamin */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>
-                Jenis Kelamin <Text style={styles.required}>*</Text>
-              </Text>
-              <View style={styles.genderContainer}>
-                <TouchableOpacity
-                  style={[
-                    styles.genderButton,
-                    formData.gender === 'male' && styles.genderButtonActive
-                  ]}
-                  onPress={() => setFormData({ ...formData, gender: 'male' })}
-                >
-                  <Text style={[
-                    styles.genderText,
-                    formData.gender === 'male' && styles.genderTextActive
-                  ]}>
-                    👨 Laki-laki
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.genderButton,
-                    formData.gender === 'female' && styles.genderButtonActive
-                  ]}
-                  onPress={() => setFormData({ ...formData, gender: 'female' })}
-                >
-                  <Text style={[
-                    styles.genderText,
-                    formData.gender === 'female' && styles.genderTextActive
-                  ]}>
-                    👩 Perempuan
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </ScrollView>
-
-        {/* Navigation Buttons */}
-        <View style={styles.navigationContainer}>
-          <TouchableOpacity 
-            style={styles.buttonSecondary}
-            onPress={handleBack}
-          >
-            <Text style={styles.buttonSecondaryText}>
-              {mode === 'edit' ? 'Batalkan' : 'Kembali'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.buttonPrimary}
-            onPress={handleNext}
-          >
-            <Text style={styles.buttonPrimaryText}>Selanjutnya</Text>
-          </TouchableOpacity>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Text style={styles.backButtonText}>←</Text>
+        </TouchableOpacity>
+        <View style={styles.progressBar}>
+          <View style={[styles.progressFill, { width: '25%' }]} />
         </View>
-      </KeyboardAvoidingView>
+        <Text style={styles.stepText}>Step 2 of 8</Text>
+      </View>
+
+      {/* Content */}
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <Text style={styles.title}>Informasi Personal</Text>
+        <Text style={styles.subtitle}>
+          Data ini membantu kami memberikan analisis yang lebih akurat
+        </Text>
+
+        {/* Full Name */}
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Nama Lengkap *</Text>
+          <TextInput
+            style={styles.input}
+            value={data.fullName}
+            onChangeText={(text) => updateData('fullName', text)}
+            placeholder="Masukkan nama lengkap Anda"
+            placeholderTextColor="#BDBDBD"
+          />
+        </View>
+
+        {/* Date of Birth */}
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Tanggal Lahir *</Text>
+          <TouchableOpacity
+            style={styles.dateButton}
+            onPress={() => setShowDatePicker(true)}
+          >
+            <Text
+              style={[styles.dateText, !data.dateOfBirth && styles.placeholderText]}
+            >
+              {formatDate(data.dateOfBirth)}
+            </Text>
+          </TouchableOpacity>
+
+          {showDatePicker && (
+            <DateTimePicker
+              value={data.dateOfBirth || new Date()}
+              mode="date"
+              display="spinner"
+              onChange={handleDateChange}
+              maximumDate={new Date()}
+              minimumDate={new Date(1940, 0, 1)}
+            />
+          )}
+        </View>
+
+        {/* Gender */}
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Jenis Kelamin *</Text>
+          <View style={styles.optionRow}>
+            {GENDER_OPTIONS.map((option) => (
+              <TouchableOpacity
+                key={option}
+                style={[
+                  styles.genderButton,
+                  data.gender === option && styles.optionButtonSelected,
+                ]}
+                onPress={() => updateData('gender', option)}
+              >
+                <Text
+                  style={[
+                    styles.genderText,
+                    data.gender === option && styles.optionTextSelected,
+                  ]}
+                >
+                  {option}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* Blood Type */}
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Golongan Darah (Opsional)</Text>
+          <View style={styles.bloodTypeRow}>
+            {BLOOD_TYPE_OPTIONS.map((option) => (
+              <TouchableOpacity
+                key={option}
+                style={[
+                  styles.bloodTypeButton,
+                  data.bloodType === option && styles.optionButtonSelected,
+                ]}
+                onPress={() => updateData('bloodType', option)}
+              >
+                <Text
+                  style={[
+                    styles.bloodTypeText,
+                    data.bloodType === option && styles.optionTextSelected,
+                  ]}
+                >
+                  {option}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* Footer */}
+      <View style={styles.footer}>
+        <TouchableOpacity
+          style={[styles.nextButton, !canProceed && styles.nextButtonDisabled]}
+          onPress={() => canProceed && router.push('/onboarding/physical')}
+          disabled={!canProceed}
+        >
+          <Text style={styles.nextButtonText}>Lanjut</Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
@@ -234,143 +167,143 @@ export default function PersonalScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
   },
-  keyboardView: {
-    flex: 1,
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 15,
   },
-  scrollContent: {
-    padding: 20,
-    paddingBottom: 100,
+  backButton: {
+    marginBottom: 10,
   },
-  progressContainer: {
-    marginBottom: 30,
+  backButtonText: {
+    fontSize: 28,
+    color: '#212121',
   },
   progressBar: {
-    height: 4,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 2,
+    height: 6,
+    backgroundColor: '#E0E0E0',
+    borderRadius: 3,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#4CAF50',
   },
-  progressText: {
+  stepText: {
     marginTop: 8,
     fontSize: 12,
-    color: '#6B7280',
+    color: '#757575',
     textAlign: 'center',
   },
-  header: {
-    marginBottom: 32,
+  content: {
+    flex: 1,
+    paddingHorizontal: 20,
   },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#212121',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#6B7280',
+    color: '#757575',
+    marginBottom: 30,
     lineHeight: 24,
   },
-  form: {
-    gap: 24,
-  },
-  inputGroup: {
-    gap: 8,
+  inputContainer: {
+    marginBottom: 24,
   },
   label: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#374151',
-  },
-  required: {
-    color: '#EF4444',
+    color: '#212121',
+    marginBottom: 8,
   },
   input: {
-    height: 52,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
+    backgroundColor: '#F5F5F5',
     borderRadius: 12,
-    paddingHorizontal: 16,
+    padding: 16,
     fontSize: 16,
-    backgroundColor: '#F9FAFB',
+    color: '#212121',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
   },
-  inputError: {
-    borderColor: '#EF4444',
+  dateButton: {
+    backgroundColor: '#F5F5F5',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
   },
-  errorText: {
-    fontSize: 14,
-    color: '#EF4444',
-    marginTop: 4,
+  dateText: {
+    fontSize: 16,
+    color: '#212121',
   },
-  genderContainer: {
+  placeholderText: {
+    color: '#BDBDBD',
+  },
+  optionRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
   },
   genderButton: {
     flex: 1,
-    height: 52,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
+    padding: 14,
+    backgroundColor: '#F5F5F5',
     borderRadius: 12,
-    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    borderWidth: 2,
+    borderColor: 'transparent',
   },
-  genderButtonActive: {
-    borderColor: '#3B82F6',
-    backgroundColor: '#EFF6FF',
+  optionButtonSelected: {
+    backgroundColor: '#E8F5E9',
+    borderColor: '#4CAF50',
   },
   genderText: {
-    fontSize: 16,
-    color: '#6B7280',
-    fontWeight: '500',
+    fontSize: 15,
+    color: '#424242',
   },
-  genderTextActive: {
-    color: '#3B82F6',
+  optionTextSelected: {
+    color: '#2E7D32',
     fontWeight: '600',
   },
-  navigationContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+  bloodTypeRow: {
     flexDirection: 'row',
-    gap: 12,
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  bloodTypeButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  bloodTypeText: {
+    fontSize: 15,
+    color: '#424242',
+  },
+  footer: {
     padding: 20,
-    backgroundColor: '#fff',
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: '#E0E0E0',
   },
-  buttonSecondary: {
-    flex: 1,
-    height: 52,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
+  nextButton: {
+    backgroundColor: '#4CAF50',
+    paddingVertical: 16,
     borderRadius: 12,
-    justifyContent: 'center',
     alignItems: 'center',
   },
-  buttonSecondaryText: {
+  nextButtonDisabled: {
+    backgroundColor: '#BDBDBD',
+  },
+  nextButtonText: {
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
-    color: '#374151',
-  },
-  buttonPrimary: {
-    flex: 2,
-    height: 52,
-    backgroundColor: '#3B82F6',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  buttonPrimaryText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
   },
 });

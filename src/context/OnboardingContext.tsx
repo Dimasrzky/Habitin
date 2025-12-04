@@ -1,80 +1,36 @@
-// src/context/OnboardingContext.tsx
-
-import { OnboardingData } from '@/services/onboarding/types';
 import React, { createContext, ReactNode, useContext, useState } from 'react';
+import { INITIAL_ONBOARDING_DATA, OnboardingData } from '../types/onboarding.types';
 
 interface OnboardingContextType {
-  onboardingData: Partial<OnboardingData>;
-  updatePersonal: (data: OnboardingData['personal']) => void;
-  updatePhysical: (data: OnboardingData['physical']) => void;
-  updateFamily: (data: OnboardingData['family']) => void;
-  updateLifestyle: (data: OnboardingData['lifestyle']) => void;
-  updateSymptoms: (data: OnboardingData['symptoms']) => void;
-  resetOnboarding: () => void;
-  setOnboardingData: (data: OnboardingData) => void;
-  isEditMode: boolean;
-  setIsEditMode: (mode: boolean) => void;
+  data: OnboardingData;
+  updateData: (field: keyof OnboardingData, value: any) => void;
+  resetData: () => void;
 }
 
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined);
 
-export function OnboardingProvider({ children }: { children: ReactNode }) {
-  const [onboardingData, setData] = useState<Partial<OnboardingData>>({});
-  const [isEditMode, setIsEditMode] = useState(false);
+export const OnboardingProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [data, setData] = useState<OnboardingData>(INITIAL_ONBOARDING_DATA);
 
-  const updatePersonal = (data: OnboardingData['personal']) => {
-    setData(prev => ({ ...prev, personal: data }));
+  const updateData = (field: keyof OnboardingData, value: any) => {
+    setData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const updatePhysical = (data: OnboardingData['physical']) => {
-    setData(prev => ({ ...prev, physical: data }));
-  };
-
-  const updateFamily = (data: OnboardingData['family']) => {
-    setData(prev => ({ ...prev, family: data }));
-  };
-
-  const updateLifestyle = (data: OnboardingData['lifestyle']) => {
-    setData(prev => ({ ...prev, lifestyle: data }));
-  };
-
-  const updateSymptoms = (data: OnboardingData['symptoms']) => {
-    setData(prev => ({ ...prev, symptoms: data }));
-  };
-
-  const resetOnboarding = () => {
-    setData({});
-    setIsEditMode(false);
-  };
-
-  const setOnboardingData = (data: OnboardingData) => {
-    setData(data);
+  const resetData = () => {
+    setData(INITIAL_ONBOARDING_DATA);
   };
 
   return (
-    <OnboardingContext.Provider
-      value={{
-        onboardingData,
-        updatePersonal,
-        updatePhysical,
-        updateFamily,
-        updateLifestyle,
-        updateSymptoms,
-        resetOnboarding,
-        setOnboardingData,
-        isEditMode,
-        setIsEditMode,
-      }}
-    >
+    <OnboardingContext.Provider value={{ data, updateData, resetData }}>
       {children}
     </OnboardingContext.Provider>
   );
-}
+};
 
-export function useOnboarding() {
+export const useOnboarding = () => {
   const context = useContext(OnboardingContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useOnboarding must be used within OnboardingProvider');
   }
   return context;
-}
+};

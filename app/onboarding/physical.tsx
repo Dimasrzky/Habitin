@@ -1,10 +1,6 @@
-import { PhysicalData } from '@/services/onboarding/types';
-import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { router } from 'expo-router';
+import React from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
     SafeAreaView,
     ScrollView,
     StyleSheet,
@@ -13,243 +9,237 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
+import { useOnboarding } from '../../src/context/OnboardingContext';
+
+const CONDITION_OPTIONS = [
+  'Diabetes',
+  'Hipertensi',
+  'Kolesterol tinggi',
+  'Penyakit jantung',
+  'Asma',
+  'Tidak ada',
+  'Lainnya',
+];
+
+const FAMILY_HISTORY_OPTIONS = [
+  'Diabetes',
+  'Hipertensi',
+  'Penyakit jantung',
+  'Stroke',
+  'Kanker',
+  'Kolesterol tinggi',
+  'Tidak ada riwayat',
+];
 
 export default function PhysicalScreen() {
-  const router = useRouter();
-  
-  const [formData, setFormData] = useState<PhysicalData>({
-    weight: 0,
-    height: 0,
-    bmi: undefined, // UBAH: set undefined sebagai default
-    bloodPressureSystolic: undefined,
-    bloodPressureDiastolic: undefined,
-  });
-  
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const { data, updateData } = useOnboarding();
 
-  // Auto-calculate BMI
-  useEffect(() => {
-    if (formData.weight > 0 && formData.height > 0) {
-      const heightInMeters = formData.height / 100;
-      const bmi = formData.weight / (heightInMeters * heightInMeters);
-      setFormData(prev => ({ ...prev, bmi: parseFloat(bmi.toFixed(1)) }));
+  const toggleCondition = (option: string) => {
+    if (option === 'Tidak ada') {
+      updateData('existingConditions', ['Tidak ada']);
     } else {
-      // Reset BMI jika weight atau height tidak valid
-      setFormData(prev => ({ ...prev, bmi: undefined }));
+      const filtered = data.existingConditions.filter((c) => c !== 'Tidak ada');
+      const newConditions = filtered.includes(option)
+        ? filtered.filter((c) => c !== option)
+        : [...filtered, option];
+      updateData('existingConditions', newConditions);
     }
-  }, [formData.weight, formData.height]);
-
-  // Get BMI category
-  const getBMICategory = (bmi: number): { text: string; color: string } => {
-    if (bmi < 18.5) return { text: 'Kurus', color: '#F59E0B' };
-    if (bmi < 23) return { text: 'Normal', color: '#10B981' };
-    if (bmi < 25) return { text: 'Gemuk', color: '#F59E0B' };
-    if (bmi < 30) return { text: 'Obesitas Ringan', color: '#EF4444' };
-    return { text: 'Obesitas Berat', color: '#991B1B' };
   };
 
-  const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
-    
-    if (!formData.weight || formData.weight < 30 || formData.weight > 300) {
-      newErrors.weight = 'Berat badan harus antara 30-300 kg';
-    }
-    
-    if (!formData.height || formData.height < 100 || formData.height > 250) {
-      newErrors.height = 'Tinggi badan harus antara 100-250 cm';
-    }
-    
-    // Validasi tekanan darah (opsional, tapi jika diisi harus valid)
-    if (formData.bloodPressureSystolic) {
-      if (formData.bloodPressureSystolic < 70 || formData.bloodPressureSystolic > 200) {
-        newErrors.bloodPressureSystolic = 'Tekanan sistolik tidak valid';
-      }
-    }
-    
-    if (formData.bloodPressureDiastolic) {
-      if (formData.bloodPressureDiastolic < 40 || formData.bloodPressureDiastolic > 130) {
-        newErrors.bloodPressureDiastolic = 'Tekanan diastolik tidak valid';
-      }
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleNext = () => {
-    if (validateForm()) {
-      router.push('/onboarding/family');
+  const toggleFamilyHistory = (option: string) => {
+    if (option === 'Tidak ada riwayat') {
+      updateData('familyHistory', ['Tidak ada riwayat']);
     } else {
-      Alert.alert('Validasi Error', 'Mohon lengkapi data dengan benar');
+      const filtered = data.familyHistory.filter((h) => h !== 'Tidak ada riwayat');
+      const newHistory = filtered.includes(option)
+        ? filtered.filter((h) => h !== option)
+        : [...filtered, option];
+      updateData('familyHistory', newHistory);
     }
   };
 
-  // PERBAIKAN: Check undefined sebelum get category
-  const bmiCategory = (formData.bmi !== undefined && formData.bmi > 0) 
-    ? getBMICategory(formData.bmi) 
-    : null;
+  const calculateBMI = () => {
+    const height = parseFloat(data.heightCm);
+    const weight = parseFloat(data.weightKg);
+    if (height > 0 && weight > 0) {
+      const bmi = weight / ((height / 100) ** 2);
+      return bmi.toFixed(1);
+    }
+    return null;
+  };
+
+  const getBMICategory = (bmi: number) => {
+    if (bmi < 18.5) return { text: 'Kurang', color: '#FF9800' };
+    if (bmi < 25) return { text: 'Normal', color: '#4CAF50' };
+    if (bmi < 30) return { text: 'Berlebih', color: '#FF9800' };
+    return { text: 'Obesitas', color: '#F44336' };
+  };
+
+  const bmiValue = calculateBMI();
+  const bmiCategory = bmiValue ? getBMICategory(parseFloat(bmiValue)) : null;
+
+  const canProceed =
+    data.heightCm !== '' &&
+    data.weightKg !== '' &&
+    data.existingConditions.length > 0 &&
+    data.familyHistory.length > 0;
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
-        <ScrollView 
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Progress Bar */}
-          <View style={styles.progressContainer}>
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: '33.3%' }]} />
-            </View>
-            <Text style={styles.progressText}>Step 2 of 6</Text>
-          </View>
-
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.title}>Data Fisik</Text>
-            <Text style={styles.subtitle}>
-              Informasi fisik membantu kami menilai risiko kesehatan Anda
-            </Text>
-          </View>
-
-          {/* Form */}
-          <View style={styles.form}>
-            {/* Berat Badan */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>
-                Berat Badan (kg) <Text style={styles.required}>*</Text>
-              </Text>
-              <View style={styles.inputWithUnit}>
-                <TextInput
-                  style={[styles.input, errors.weight && styles.inputError]}
-                  placeholder="Contoh: 65"
-                  value={formData.weight ? formData.weight.toString() : ''}
-                  onChangeText={(text) => {
-                    const weight = parseFloat(text) || 0;
-                    setFormData({ ...formData, weight });
-                    if (errors.weight) setErrors({ ...errors, weight: '' });
-                  }}
-                  keyboardType="decimal-pad"
-                />
-                <Text style={styles.unitText}>kg</Text>
-              </View>
-              {errors.weight && (
-                <Text style={styles.errorText}>{errors.weight}</Text>
-              )}
-            </View>
-
-            {/* Tinggi Badan */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>
-                Tinggi Badan (cm) <Text style={styles.required}>*</Text>
-              </Text>
-              <View style={styles.inputWithUnit}>
-                <TextInput
-                  style={[styles.input, errors.height && styles.inputError]}
-                  placeholder="Contoh: 170"
-                  value={formData.height ? formData.height.toString() : ''}
-                  onChangeText={(text) => {
-                    const height = parseFloat(text) || 0;
-                    setFormData({ ...formData, height });
-                    if (errors.height) setErrors({ ...errors, height: '' });
-                  }}
-                  keyboardType="decimal-pad"
-                />
-                <Text style={styles.unitText}>cm</Text>
-              </View>
-              {errors.height && (
-                <Text style={styles.errorText}>{errors.height}</Text>
-              )}
-            </View>
-
-            {/* BMI Result - PERBAIKAN: Check undefined */}
-            {formData.bmi !== undefined && formData.bmi > 0 && bmiCategory && (
-              <View style={styles.bmiCard}>
-                <Text style={styles.bmiLabel}>Indeks Massa Tubuh (BMI)</Text>
-                <View style={styles.bmiResult}>
-                  <Text style={styles.bmiValue}>{formData.bmi.toFixed(1)}</Text>
-                  <View style={[styles.bmiCategoryBadge, { backgroundColor: bmiCategory.color + '20' }]}>
-                    <Text style={[styles.bmiCategoryText, { color: bmiCategory.color }]}>
-                      {bmiCategory.text}
-                    </Text>
-                  </View>
-                </View>
-                <Text style={styles.bmiInfo}>
-                  BMI dihitung otomatis dari berat dan tinggi badan Anda
-                </Text>
-              </View>
-            )}
-
-            {/* Tekanan Darah (Opsional) */}
-            <View style={styles.bloodPressureSection}>
-              <Text style={styles.sectionTitle}>
-                Tekanan Darah (Opsional)
-              </Text>
-              <Text style={styles.sectionSubtitle}>
-                Jika Anda mengetahui tekanan darah Anda, silakan isi
-              </Text>
-
-              <View style={styles.bloodPressureRow}>
-                <View style={styles.bloodPressureInput}>
-                  <Text style={styles.label}>Sistolik</Text>
-                  <View style={styles.inputWithUnit}>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="120"
-                      value={formData.bloodPressureSystolic?.toString() || ''}
-                      onChangeText={(text) => {
-                        const value = parseInt(text) || undefined;
-                        setFormData({ ...formData, bloodPressureSystolic: value });
-                      }}
-                      keyboardType="numeric"
-                    />
-                    <Text style={styles.unitText}>mmHg</Text>
-                  </View>
-                </View>
-
-                <Text style={styles.bloodPressureSeparator}>/</Text>
-
-                <View style={styles.bloodPressureInput}>
-                  <Text style={styles.label}>Diastolik</Text>
-                  <View style={styles.inputWithUnit}>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="80"
-                      value={formData.bloodPressureDiastolic?.toString() || ''}
-                      onChangeText={(text) => {
-                        const value = parseInt(text) || undefined;
-                        setFormData({ ...formData, bloodPressureDiastolic: value });
-                      }}
-                      keyboardType="numeric"
-                    />
-                    <Text style={styles.unitText}>mmHg</Text>
-                  </View>
-                </View>
-              </View>
-            </View>
-          </View>
-        </ScrollView>
-
-        {/* Navigation Buttons */}
-        <View style={styles.navigationContainer}>
-          <TouchableOpacity 
-            style={styles.buttonSecondary}
-            onPress={() => router.back()}
-          >
-            <Text style={styles.buttonSecondaryText}>Kembali</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.buttonPrimary}
-            onPress={handleNext}
-          >
-            <Text style={styles.buttonPrimaryText}>Selanjutnya</Text>
-          </TouchableOpacity>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Text style={styles.backButtonText}>←</Text>
+        </TouchableOpacity>
+        <View style={styles.progressBar}>
+          <View style={[styles.progressFill, { width: '37.5%' }]} />
         </View>
-      </KeyboardAvoidingView>
+        <Text style={styles.stepText}>Step 3 of 8</Text>
+      </View>
+
+      {/* Content */}
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <Text style={styles.title}>Kondisi Fisik & Riwayat</Text>
+        <Text style={styles.subtitle}>Bantu kami memahami kondisi kesehatan Anda</Text>
+
+        {/* Height & Weight */}
+        <View style={styles.rowContainer}>
+          <View style={[styles.inputContainer, { flex: 1, marginRight: 10 }]}>
+            <Text style={styles.label}>Tinggi Badan (cm) *</Text>
+            <TextInput
+              style={styles.input}
+              value={data.heightCm}
+              onChangeText={(text) => updateData('heightCm', text.replace(/[^0-9]/g, ''))}
+              placeholder="170"
+              keyboardType="numeric"
+              placeholderTextColor="#BDBDBD"
+            />
+          </View>
+
+          <View style={[styles.inputContainer, { flex: 1 }]}>
+            <Text style={styles.label}>Berat Badan (kg) *</Text>
+            <TextInput
+              style={styles.input}
+              value={data.weightKg}
+              onChangeText={(text) => updateData('weightKg', text.replace(/[^0-9]/g, ''))}
+              placeholder="65"
+              keyboardType="numeric"
+              placeholderTextColor="#BDBDBD"
+            />
+          </View>
+        </View>
+
+        {/* BMI Display */}
+        {bmiValue && bmiCategory && (
+          <View style={styles.bmiContainer}>
+            <Text style={styles.bmiLabel}>BMI Anda:</Text>
+            <View style={styles.bmiValue}>
+              <Text style={styles.bmiNumber}>{bmiValue}</Text>
+              <Text style={[styles.bmiCategory, { color: bmiCategory.color }]}>
+                {bmiCategory.text}
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Existing Conditions */}
+        <View style={styles.questionContainer}>
+          <Text style={styles.questionText}>
+            Apakah Anda memiliki kondisi kesehatan khusus? *
+          </Text>
+          <Text style={styles.hint}>Pilih semua yang sesuai</Text>
+
+          {CONDITION_OPTIONS.map((option) => (
+            <TouchableOpacity
+              key={option}
+              style={[
+                styles.optionButton,
+                data.existingConditions.includes(option) && styles.optionButtonSelected,
+              ]}
+              onPress={() => toggleCondition(option)}
+            >
+              <View style={styles.checkbox}>
+                {data.existingConditions.includes(option) && (
+                  <View style={styles.checkboxInner} />
+                )}
+              </View>
+              <Text
+                style={[
+                  styles.optionText,
+                  data.existingConditions.includes(option) && styles.optionTextSelected,
+                ]}
+              >
+                {option}
+              </Text>
+            </TouchableOpacity>
+          ))}
+
+          {data.existingConditions.includes('Lainnya') && (
+            <TextInput
+              style={[styles.input, { marginTop: 10 }]}
+              value={data.otherCondition || ''}
+              onChangeText={(text) => updateData('otherCondition', text)}
+              placeholder="Sebutkan kondisi lainnya"
+              placeholderTextColor="#BDBDBD"
+            />
+          )}
+        </View>
+
+        {/* Family History */}
+        <View style={styles.questionContainer}>
+          <Text style={styles.questionText}>Riwayat Kesehatan Keluarga *</Text>
+          <Text style={styles.hint}>
+            Apakah ada anggota keluarga (orang tua/saudara) yang memiliki riwayat penyakit
+            berikut?
+          </Text>
+
+          {FAMILY_HISTORY_OPTIONS.map((option) => (
+            <TouchableOpacity
+              key={option}
+              style={[
+                styles.optionButton,
+                data.familyHistory.includes(option) && styles.optionButtonSelected,
+              ]}
+              onPress={() => toggleFamilyHistory(option)}
+            >
+              <View style={styles.checkbox}>
+                {data.familyHistory.includes(option) && (
+                  <View style={styles.checkboxInner} />
+                )}
+              </View>
+              <Text
+                style={[
+                  styles.optionText,
+                  data.familyHistory.includes(option) && styles.optionTextSelected,
+                ]}
+              >
+                {option}
+              </Text>
+            </TouchableOpacity>
+          ))}
+
+          {data.familyHistory.includes('Kanker') && (
+            <TextInput
+              style={[styles.input, { marginTop: 10 }]}
+              value={data.cancerType || ''}
+              onChangeText={(text) => updateData('cancerType', text)}
+              placeholder="Sebutkan jenis kanker"
+              placeholderTextColor="#BDBDBD"
+            />
+          )}
+        </View>
+      </ScrollView>
+
+      {/* Footer */}
+      <View style={styles.footer}>
+        <TouchableOpacity
+          style={[styles.nextButton, !canProceed && styles.nextButtonDisabled]}
+          onPress={() => canProceed && router.push('/onboarding/lifestyle')}
+          disabled={!canProceed}
+        >
+          <Text style={styles.nextButtonText}>Lanjut</Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
@@ -257,193 +247,171 @@ export default function PhysicalScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
   },
-  keyboardView: {
-    flex: 1,
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 15,
   },
-  scrollContent: {
-    padding: 20,
-    paddingBottom: 100,
+  backButton: {
+    marginBottom: 10,
   },
-  progressContainer: {
-    marginBottom: 30,
+  backButtonText: {
+    fontSize: 28,
+    color: '#212121',
   },
   progressBar: {
-    height: 4,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 2,
+    height: 6,
+    backgroundColor: '#E0E0E0',
+    borderRadius: 3,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#4CAF50',
   },
-  progressText: {
+  stepText: {
     marginTop: 8,
     fontSize: 12,
-    color: '#6B7280',
+    color: '#757575',
     textAlign: 'center',
   },
-  header: {
-    marginBottom: 32,
+  content: {
+    flex: 1,
+    paddingHorizontal: 20,
   },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#212121',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#6B7280',
+    color: '#757575',
+    marginBottom: 30,
     lineHeight: 24,
   },
-  form: {
-    gap: 24,
+  rowContainer: {
+    flexDirection: 'row',
+    marginBottom: 20,
   },
-  inputGroup: {
-    gap: 8,
+  inputContainer: {
+    marginBottom: 20,
   },
   label: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#374151',
-  },
-  required: {
-    color: '#EF4444',
-  },
-  inputWithUnit: {
-    position: 'relative',
+    color: '#212121',
+    marginBottom: 8,
   },
   input: {
-    height: 52,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingRight: 60,
-    fontSize: 16,
-    backgroundColor: '#F9FAFB',
-  },
-  inputError: {
-    borderColor: '#EF4444',
-  },
-  unitText: {
-    position: 'absolute',
-    right: 16,
-    top: 16,
-    fontSize: 16,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
-  errorText: {
-    fontSize: 14,
-    color: '#EF4444',
-    marginTop: 4,
-  },
-  bmiCard: {
-    backgroundColor: '#F0F9FF',
+    backgroundColor: '#F5F5F5',
     borderRadius: 12,
     padding: 16,
+    fontSize: 16,
+    color: '#212121',
     borderWidth: 1,
-    borderColor: '#BAE6FD',
+    borderColor: '#E0E0E0',
+  },
+  bmiContainer: {
+    backgroundColor: '#F5F5F5',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 30,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   bmiLabel: {
-    fontSize: 14,
-    color: '#0369A1',
-    fontWeight: '500',
-    marginBottom: 8,
-  },
-  bmiResult: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 8,
+    fontSize: 15,
+    color: '#757575',
   },
   bmiValue: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#0C4A6E',
-  },
-  bmiCategoryBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  bmiCategoryText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  bmiInfo: {
-    fontSize: 12,
-    color: '#0369A1',
-  },
-  bloodPressureSection: {
-    marginTop: 8,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  sectionSubtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 16,
-  },
-  bloodPressureRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 12,
+    alignItems: 'center',
+    gap: 10,
   },
-  bloodPressureInput: {
-    flex: 1,
-  },
-  bloodPressureSeparator: {
+  bmiNumber: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#9CA3AF',
-    marginBottom: 16,
+    color: '#212121',
   },
-  navigationContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+  bmiCategory: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  questionContainer: {
+    marginBottom: 30,
+  },
+  questionText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#212121',
+    marginBottom: 4,
+  },
+  hint: {
+    fontSize: 13,
+    color: '#9E9E9E',
+    marginBottom: 12,
+  },
+  optionButton: {
     flexDirection: 'row',
-    gap: 12,
-    padding: 20,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 12,
+    marginBottom: 10,
+    borderWidth: 2,
+    borderColor: 'transparent',
   },
-  buttonSecondary: {
+  optionButtonSelected: {
+    backgroundColor: '#E8F5E9',
+    borderColor: '#4CAF50',
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#BDBDBD',
+    marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxInner: {
+    width: 14,
+    height: 14,
+    borderRadius: 3,
+    backgroundColor: '#4CAF50',
+  },
+  optionText: {
+    fontSize: 15,
+    color: '#424242',
     flex: 1,
-    height: 52,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
+  },
+  optionTextSelected: {
+    color: '#2E7D32',
+    fontWeight: '600',
+  },
+  footer: {
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
+  },
+  nextButton: {
+    backgroundColor: '#4CAF50',
+    paddingVertical: 16,
     borderRadius: 12,
-    justifyContent: 'center',
     alignItems: 'center',
   },
-  buttonSecondaryText: {
+  nextButtonDisabled: {
+    backgroundColor: '#BDBDBD',
+  },
+  nextButtonText: {
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
-    color: '#374151',
-  },
-  buttonPrimary: {
-    flex: 2,
-    height: 52,
-    backgroundColor: '#3B82F6',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  buttonPrimaryText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
   },
 });

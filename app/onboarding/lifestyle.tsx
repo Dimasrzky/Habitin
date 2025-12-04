@@ -1,259 +1,223 @@
-import { ExerciseFrequency, Lifestyle, SmokingStatus, StressLevel } from '@/services/onboarding/types';
-import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import { router } from 'expo-router';
+import React from 'react';
 import {
-    Alert,
     SafeAreaView,
     ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
-    View
+    View,
 } from 'react-native';
+import { useOnboarding } from '../../src/context/OnboardingContext';
+
+const EXERCISE_OPTIONS = [
+  'Tidak pernah',
+  '1-2 kali/minggu',
+  '3-4 kali/minggu',
+  '>5 kali/minggu',
+];
+
+const DIET_OPTIONS = [
+  'Sangat tidak sehat (fast food, gorengan sering)',
+  'Cukup sehat (kadang sayur/buah)',
+  'Sehat (rutin sayur/buah)',
+  'Sangat sehat (diet teratur)',
+];
+
+const SMOKING_OPTIONS = [
+  'Tidak',
+  'Ya, kadang-kadang',
+  'Ya, rutin (<10 batang/hari)',
+  'Ya, rutin (>10 batang/hari)',
+];
+
+const SLEEP_OPTIONS = ['<5 jam', '5-6 jam', '7-8 jam', '>8 jam'];
+
+const STRESS_OPTIONS = ['Jarang', 'Kadang-kadang', 'Sering', 'Selalu'];
 
 export default function LifestyleScreen() {
-  const router = useRouter();
-  
-  const [formData, setFormData] = useState<Lifestyle>({
-    exerciseFrequency: 'rarely',
-    smokingStatus: 'never',
-    alcoholConsumption: 'never',
-    sleepHours: 7,
-    stressLevel: 'moderate',
-  });
+  const { data, updateData } = useOnboarding();
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
-
-  const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
-    
-    if (!formData.sleepHours || formData.sleepHours < 3 || formData.sleepHours > 15) {
-      newErrors.sleepHours = 'Jam tidur harus antara 3-15 jam';
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleNext = () => {
-    if (validateForm()) {
-      router.push('/onboarding/symptoms');
-    } else {
-      Alert.alert('Validasi Error', 'Mohon lengkapi data dengan benar');
-    }
-  };
+  const canProceed =
+    data.exerciseFrequency !== '' &&
+    data.dietPattern !== '' &&
+    data.smokingHabit !== '' &&
+    data.sleepHours !== '' &&
+    data.stressLevel !== '';
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Progress Bar */}
-        <View style={styles.progressContainer}>
-          <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: '66.6%' }]} />
-          </View>
-          <Text style={styles.progressText}>Step 4 of 6</Text>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Text style={styles.backButtonText}>←</Text>
+        </TouchableOpacity>
+        <View style={styles.progressBar}>
+          <View style={[styles.progressFill, { width: '50%' }]} />
         </View>
+        <Text style={styles.stepText}>Step 4 of 8</Text>
+      </View>
 
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Gaya Hidup</Text>
-          <Text style={styles.subtitle}>
-            Kebiasaan sehari-hari berpengaruh besar pada kesehatan Anda
+      {/* Content */}
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <Text style={styles.title}>Gaya Hidup</Text>
+        <Text style={styles.subtitle}>
+          Lifestyle Anda sangat mempengaruhi risiko kesehatan
+        </Text>
+
+        {/* Exercise Frequency */}
+        <View style={styles.questionContainer}>
+          <Text style={styles.questionText}>
+            Seberapa sering Anda berolahraga? *
           </Text>
+
+          {EXERCISE_OPTIONS.map((option) => (
+            <TouchableOpacity
+              key={option}
+              style={[
+                styles.optionButton,
+                data.exerciseFrequency === option && styles.optionButtonSelected,
+              ]}
+              onPress={() => updateData('exerciseFrequency', option)}
+            >
+              <View style={styles.radio}>
+                {data.exerciseFrequency === option && <View style={styles.radioInner} />}
+              </View>
+              <Text
+                style={[
+                  styles.optionText,
+                  data.exerciseFrequency === option && styles.optionTextSelected,
+                ]}
+              >
+                {option}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
-        {/* Form */}
-        <View style={styles.form}>
-          {/* Frekuensi Olahraga */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              Seberapa sering Anda berolahraga? <Text style={styles.required}>*</Text>
-            </Text>
-            <View style={styles.optionsGrid}>
-              {[
-                { value: 'never', label: 'Tidak Pernah', icon: '😴' },
-                { value: 'rarely', label: '< 1x/minggu', icon: '🚶' },
-                { value: '1-2_per_week', label: '1-2x/minggu', icon: '🏃' },
-                { value: '3-4_per_week', label: '3-4x/minggu', icon: '💪' },
-                { value: 'daily', label: 'Setiap Hari', icon: '🏋️' },
-              ].map((option) => (
-                <TouchableOpacity
-                  key={option.value}
-                  style={[
-                    styles.optionButton,
-                    formData.exerciseFrequency === option.value && styles.optionButtonActive
-                  ]}
-                  onPress={() => setFormData({ ...formData, exerciseFrequency: option.value as ExerciseFrequency })}
-                >
-                  <Text style={styles.optionIcon}>{option.icon}</Text>
-                  <Text style={[
-                    styles.optionLabel,
-                    formData.exerciseFrequency === option.value && styles.optionLabelActive
-                  ]}>
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
+        {/* Diet Pattern */}
+        <View style={styles.questionContainer}>
+          <Text style={styles.questionText}>Bagaimana pola makan Anda? *</Text>
 
-          {/* Status Merokok */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              Apakah Anda merokok? <Text style={styles.required}>*</Text>
-            </Text>
-            <View style={styles.optionsGrid}>
-              {[
-                { value: 'never', label: 'Tidak Pernah', icon: '🚭' },
-                { value: 'former', label: 'Dulu (Sudah Berhenti)', icon: '✅' },
-                { value: 'current_light', label: 'Ya, Ringan', icon: '🚬' },
-                { value: 'current_heavy', label: 'Ya, Berat', icon: '🔴' },
-              ].map((option) => (
-                <TouchableOpacity
-                  key={option.value}
-                  style={[
-                    styles.optionButton,
-                    formData.smokingStatus === option.value && styles.optionButtonActive
-                  ]}
-                  onPress={() => setFormData({ ...formData, smokingStatus: option.value as SmokingStatus })}
-                >
-                  <Text style={styles.optionIcon}>{option.icon}</Text>
-                  <Text style={[
-                    styles.optionLabel,
-                    formData.smokingStatus === option.value && styles.optionLabelActive
-                  ]}>
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Konsumsi Alkohol */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              Seberapa sering Anda mengonsumsi alkohol? <Text style={styles.required}>*</Text>
-            </Text>
-            <View style={styles.optionsGrid}>
-              {[
-                { value: 'never', label: 'Tidak Pernah', icon: '🚫' },
-                { value: 'occasional', label: 'Kadang-kadang', icon: '🍷' },
-                { value: 'regular', label: 'Rutin', icon: '🍺' },
-                { value: 'heavy', label: 'Sering/Berat', icon: '⚠️' },
-              ].map((option) => (
-                <TouchableOpacity
-                  key={option.value}
-                  style={[
-                    styles.optionButton,
-                    formData.alcoholConsumption === option.value && styles.optionButtonActive
-                  ]}
-                  onPress={() => setFormData({ ...formData, alcoholConsumption: option.value as any })}
-                >
-                  <Text style={styles.optionIcon}>{option.icon}</Text>
-                  <Text style={[
-                    styles.optionLabel,
-                    formData.alcoholConsumption === option.value && styles.optionLabelActive
-                  ]}>
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Jam Tidur */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              Berapa jam Anda tidur per hari? <Text style={styles.required}>*</Text>
-            </Text>
-            <View style={styles.sleepSlider}>
-              <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.sleepOptions}
+          {DIET_OPTIONS.map((option) => (
+            <TouchableOpacity
+              key={option}
+              style={[
+                styles.optionButton,
+                data.dietPattern === option && styles.optionButtonSelected,
+              ]}
+              onPress={() => updateData('dietPattern', option)}
+            >
+              <View style={styles.radio}>
+                {data.dietPattern === option && <View style={styles.radioInner} />}
+              </View>
+              <Text
+                style={[
+                  styles.optionText,
+                  data.dietPattern === option && styles.optionTextSelected,
+                ]}
               >
-                {[4, 5, 6, 7, 8, 9, 10, 11, 12].map((hours) => (
-                  <TouchableOpacity
-                    key={hours}
-                    style={[
-                      styles.sleepOption,
-                      formData.sleepHours === hours && styles.sleepOptionActive
-                    ]}
-                    onPress={() => setFormData({ ...formData, sleepHours: hours })}
-                  >
-                    <Text style={[
-                      styles.sleepValue,
-                      formData.sleepHours === hours && styles.sleepValueActive
-                    ]}>
-                      {hours}
-                    </Text>
-                    <Text style={[
-                      styles.sleepLabel,
-                      formData.sleepHours === hours && styles.sleepLabelActive
-                    ]}>
-                      jam
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-            {errors.sleepHours && (
-              <Text style={styles.errorText}>{errors.sleepHours}</Text>
-            )}
-          </View>
+                {option}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
-          {/* Level Stress */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              Bagaimana tingkat stress Anda? <Text style={styles.required}>*</Text>
-            </Text>
-            <View style={styles.optionsGrid}>
-              {[
-                { value: 'low', label: 'Rendah', icon: '😌', color: '#10B981' },
-                { value: 'moderate', label: 'Sedang', icon: '😐', color: '#F59E0B' },
-                { value: 'high', label: 'Tinggi', icon: '😰', color: '#EF4444' },
-                { value: 'very_high', label: 'Sangat Tinggi', icon: '😱', color: '#991B1B' },
-              ].map((option) => (
-                <TouchableOpacity
-                  key={option.value}
-                  style={[
-                    styles.optionButton,
-                    formData.stressLevel === option.value && styles.optionButtonActive,
-                    formData.stressLevel === option.value && { borderColor: option.color }
-                  ]}
-                  onPress={() => setFormData({ ...formData, stressLevel: option.value as StressLevel })}
-                >
-                  <Text style={styles.optionIcon}>{option.icon}</Text>
-                  <Text style={[
-                    styles.optionLabel,
-                    formData.stressLevel === option.value && styles.optionLabelActive
-                  ]}>
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
+        {/* Smoking Habit */}
+        <View style={styles.questionContainer}>
+          <Text style={styles.questionText}>Apakah Anda merokok? *</Text>
+
+          {SMOKING_OPTIONS.map((option) => (
+            <TouchableOpacity
+              key={option}
+              style={[
+                styles.optionButton,
+                data.smokingHabit === option && styles.optionButtonSelected,
+              ]}
+              onPress={() => updateData('smokingHabit', option)}
+            >
+              <View style={styles.radio}>
+                {data.smokingHabit === option && <View style={styles.radioInner} />}
+              </View>
+              <Text
+                style={[
+                  styles.optionText,
+                  data.smokingHabit === option && styles.optionTextSelected,
+                ]}
+              >
+                {option}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Sleep Hours */}
+        <View style={styles.questionContainer}>
+          <Text style={styles.questionText}>Berapa jam Anda tidur per hari? *</Text>
+
+          {SLEEP_OPTIONS.map((option) => (
+            <TouchableOpacity
+              key={option}
+              style={[
+                styles.optionButton,
+                data.sleepHours === option && styles.optionButtonSelected,
+              ]}
+              onPress={() => updateData('sleepHours', option)}
+            >
+              <View style={styles.radio}>
+                {data.sleepHours === option && <View style={styles.radioInner} />}
+              </View>
+              <Text
+                style={[
+                  styles.optionText,
+                  data.sleepHours === option && styles.optionTextSelected,
+                ]}
+              >
+                {option}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Stress Level */}
+        <View style={styles.questionContainer}>
+          <Text style={styles.questionText}>
+            Seberapa sering Anda merasa stres? *
+          </Text>
+
+          {STRESS_OPTIONS.map((option) => (
+            <TouchableOpacity
+              key={option}
+              style={[
+                styles.optionButton,
+                data.stressLevel === option && styles.optionButtonSelected,
+              ]}
+              onPress={() => updateData('stressLevel', option)}
+            >
+              <View style={styles.radio}>
+                {data.stressLevel === option && <View style={styles.radioInner} />}
+              </View>
+              <Text
+                style={[
+                  styles.optionText,
+                  data.stressLevel === option && styles.optionTextSelected,
+                ]}
+              >
+                {option}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
       </ScrollView>
 
-      {/* Navigation Buttons */}
-      <View style={styles.navigationContainer}>
-        <TouchableOpacity 
-          style={styles.buttonSecondary}
-          onPress={() => router.back()}
+      {/* Footer */}
+      <View style={styles.footer}>
+        <TouchableOpacity
+          style={[styles.nextButton, !canProceed && styles.nextButtonDisabled]}
+          onPress={() => canProceed && router.push('/onboarding/symptoms')}
+          disabled={!canProceed}
         >
-          <Text style={styles.buttonSecondaryText}>Kembali</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.buttonPrimary}
-          onPress={handleNext}
-        >
-          <Text style={styles.buttonPrimaryText}>Selanjutnya</Text>
+          <Text style={styles.nextButtonText}>Lanjut</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -263,171 +227,117 @@ export default function LifestyleScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
   },
-  scrollContent: {
-    padding: 20,
-    paddingBottom: 100,
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 15,
   },
-  progressContainer: {
-    marginBottom: 30,
+  backButton: {
+    marginBottom: 10,
+  },
+  backButtonText: {
+    fontSize: 28,
+    color: '#212121',
   },
   progressBar: {
-    height: 4,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 2,
+    height: 6,
+    backgroundColor: '#E0E0E0',
+    borderRadius: 3,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#4CAF50',
   },
-  progressText: {
+  stepText: {
     marginTop: 8,
     fontSize: 12,
-    color: '#6B7280',
+    color: '#757575',
     textAlign: 'center',
   },
-  header: {
-    marginBottom: 32,
+  content: {
+    flex: 1,
+    paddingHorizontal: 20,
   },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#212121',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#6B7280',
+    color: '#757575',
+    marginBottom: 30,
     lineHeight: 24,
   },
-  form: {
-    gap: 32,
+  questionContainer: {
+    marginBottom: 30,
   },
-  section: {
-    gap: 16,
-  },
-  sectionTitle: {
+  questionText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#374151',
-  },
-  required: {
-    color: '#EF4444',
-  },
-  optionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
+    color: '#212121',
+    marginBottom: 12,
   },
   optionButton: {
-    flex: 1,
-    minWidth: '45%',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
-    alignItems: 'center',
-    gap: 8,
-  },
-  optionButtonActive: {
-    borderColor: '#3B82F6',
-    backgroundColor: '#EFF6FF',
-  },
-  optionIcon: {
-    fontSize: 32,
-  },
-  optionLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#6B7280',
-    textAlign: 'center',
-  },
-  optionLabelActive: {
-    color: '#1E40AF',
-    fontWeight: '600',
-  },
-  sleepSlider: {
-    marginHorizontal: -20,
-    paddingHorizontal: 20,
-  },
-  sleepOptions: {
-    gap: 12,
-    paddingHorizontal: 4,
-  },
-  sleepOption: {
-    width: 70,
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
-    alignItems: 'center',
-    gap: 4,
-  },
-  sleepOptionActive: {
-    borderColor: '#3B82F6',
-    backgroundColor: '#EFF6FF',
-  },
-  sleepValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#6B7280',
-  },
-  sleepValueActive: {
-    color: '#1E40AF',
-  },
-  sleepLabel: {
-    fontSize: 12,
-    color: '#9CA3AF',
-  },
-  sleepLabelActive: {
-    color: '#3B82F6',
-  },
-  errorText: {
-    fontSize: 14,
-    color: '#EF4444',
-    marginTop: 4,
-  },
-  navigationContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     flexDirection: 'row',
-    gap: 12,
-    padding: 20,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 12,
+    marginBottom: 10,
+    borderWidth: 2,
+    borderColor: 'transparent',
   },
-  buttonSecondary: {
+  optionButtonSelected: {
+    backgroundColor: '#E8F5E9',
+    borderColor: '#4CAF50',
+  },
+  radio: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#BDBDBD',
+    marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  radioInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#4CAF50',
+  },
+  optionText: {
+    fontSize: 15,
+    color: '#424242',
     flex: 1,
-    height: 52,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
+  },
+  optionTextSelected: {
+    color: '#2E7D32',
+    fontWeight: '600',
+  },
+  footer: {
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
+  },
+  nextButton: {
+    backgroundColor: '#4CAF50',
+    paddingVertical: 16,
     borderRadius: 12,
-    justifyContent: 'center',
     alignItems: 'center',
   },
-  buttonSecondaryText: {
+  nextButtonDisabled: {
+    backgroundColor: '#BDBDBD',
+  },
+  nextButtonText: {
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
-    color: '#374151',
-  },
-  buttonPrimary: {
-    flex: 2,
-    height: 52,
-    backgroundColor: '#3B82F6',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  buttonPrimaryText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
   },
 });

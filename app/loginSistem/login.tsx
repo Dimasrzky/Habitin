@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useState } from 'react';
@@ -34,7 +35,7 @@ function Login() {
       Alert.alert('Success', 'Welcome back!', [
         {
           text: 'OK',
-          onPress: () => router.replace('/(tabs)'),
+          onPress: () => router.replace('/onboarding/welcome'),
         },
       ]);
     } catch (error: any) {
@@ -86,7 +87,11 @@ function Login() {
           style={styles.eyeIcon}
           onPress={() => setShowPassword(!showPassword)}
         >
-          <Text style={styles.eyeText}>{showPassword ? '👁️' : '👁️‍🗨️'}</Text>
+          <Ionicons 
+            name={showPassword ? "eye-off-outline" : "eye-outline"} 
+            size={24} 
+            color="#555" 
+          />
         </TouchableOpacity>
       </View>
 
@@ -133,7 +138,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 8,
     textAlign: 'center',
-    color: '#667eea',
+    color: '#256742ff',
   },
   subtitle: {
     fontSize: 14,
@@ -167,7 +172,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
   },
   button: {
-    backgroundColor: '#667eea',
+    backgroundColor: '#256742ff',
     padding: 15,
     borderRadius: 10,
     alignItems: 'center',
@@ -182,7 +187,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   link: {
-    color: '#667eea',
+    color: '#256742ff',
     textAlign: 'center',
     marginTop: 20,
     fontSize: 14,

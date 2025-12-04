@@ -31,7 +31,7 @@ export default function Landing() {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
       <LinearGradient
-        colors={['#6B2DD8', '#5B21B6', '#3B19A6', '#2D1694']}
+        colors={['#ffffffff', '#ffffffff', '#51c081ff', '#308d58ff']}
         style={styles.gradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -66,11 +66,6 @@ export default function Landing() {
             <View style={[styles.dot, styles.dot2]} />
             <View style={[styles.dot, styles.dot3]} />
             <View style={[styles.dot, styles.dot4]} />
-          </View>
-
-          <View style={styles.handContainer}>
-            <View style={styles.handPalm} />
-            <View style={styles.handThumb} />
           </View>
         </View>
 
@@ -130,10 +125,10 @@ const styles = StyleSheet.create({
   },
   iconWrapper: {
     position: 'absolute',
-    backgroundColor: 'rgba(100, 230, 255, 0.9)',
+    backgroundColor: '#256742ff',
     borderRadius: 50,
     padding: 15,
-    shadowColor: '#00D9FF',
+    shadowColor: '#00d9ffff',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.5,
     shadowRadius: 10,
@@ -194,25 +189,6 @@ const styles = StyleSheet.create({
     left: '50%',
     marginLeft: -60,
   },
-  handPalm: {
-    width: 120,
-    height: 80,
-    backgroundColor: '#FFB8A5',
-    borderTopLeftRadius: 40,
-    borderTopRightRadius: 40,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-  },
-  handThumb: {
-    position: 'absolute',
-    width: 30,
-    height: 50,
-    backgroundColor: '#FFB8A5',
-    borderRadius: 15,
-    left: -15,
-    top: 20,
-    transform: [{ rotate: '-30deg' }],
-  },
   contentContainer: {
     alignItems: 'center',
     paddingHorizontal: 20,
@@ -221,13 +197,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 26,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#000000ff',
     textAlign: 'center',
     marginBottom: 16,
   },
   subtitle: {
     fontSize: 15,
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: 'rgba(0, 0, 0, 0.9)',
     textAlign: 'center',
     lineHeight: 22,
     paddingHorizontal: 10,
@@ -237,7 +213,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   button: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#ffffffff',
     paddingVertical: 16,
     borderRadius: 30,
     alignItems: 'center',
@@ -248,7 +224,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   buttonText: {
-    color: '#5B21B6',
+    color: '#256742ff',
     fontSize: 18,
     fontWeight: '700',
   },
