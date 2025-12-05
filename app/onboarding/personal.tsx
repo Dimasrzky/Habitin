@@ -2,18 +2,18 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useOnboarding } from '../../src/context/OnboardingContext';
 
-const GENDER_OPTIONS = ['Laki-laki', 'Perempuan', 'Lainnya'];
+const GENDER_OPTIONS = ['Pria', 'Wanita', 'Lainnya'];
 const BLOOD_TYPE_OPTIONS = ['A', 'B', 'AB', 'O', 'Tidak tahu'];
 
 export default function PersonalScreen() {
@@ -56,12 +56,12 @@ export default function PersonalScreen() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>Informasi Personal</Text>
         <Text style={styles.subtitle}>
-          Data ini membantu kami memberikan analisis yang lebih akurat
+          Masukkan data diri Anda 
         </Text>
 
         {/* Full Name */}
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Nama Lengkap *</Text>
+          <Text style={styles.label}>Nama Lengkap</Text>
           <TextInput
             style={styles.input}
             value={data.fullName}
@@ -73,7 +73,7 @@ export default function PersonalScreen() {
 
         {/* Date of Birth */}
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Tanggal Lahir *</Text>
+          <Text style={styles.label}>Tanggal Lahir</Text>
           <TouchableOpacity
             style={styles.dateButton}
             onPress={() => setShowDatePicker(true)}
@@ -99,7 +99,7 @@ export default function PersonalScreen() {
 
         {/* Gender */}
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Jenis Kelamin *</Text>
+          <Text style={styles.label}>Jenis Kelamin</Text>
           <View style={styles.optionRow}>
             {GENDER_OPTIONS.map((option) => (
               <TouchableOpacity

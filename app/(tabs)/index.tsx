@@ -1,12 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
   StatusBar,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { auth } from '../../src/config/firebase.config';
@@ -155,9 +159,13 @@ const DAILY_TIPS = [
   'Hindari stres berlebihan dengan meditasi atau hobi yang menyenangkan.',
 ];
 
+// Key untuk AsyncStorage
+const UPLOAD_MODAL_SHOWN_KEY = 'upload_modal_shown';
+
 export default function HomeScreen() {
   const [dailyMissionChecked, setDailyMissionChecked] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
 
   const { user, loading: userLoading } = useUser();
   const { data: dashboardData, loading: dashboardLoading, refetch } = useDashboard();
@@ -176,6 +184,52 @@ export default function HomeScreen() {
   // Random daily tip
   const dailyTip = DAILY_TIPS[new Date().getDate() % DAILY_TIPS.length];
 
+  // Check if modal should be shown (only once after onboarding)
+  useEffect(() => {
+    const checkModalStatus = async () => {
+      try {
+        const modalShown = await AsyncStorage.getItem(UPLOAD_MODAL_SHOWN_KEY);
+        
+        if (!modalShown) {
+          // Delay 3 detik sebelum muncul modal
+          setTimeout(() => {
+            setShowUploadModal(true);
+          }, 3000);
+        }
+      } catch (error) {
+        console.error('Error checking modal status:', error);
+      }
+    };
+
+    // Only check if user data is loaded
+    if (!userLoading && !dashboardLoading) {
+      checkModalStatus();
+    }
+  }, [userLoading, dashboardLoading]);
+
+  const handleUploadNow = async () => {
+    try {
+      // Set flag bahwa modal sudah ditampilkan
+      await AsyncStorage.setItem(UPLOAD_MODAL_SHOWN_KEY, 'true');
+      setShowUploadModal(false);
+      
+      // Navigate to upload screen (sesuaikan dengan route Anda)
+      router.push('../screens/cekKesehatan/uploadLab'); // atau route upload Anda
+    } catch (error) {
+      console.error('Error setting modal status:', error);
+    }
+  };
+
+  const handleUploadLater = async () => {
+    try {
+      // Set flag bahwa modal sudah ditampilkan
+      await AsyncStorage.setItem(UPLOAD_MODAL_SHOWN_KEY, 'true');
+      setShowUploadModal(false);
+    } catch (error) {
+      console.error('Error setting modal status:', error);
+    }
+  };
+
   const handleQuickAccessPress = (label: string) => {
     console.log(`Pressed: ${label}`);
     // TODO: Navigate to respective screens
@@ -183,14 +237,19 @@ export default function HomeScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await refetch(); 
+    await refetch();
     setRefreshing(false);
   };
 
   if (userLoading || dashboardLoading) {
     return (
       <View
-        style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFFFF' }}
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: '#FFFFFF',
+        }}
       >
         <ActivityIndicator size="large" color="#ABE7B2" />
         <Text style={{ marginTop: 10, color: '#6B7280' }}>Memuat data...</Text>
@@ -209,7 +268,11 @@ export default function HomeScreen() {
           paddingBottom: 32,
         }}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#ABE7B2']} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#ABE7B2']}
+          />
         }
       >
         {/* Header */}
@@ -228,9 +291,7 @@ export default function HomeScreen() {
                 width: 56,
                 height: 56,
                 borderRadius: 28,
-                backgroundColor: getRiskColor(
-                  dashboardData?.riskLevel || 'rendah'
-                ),
+                backgroundColor: getRiskColor(dashboardData?.riskLevel || 'rendah'),
                 justifyContent: 'center',
                 alignItems: 'center',
                 marginRight: 16,
@@ -394,7 +455,9 @@ export default function HomeScreen() {
                   alignItems: 'center',
                 }}
               >
-                {dailyMissionChecked && <Ionicons name="checkmark" size={16} color="#1F2937" />}
+                {dailyMissionChecked && (
+                  <Ionicons name="checkmark" size={16} color="#1F2937" />
+                )}
               </Pressable>
               <Text style={{ fontSize: 14, color: '#000000', fontWeight: '500' }}>
                 Catat asupan gula hari ini
@@ -404,6 +467,115 @@ export default function HomeScreen() {
           </View>
         </Card>
       </ScrollView>
+
+      {/* Upload Lab Modal */}
+      <Modal
+        visible={showUploadModal}
+        transparent
+        animationType="fade"
+        onRequestClose={handleUploadLater}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 20,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: 20,
+              padding: 24,
+              width: '100%',
+              maxWidth: 400,
+              alignItems: 'center',
+            }}
+          >
+            <View
+              style={{
+                width: 80,
+                height: 80,
+                borderRadius: 40,
+                backgroundColor: '#E8F5E9',
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginBottom: 20,
+              }}
+            >
+              <Text style={{ fontSize: 40 }}>📋</Text>
+            </View>
+
+            <Text
+              style={{
+                fontSize: 22,
+                fontWeight: 'bold',
+                color: '#212121',
+                marginBottom: 12,
+                textAlign: 'center',
+              }}
+            >
+              Upload Hasil Lab?
+            </Text>
+
+            <Text
+              style={{
+                fontSize: 15,
+                color: '#757575',
+                textAlign: 'center',
+                marginBottom: 24,
+                lineHeight: 22,
+              }}
+            >
+              Mulai pantau kesehatan Anda dengan mengupload hasil lab. Anda juga bisa
+              melakukannya nanti.
+            </Text>
+
+            <TouchableOpacity
+              style={{
+                width: '100%',
+                backgroundColor: '#4CAF50',
+                paddingVertical: 16,
+                borderRadius: 12,
+                alignItems: 'center',
+                marginBottom: 12,
+              }}
+              onPress={handleUploadNow}
+            >
+              <Text
+                style={{
+                  color: '#FFFFFF',
+                  fontSize: 16,
+                  fontWeight: '600',
+                }}
+              >
+                Upload Sekarang
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={{
+                width: '100%',
+                paddingVertical: 16,
+                alignItems: 'center',
+              }}
+              onPress={handleUploadLater}
+            >
+              <Text
+                style={{
+                  color: '#757575',
+                  fontSize: 16,
+                  fontWeight: '600',
+                }}
+              >
+                Nanti Saja
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

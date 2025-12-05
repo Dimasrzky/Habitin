@@ -1,15 +1,15 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Linking,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Linking,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { auth } from '../../src/config/firebase.config';
 import { useOnboarding } from '../../src/context/OnboardingContext';
@@ -153,7 +153,7 @@ export default function ConsentScreen() {
         </TouchableOpacity>
 
         <View style={styles.disclaimerBox}>
-          <Text style={styles.disclaimerTitle}>⚕️ Disclaimer Medis</Text>
+          <Text style={styles.disclaimerTitle}>⚕️ Disclaimer</Text>
           <Text style={styles.disclaimerText}>
             Habitin adalah alat bantu monitoring kesehatan dan bukan pengganti konsultasi
             medis profesional. Untuk diagnosis dan pengobatan, selalu konsultasikan

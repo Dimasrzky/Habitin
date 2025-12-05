@@ -1,13 +1,13 @@
 import { router } from 'expo-router';
 import React from 'react';
 import {
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useOnboarding } from '../../src/context/OnboardingContext';
 
@@ -105,7 +105,7 @@ export default function PhysicalScreen() {
         {/* Height & Weight */}
         <View style={styles.rowContainer}>
           <View style={[styles.inputContainer, { flex: 1, marginRight: 10 }]}>
-            <Text style={styles.label}>Tinggi Badan (cm) *</Text>
+            <Text style={styles.label}>Tinggi Badan (cm)</Text>
             <TextInput
               style={styles.input}
               value={data.heightCm}
@@ -117,7 +117,7 @@ export default function PhysicalScreen() {
           </View>
 
           <View style={[styles.inputContainer, { flex: 1 }]}>
-            <Text style={styles.label}>Berat Badan (kg) *</Text>
+            <Text style={styles.label}>Berat Badan (kg)</Text>
             <TextInput
               style={styles.input}
               value={data.weightKg}
@@ -145,9 +145,9 @@ export default function PhysicalScreen() {
         {/* Existing Conditions */}
         <View style={styles.questionContainer}>
           <Text style={styles.questionText}>
-            Apakah Anda memiliki kondisi kesehatan khusus? *
+            Apakah Anda memiliki kondisi kesehatan khusus?
           </Text>
-          <Text style={styles.hint}>Pilih semua yang sesuai</Text>
+          <Text style={styles.hint}>Pilih sesuai kondisi Anda</Text>
 
           {CONDITION_OPTIONS.map((option) => (
             <TouchableOpacity
@@ -187,9 +187,9 @@ export default function PhysicalScreen() {
 
         {/* Family History */}
         <View style={styles.questionContainer}>
-          <Text style={styles.questionText}>Riwayat Kesehatan Keluarga *</Text>
+          <Text style={styles.questionText}>Riwayat Kesehatan Keluarga</Text>
           <Text style={styles.hint}>
-            Apakah ada anggota keluarga (orang tua/saudara) yang memiliki riwayat penyakit
+            Apakah ada anggota keluarga yang memiliki riwayat penyakit
             berikut?
           </Text>
 

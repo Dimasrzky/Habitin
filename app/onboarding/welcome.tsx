@@ -1,12 +1,12 @@
 import { router } from 'expo-router';
 import React from 'react';
 import {
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useOnboarding } from '../../src/context/OnboardingContext';
 
@@ -49,9 +49,9 @@ export default function WelcomeScreen() {
 
       {/* Content */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>Selamat Datang di Habitin! 🎉</Text>
+        <Text style={styles.title}>Selamat Datang di Habitin!</Text>
         <Text style={styles.subtitle}>
-          Mari kenalan dulu supaya kami bisa memberikan pengalaman terbaik untuk Anda
+          Berikan pengalaman terbaik Anda untuk Habitin
         </Text>
 
         {/* Question 1 */}
@@ -59,7 +59,7 @@ export default function WelcomeScreen() {
           <Text style={styles.questionText}>
             Apa tujuan utama Anda menggunakan aplikasi ini?
           </Text>
-          <Text style={styles.hint}>Pilih semua yang sesuai</Text>
+          <Text style={styles.hint}>Pilih yang sesuai kebutuhan Anda</Text>
 
           {PURPOSE_OPTIONS.map((option) => (
             <TouchableOpacity
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 20,
-    paddingTop: 10,
+    paddingTop: 50,
     paddingBottom: 15,
   },
   progressBar: {

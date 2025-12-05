@@ -43,6 +43,15 @@ interface SettingsItem {
     route: string
 }
 
+interface DeveloperItem {
+    icon: keyof typeof Ionicons.glyphMap
+    label: string
+    subtitle: string
+    color: string
+    action: () => void
+    danger?: boolean
+}
+
 // Mock Data
 const MOCK_USER: UserProfile = {
     id: "user_001",
@@ -104,6 +113,7 @@ const Card: React.FC<{ children: React.ReactNode; style?: object }> = ({ childre
 export default function ProfileScreen() {
     const router = useRouter();
     const [healthDataExpanded, setHealthDataExpanded] = useState(false);
+    const [developerExpanded, setDeveloperExpanded] = useState(false);
     const [userData] = useState(MOCK_USER);
 
     const bmiStatus = getBMIStatus(MOCK_HEALTH_DATA.bmi);
@@ -134,6 +144,129 @@ export default function ProfileScreen() {
             color: "#93BFC7",
             route: "/screens/Profile/AboutHabitin"
         },
+    ];
+
+    // Reset Upload Modal (untuk testing)
+    const resetUploadModal = async () => {
+        Alert.alert(
+            "Reset Upload Modal",
+            "Modal upload akan muncul kembali saat membuka home screen. Lanjutkan?",
+            [
+                {
+                    text: "Batal",
+                    style: "cancel"
+                },
+                {
+                    text: "Reset",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            await AsyncStorage.removeItem('upload_modal_shown');
+                            
+                            Alert.alert(
+                                "Berhasil! ✅",
+                                "Modal upload telah direset. Buka home screen untuk melihat modal.",
+                                [
+                                    {
+                                        text: "Ke Home",
+                                        onPress: () => {
+                                            router.push('/(tabs)' as any);
+                                        }
+                                    },
+                                    {
+                                        text: "OK",
+                                        style: "cancel"
+                                    }
+                                ]
+                            );
+                            console.log('✅ Upload modal reset!');
+                        } catch (error) {
+                            console.error('Error resetting modal:', error);
+                            Alert.alert('Error', 'Gagal mereset modal. Silakan coba lagi.');
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
+    // Clear All Local Data
+    const clearAllData = async () => {
+        Alert.alert(
+            "Hapus Semua Data Lokal",
+            "Ini akan menghapus semua cache dan preferensi lokal. Anda tidak akan logout. Lanjutkan?",
+            [
+                {
+                    text: "Batal",
+                    style: "cancel"
+                },
+                {
+                    text: "Hapus",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            await AsyncStorage.clear();
+                            Alert.alert(
+                                "Berhasil! ✅", 
+                                "Semua data lokal telah dihapus. App akan restart."
+                            );
+                            console.log('✅ All AsyncStorage data cleared!');
+                            
+                            // Reload app (optional)
+                            // Updates.reloadAsync();
+                        } catch (error) {
+                            console.error('Error clearing data:', error);
+                            Alert.alert('Error', 'Gagal menghapus data.');
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
+    // View All AsyncStorage Keys (debugging)
+    const viewStorageKeys = async () => {
+        try {
+            const keys = await AsyncStorage.getAllKeys();
+            const items = await AsyncStorage.multiGet(keys);
+            
+            let message = "AsyncStorage Keys:\n\n";
+            items.forEach(([key, value]) => {
+                message += `${key}: ${value?.substring(0, 50)}...\n`;
+            });
+            
+            Alert.alert("Storage Keys", message);
+            console.log('📦 AsyncStorage keys:', keys);
+        } catch (error) {
+            console.error('Error reading storage:', error);
+            Alert.alert('Error', 'Gagal membaca storage.');
+        }
+    };
+
+    // Developer Options
+    const DEVELOPER_ITEMS: DeveloperItem[] = [
+        {
+            icon: "refresh-outline",
+            label: "Reset Upload Modal",
+            subtitle: "Tampilkan kembali modal upload",
+            color: "#9C27B0",
+            action: resetUploadModal
+        },
+        {
+            icon: "folder-open-outline",
+            label: "Lihat Storage Keys",
+            subtitle: "Debug AsyncStorage data",
+            color: "#2196F3",
+            action: viewStorageKeys
+        },
+        {
+            icon: "trash-outline",
+            label: "Hapus Semua Data Lokal",
+            subtitle: "Clear cache dan reset preferensi",
+            color: "#FF5252",
+            action: clearAllData,
+            danger: true
+        }
     ];
 
     const handleEditProfile = () => {
@@ -618,6 +751,85 @@ export default function ProfileScreen() {
                             </View>
                         </Pressable>
                     ))}
+                </Card>
+
+                {/* Developer Options - Collapsible */}
+                <Card>
+                    <Pressable
+                        onPress={() => setDeveloperExpanded(!developerExpanded)}
+                        style={({ pressed }) => ({
+                            flexDirection: "row",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            opacity: pressed ? 0.7 : 1,
+                        })}
+                    >
+                        <View style={{ flexDirection: "row", alignItems: "center" }}>
+                            <Ionicons name="code-slash" size={20} color="#9C27B0" style={{ marginRight: 8 }} />
+                            <Text style={{ fontSize: 16, fontWeight: "600", color: "#000000" }}>
+                                Developer Options
+                            </Text>
+                        </View>
+                        <Ionicons
+                            name={developerExpanded ? "chevron-up" : "chevron-down"}
+                            size={24}
+                            color="#6B7280"
+                        />
+                    </Pressable>
+
+                    {developerExpanded && (
+                        <View style={{ marginTop: 16 }}>
+                            {DEVELOPER_ITEMS.map((item, index) => (
+                                <Pressable
+                                    key={index}
+                                    onPress={item.action}
+                                    style={({ pressed }) => ({
+                                        paddingVertical: 12,
+                                        paddingHorizontal: 4,
+                                        marginBottom: index < DEVELOPER_ITEMS.length - 1 ? 12 : 0,
+                                        borderRadius: 8,
+                                        backgroundColor: pressed ? "#F9FAFB" : "transparent",
+                                    })}
+                                >
+                                    <View
+                                        style={{
+                                            flexDirection: "row",
+                                            alignItems: "center",
+                                        }}
+                                    >
+                                        <View
+                                            style={{
+                                                width: 40,
+                                                height: 40,
+                                                borderRadius: 20,
+                                                backgroundColor: `${item.color}20`,
+                                                justifyContent: "center",
+                                                alignItems: "center",
+                                                marginRight: 12,
+                                            }}
+                                        >
+                                            <Ionicons name={item.icon} size={20} color={item.color} />
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text
+                                                style={{
+                                                    fontSize: 14,
+                                                    fontWeight: "500",
+                                                    color: item.danger ? "#EF4444" : "#000000",
+                                                    marginBottom: 2,
+                                                }}
+                                            >
+                                                {item.label}
+                                            </Text>
+                                            <Text style={{ fontSize: 12, color: "#6B7280" }}>
+                                                {item.subtitle}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                </Pressable>
+                            ))}
+                        </View>
+                    )}
                 </Card>
 
                 {/* Logout */}

@@ -1,12 +1,12 @@
 import { router } from 'expo-router';
 import React from 'react';
 import {
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useOnboarding } from '../../src/context/OnboardingContext';
 
@@ -74,8 +74,8 @@ export default function SymptomsScreen() {
         <View style={styles.infoBox}>
           <Text style={styles.infoIcon}>💡</Text>
           <Text style={styles.infoText}>
-            Informasi ini membantu kami memberikan peringatan dini jika ada kondisi yang
-            perlu perhatian lebih
+            Informasi ini membantu kami memberikan rekomendasi kesehatan yang lebih
+            tepat untuk Anda.
           </Text>
         </View>
 

@@ -1,12 +1,12 @@
 import { router } from 'expo-router';
 import React from 'react';
 import {
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useOnboarding } from '../../src/context/OnboardingContext';
 
@@ -62,13 +62,13 @@ export default function LifestyleScreen() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>Gaya Hidup</Text>
         <Text style={styles.subtitle}>
-          Lifestyle Anda sangat mempengaruhi risiko kesehatan
+          Tentang kebiasaan sehari-hari Anda
         </Text>
 
         {/* Exercise Frequency */}
         <View style={styles.questionContainer}>
           <Text style={styles.questionText}>
-            Seberapa sering Anda berolahraga? *
+            Seberapa sering Anda berolahraga?
           </Text>
 
           {EXERCISE_OPTIONS.map((option) => (
@@ -97,7 +97,7 @@ export default function LifestyleScreen() {
 
         {/* Diet Pattern */}
         <View style={styles.questionContainer}>
-          <Text style={styles.questionText}>Bagaimana pola makan Anda? *</Text>
+          <Text style={styles.questionText}>Bagaimana pola makan Anda?</Text>
 
           {DIET_OPTIONS.map((option) => (
             <TouchableOpacity
@@ -125,7 +125,7 @@ export default function LifestyleScreen() {
 
         {/* Smoking Habit */}
         <View style={styles.questionContainer}>
-          <Text style={styles.questionText}>Apakah Anda merokok? *</Text>
+          <Text style={styles.questionText}>Apakah Anda merokok?</Text>
 
           {SMOKING_OPTIONS.map((option) => (
             <TouchableOpacity
@@ -153,7 +153,7 @@ export default function LifestyleScreen() {
 
         {/* Sleep Hours */}
         <View style={styles.questionContainer}>
-          <Text style={styles.questionText}>Berapa jam Anda tidur per hari? *</Text>
+          <Text style={styles.questionText}>Berapa jam Anda tidur per hari?</Text>
 
           {SLEEP_OPTIONS.map((option) => (
             <TouchableOpacity
@@ -182,7 +182,7 @@ export default function LifestyleScreen() {
         {/* Stress Level */}
         <View style={styles.questionContainer}>
           <Text style={styles.questionText}>
-            Seberapa sering Anda merasa stres? *
+            Seberapa sering Anda merasa stres?
           </Text>
 
           {STRESS_OPTIONS.map((option) => (
