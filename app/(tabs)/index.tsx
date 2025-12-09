@@ -159,13 +159,17 @@ const DAILY_TIPS = [
   'Hindari stres berlebihan dengan meditasi atau hobi yang menyenangkan.',
 ];
 
-// Key untuk AsyncStorage
+// AsyncStorage Keys
 const UPLOAD_MODAL_SHOWN_KEY = 'upload_modal_shown';
+const LAB_UPLOAD_SKIPPED_KEY = 'lab_upload_skipped';
+const HAS_UPLOADED_LAB_KEY = 'has_uploaded_lab';
 
 export default function HomeScreen() {
   const [dailyMissionChecked, setDailyMissionChecked] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [labUploadSkipped, setLabUploadSkipped] = useState(false);
+  const [hasUploadedLab, setHasUploadedLab] = useState(false);
 
   const { user, loading: userLoading } = useUser();
   const { data: dashboardData, loading: dashboardLoading, refetch } = useDashboard();
@@ -184,37 +188,41 @@ export default function HomeScreen() {
   // Random daily tip
   const dailyTip = DAILY_TIPS[new Date().getDate() % DAILY_TIPS.length];
 
-  // Check if modal should be shown (only once after onboarding)
+  // Check lab upload status
   useEffect(() => {
-    const checkModalStatus = async () => {
+    const checkLabStatus = async () => {
       try {
         const modalShown = await AsyncStorage.getItem(UPLOAD_MODAL_SHOWN_KEY);
-        
-        if (!modalShown) {
-          // Delay 3 detik sebelum muncul modal
+        const skipped = await AsyncStorage.getItem(LAB_UPLOAD_SKIPPED_KEY);
+        const uploaded = await AsyncStorage.getItem(HAS_UPLOADED_LAB_KEY);
+
+        setLabUploadSkipped(skipped === 'true');
+        setHasUploadedLab(uploaded === 'true');
+
+        // Show modal only if:
+        // 1. Modal hasn't been shown before
+        // 2. User hasn't uploaded lab yet
+        // 3. User data is loaded
+        if (!modalShown && uploaded !== 'true' && !userLoading && !dashboardLoading) {
           setTimeout(() => {
             setShowUploadModal(true);
           }, 3000);
         }
       } catch (error) {
-        console.error('Error checking modal status:', error);
+        console.error('Error checking lab status:', error);
       }
     };
 
-    // Only check if user data is loaded
-    if (!userLoading && !dashboardLoading) {
-      checkModalStatus();
-    }
+    checkLabStatus();
   }, [userLoading, dashboardLoading]);
 
   const handleUploadNow = async () => {
     try {
-      // Set flag bahwa modal sudah ditampilkan
       await AsyncStorage.setItem(UPLOAD_MODAL_SHOWN_KEY, 'true');
       setShowUploadModal(false);
-      
+
       // Navigate to upload screen (sesuaikan dengan route Anda)
-      router.push('../screens/cekKesehatan/uploadLab'); // atau route upload Anda
+      router.push('../screens/cekKesehatan/uploadLab'); // Ganti dengan route upload yang sesuai
     } catch (error) {
       console.error('Error setting modal status:', error);
     }
@@ -222,12 +230,20 @@ export default function HomeScreen() {
 
   const handleUploadLater = async () => {
     try {
-      // Set flag bahwa modal sudah ditampilkan
+      // Set flags
       await AsyncStorage.setItem(UPLOAD_MODAL_SHOWN_KEY, 'true');
+      await AsyncStorage.setItem(LAB_UPLOAD_SKIPPED_KEY, 'true');
+      
       setShowUploadModal(false);
+      setLabUploadSkipped(true);
     } catch (error) {
       console.error('Error setting modal status:', error);
     }
+  };
+
+  const handleUploadCardPress = () => {
+    // Navigate to upload page
+    router.push('../screens/cekKesehatan/uploadLab'); // Ganti dengan route upload yang sesuai
   };
 
   const handleQuickAccessPress = (label: string) => {
@@ -238,6 +254,11 @@ export default function HomeScreen() {
   const onRefresh = async () => {
     setRefreshing(true);
     await refetch();
+    
+    // Recheck lab status after refresh
+    const uploaded = await AsyncStorage.getItem(HAS_UPLOADED_LAB_KEY);
+    setHasUploadedLab(uploaded === 'true');
+    
     setRefreshing(false);
   };
 
@@ -283,48 +304,92 @@ export default function HomeScreen() {
           <Text style={{ fontSize: 14, color: '#6B7280', marginTop: 4 }}>{today}</Text>
         </View>
 
-        {/* Health Risk Status Card */}
-        <Card>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <View
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: 28,
-                backgroundColor: getRiskColor(dashboardData?.riskLevel || 'rendah'),
-                justifyContent: 'center',
-                alignItems: 'center',
-                marginRight: 16,
-              }}
-            >
+        {/* Health Risk Status Card OR Upload Lab Card */}
+        {!hasUploadedLab && labUploadSkipped ? (
+          // Upload Lab Card (Gray - when skipped)
+          <Pressable onPress={handleUploadCardPress}>
+            <Card>
+              <View style={{ alignItems: 'center', paddingVertical: 8 }}>
+                <View
+                  style={{
+                    width: 64,
+                    height: 64,
+                    borderRadius: 32,
+                    backgroundColor: '#F3F4F6',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    marginBottom: 12,
+                  }}
+                >
+                  <Ionicons name="cloud-upload-outline" size={32} color="#9CA3AF" />
+                </View>
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: '600',
+                    color: '#6B7280',
+                    marginBottom: 4,
+                  }}
+                >
+                  Upload Hasil Lab
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 13,
+                    color: '#9CA3AF',
+                    textAlign: 'center',
+                    paddingHorizontal: 20,
+                  }}
+                >
+                  Tap untuk upload hasil lab dan dapatkan analisis kesehatan
+                </Text>
+              </View>
+            </Card>
+          </Pressable>
+        ) : (
+          // Normal Health Risk Status Card
+          <Card>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <View
                 style={{
-                  width: 24,
-                  height: 24,
-                  borderRadius: 12,
-                  backgroundColor: getRiskCircleColor(
-                    dashboardData?.riskLevel || 'rendah'
-                  ),
-                }}
-              />
-            </View>
-            <View>
-              <Text style={{ fontSize: 14, color: '#6B7280' }}>
-                Status Kesehatan Anda
-              </Text>
-              <Text
-                style={{
-                  fontSize: 18,
-                  fontWeight: '600',
-                  color: '#000000',
-                  marginTop: 4,
+                  width: 56,
+                  height: 56,
+                  borderRadius: 28,
+                  backgroundColor: getRiskColor(dashboardData?.riskLevel || 'rendah'),
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  marginRight: 16,
                 }}
               >
-                {getRiskStatusText(dashboardData?.riskLevel || 'rendah')}
-              </Text>
+                <View
+                  style={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: 12,
+                    backgroundColor: getRiskCircleColor(
+                      dashboardData?.riskLevel || 'rendah'
+                    ),
+                  }}
+                />
+              </View>
+              <View>
+                <Text style={{ fontSize: 14, color: '#6B7280' }}>
+                  Status Kesehatan Anda
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 18,
+                    fontWeight: '600',
+                    color: '#000000',
+                    marginTop: 4,
+                  }}
+                >
+                  {getRiskStatusText(dashboardData?.riskLevel || 'rendah')}
+                </Text>
+              </View>
             </View>
-          </View>
-        </Card>
+          </Card>
+        )}
 
         {/* Quick Access Features Card */}
         <QuickAccessCard onPress={handleQuickAccessPress} />

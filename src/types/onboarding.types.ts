@@ -41,6 +41,12 @@ export interface OnboardingData {
   ageConsent: boolean;
 }
 
+export interface LabUploadStatus {
+  hasUploadedLab: boolean;
+  skippedUpload: boolean;
+  lastUploadDate?: string;
+}
+
 export const INITIAL_ONBOARDING_DATA: OnboardingData = {
   purpose: [],
   checkupFrequency: '',
@@ -64,4 +70,10 @@ export const INITIAL_ONBOARDING_DATA: OnboardingData = {
   privacyConsent: false,
   dataAnalysisConsent: false,
   ageConsent: false,
+};
+
+export const INITIAL_LAB_STATUS: LabUploadStatus = {
+  hasUploadedLab: false,
+  skippedUpload: false,
+  lastUploadDate: undefined,
 };

@@ -4,6 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from 'expo-router';
 import React, { useState } from "react";
 import { Alert, Pressable, ScrollView, StatusBar, Text, View } from "react-native";
+import { resetLabUploadStatus } from '../../src/utils/labUploadHelper';
 
 // TypeScript Interfaces
 interface UserProfile {
@@ -190,6 +191,49 @@ export default function ProfileScreen() {
         );
     };
 
+    const resetLabStatus = async () => {
+    Alert.alert(
+        "Reset Lab Upload Status",
+        "Ini akan mereset status upload lab. Modal dan card akan kembali seperti pertama kali. Lanjutkan?",
+        [
+        {
+            text: "Batal",
+            style: "cancel"
+        },
+        {
+            text: "Reset",
+            style: "destructive",
+            onPress: async () => {
+            try {
+                await resetLabUploadStatus();
+                
+                Alert.alert(
+                "Berhasil! ✅",
+                "Status lab upload telah direset. Buka home untuk melihat perubahan.",
+                [
+                    {
+                    text: "Ke Home",
+                    onPress: () => {
+                        router.push('/(tabs)' as any);
+                    }
+                    },
+                    {
+                    text: "OK",
+                    style: "cancel"
+                    }
+                ]
+                );
+                console.log('✅ Lab upload status reset!');
+            } catch (error) {
+                console.error('Error resetting lab status:', error);
+                Alert.alert('Error', 'Gagal mereset status lab.');
+            }
+            }
+        }
+        ]
+    );
+    };
+
     // Clear All Local Data
     const clearAllData = async () => {
         Alert.alert(
@@ -245,28 +289,35 @@ export default function ProfileScreen() {
 
     // Developer Options
     const DEVELOPER_ITEMS: DeveloperItem[] = [
-        {
-            icon: "refresh-outline",
-            label: "Reset Upload Modal",
-            subtitle: "Tampilkan kembali modal upload",
-            color: "#9C27B0",
-            action: resetUploadModal
-        },
-        {
-            icon: "folder-open-outline",
-            label: "Lihat Storage Keys",
-            subtitle: "Debug AsyncStorage data",
-            color: "#2196F3",
-            action: viewStorageKeys
-        },
-        {
-            icon: "trash-outline",
-            label: "Hapus Semua Data Lokal",
-            subtitle: "Clear cache dan reset preferensi",
-            color: "#FF5252",
-            action: clearAllData,
-            danger: true
-        }
+    {
+        icon: "refresh-outline",
+        label: "Reset Upload Modal",
+        subtitle: "Tampilkan kembali modal upload",
+        color: "#9C27B0",
+        action: resetUploadModal
+    },
+    {
+        icon: "medical-outline", // NEW ITEM
+        label: "Reset Lab Upload Status",
+        subtitle: "Reset status upload lab & card",
+        color: "#FF6B6B",
+        action: resetLabStatus
+    },
+    {
+        icon: "folder-open-outline",
+        label: "Lihat Storage Keys",
+        subtitle: "Debug AsyncStorage data",
+        color: "#2196F3",
+        action: viewStorageKeys
+    },
+    {
+        icon: "trash-outline",
+        label: "Hapus Semua Data Lokal",
+        subtitle: "Clear cache dan reset preferensi",
+        color: "#FF5252",
+        action: clearAllData,
+        danger: true
+    }
     ];
 
     const handleEditProfile = () => {

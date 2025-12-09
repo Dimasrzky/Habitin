@@ -15,6 +15,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { markLabAsUploaded } from '../../../src/utils/labUploadHelper'; // ← TAMBAHKAN INI
 
 export default function UploadPreviewScreen() {
   const router = useRouter();
@@ -38,6 +39,15 @@ export default function UploadPreviewScreen() {
 
       if (result.success) {
         console.log('✅ Upload process complete!');
+        
+        // ✅ TAMBAHKAN: Mark lab as uploaded
+        try {
+          await markLabAsUploaded();
+          console.log('✅ Lab status updated in AsyncStorage');
+        } catch (storageError) {
+          console.error('⚠️ Failed to update lab status:', storageError);
+          // Continue anyway, tidak perlu gagalkan proses
+        }
         
         // Navigate to result screen with data
         router.replace({
