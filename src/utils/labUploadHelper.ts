@@ -53,7 +53,6 @@ export const resetLabUploadStatus = async (): Promise<void> => {
     await AsyncStorage.removeItem(UPLOAD_MODAL_SHOWN_KEY);
     await AsyncStorage.removeItem(LAB_UPLOAD_SKIPPED_KEY);
     await AsyncStorage.removeItem(HAS_UPLOADED_LAB_KEY);
-    console.log('✅ Lab upload status reset');
   } catch (error) {
     console.error('Error resetting lab upload status:', error);
     throw error;

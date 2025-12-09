@@ -129,7 +129,6 @@ export const hasCompletedOnboarding = async (): Promise<boolean> => {
 export const resetOnboardingStatus = async (): Promise<void> => {
   try {
     await AsyncStorage.removeItem(ONBOARDING_COMPLETED_KEY);
-    console.log('✅ Onboarding status reset');
   } catch (error) {
     console.error('Error resetting onboarding status:', error);
     throw error;
