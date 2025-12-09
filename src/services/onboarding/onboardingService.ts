@@ -72,7 +72,6 @@ export const saveOnboardingData = async (
 
     // ✅ TAMBAHAN: Mark onboarding as completed di AsyncStorage
     await AsyncStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true');
-    console.log('✅ Onboarding marked as completed');
 
     return { success: true };
 

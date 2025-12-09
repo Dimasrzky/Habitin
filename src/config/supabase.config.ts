@@ -17,8 +17,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, supabaseServi
   },
 }: undefined);
 
-console.log('✅ Supabase client created');
-
 // ✅ SYNC FIREBASE AUTH TO SUPABASE
 export const syncAuthToSupabase = async () => {
   try {

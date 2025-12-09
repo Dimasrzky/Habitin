@@ -43,7 +43,6 @@ export default function CompleteScreen() {
   }));
 
   const handleContinue = () => {
-    console.log('✅ Onboarding completed, navigating to home');
     // Redirect to home screen
     router.replace('/(tabs)');
   };

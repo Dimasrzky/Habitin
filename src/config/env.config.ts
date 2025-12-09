@@ -34,8 +34,6 @@ export const validateConfig = () => {
     console.warn('⚠️ Missing configuration:', missing.join(', '));
     return false;
   }
-
-  console.log('✅ All environment variables validated');
   return true;
 };
 

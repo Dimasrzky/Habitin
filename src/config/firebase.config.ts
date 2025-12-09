@@ -15,13 +15,11 @@ try {
     // First time initialization
     const firebaseConfig = ENV_CONFIG.firebase;
     
-    console.log('🔥 Initializing Firebase...');
     app = initializeApp(firebaseConfig);
     
     // Use getAuth directly (simpler and more compatible)
     auth = getAuth(app);
     
-    console.log('✅ Firebase initialized successfully');
   }
 } catch (error: any) {
   console.error('❌ Firebase initialization error:', error.message);

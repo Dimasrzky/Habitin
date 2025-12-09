@@ -18,5 +18,3 @@ export const supabaseStorage = createClient(supabaseUrl, serviceRoleKey, {
     detectSessionInUrl: false,
   },
 });
-
-console.log('✅ Supabase storage client created (service role)');

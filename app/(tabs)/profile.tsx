@@ -181,7 +181,6 @@ export default function ProfileScreen() {
                                     }
                                 ]
                             );
-                            console.log('✅ Upload modal reset!');
                         } catch (error) {
                             console.error('Error resetting modal:', error);
                             Alert.alert('Error', 'Gagal mereset modal. Silakan coba lagi.');
@@ -224,7 +223,6 @@ export default function ProfileScreen() {
                     }
                 ]
                 );
-                console.log('✅ Lab upload status reset!');
             } catch (error) {
                 console.error('Error resetting lab status:', error);
                 Alert.alert('Error', 'Gagal mereset status lab.');
@@ -255,7 +253,6 @@ export default function ProfileScreen() {
                                 "Berhasil! ✅", 
                                 "Semua data lokal telah dihapus. App akan restart."
                             );
-                            console.log('✅ All AsyncStorage data cleared!');
                             
                             // Reload app (optional)
                             // Updates.reloadAsync();
@@ -281,7 +278,6 @@ export default function ProfileScreen() {
             });
             
             Alert.alert("Storage Keys", message);
-            console.log('📦 AsyncStorage keys:', keys);
         } catch (error) {
             console.error('Error reading storage:', error);
             Alert.alert('Error', 'Gagal membaca storage.');
@@ -313,7 +309,6 @@ export default function ProfileScreen() {
                     }
                 ]
                 );
-                console.log('✅ Onboarding status reset!');
             } catch (error) {
                 console.error('Error resetting onboarding:', error);
                 Alert.alert('Error', 'Gagal mereset onboarding.');

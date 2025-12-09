@@ -7,7 +7,6 @@ export default function IndexScreen() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      console.log('Redirecting to landing...');
       router.replace('/loginSistem/landing');
     }, 1500);
 
