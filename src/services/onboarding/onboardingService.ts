@@ -1,5 +1,9 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../config/supabase.config';
 import { OnboardingData } from '../../types/onboarding.types';
+
+// AsyncStorage Key
+const ONBOARDING_COMPLETED_KEY = 'onboarding_completed';
 
 const calculateBMI = (heightCm: number, weightKg: number): number => {
   const heightM = heightCm / 100;
@@ -11,6 +15,12 @@ export const saveOnboardingData = async (
   data: OnboardingData
 ): Promise<{ success: boolean; error?: string }> => {
   try {
+    console.log('Saving onboarding data for user:', userId);
+
+    if (!userId) {
+      throw new Error('User ID is required');
+    }
+
     const bmi = calculateBMI(
       parseFloat(data.heightCm),
       parseFloat(data.weightKg)
@@ -43,16 +53,41 @@ export const saveOnboardingData = async (
       age_consent: data.ageConsent,
     };
 
-    const { error } = await supabase
-      .from('onboarding_data')
-      .upsert(dbData, { onConflict: 'user_id' });
+    console.log('Prepared data:', dbData);
 
-    if (error) throw error;
+    const { data: result, error } = await supabase
+      .from('onboarding_data')
+      .upsert(dbData, { 
+        onConflict: 'user_id',
+        ignoreDuplicates: false 
+      })
+      .select();
+
+    if (error) {
+      console.error('Supabase error:', error);
+      throw error;
+    }
+
+    console.log('Save successful:', result);
+
+    // ✅ TAMBAHAN: Mark onboarding as completed di AsyncStorage
+    await AsyncStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true');
+    console.log('✅ Onboarding marked as completed');
 
     return { success: true };
+
   } catch (error: any) {
     console.error('Save onboarding error:', error);
-    return { success: false, error: error.message };
+    
+    let errorMessage = 'Gagal menyimpan data. Silakan coba lagi.';
+    
+    if (error.code === '42501') {
+      errorMessage = 'Permission denied. Please check database policies.';
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    return { success: false, error: errorMessage };
   }
 };
 
@@ -60,14 +95,44 @@ export const checkOnboardingCompleted = async (
   userId: string
 ): Promise<boolean> => {
   try {
+    if (!userId) return false;
+
     const { data, error } = await supabase
       .from('onboarding_data')
       .select('id')
       .eq('user_id', userId)
       .single();
 
-    return !error && data !== null;
-  } catch {
+    if (error) {
+      console.log('Check onboarding error:', error);
+      return false;
+    }
+
+    return data !== null;
+  } catch (error) {
+    console.error('Check onboarding error:', error);
     return false;
+  }
+};
+
+// ✅ FUNCTION BARU: Check if user completed onboarding (from AsyncStorage)
+export const hasCompletedOnboarding = async (): Promise<boolean> => {
+  try {
+    const completed = await AsyncStorage.getItem(ONBOARDING_COMPLETED_KEY);
+    return completed === 'true';
+  } catch (error) {
+    console.error('Error checking onboarding status:', error);
+    return false;
+  }
+};
+
+// ✅ FUNCTION BARU: Reset onboarding status (for testing)
+export const resetOnboardingStatus = async (): Promise<void> => {
+  try {
+    await AsyncStorage.removeItem(ONBOARDING_COMPLETED_KEY);
+    console.log('✅ Onboarding status reset');
+  } catch (error) {
+    console.error('Error resetting onboarding status:', error);
+    throw error;
   }
 };

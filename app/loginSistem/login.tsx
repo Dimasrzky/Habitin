@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { auth } from '../../src/config/firebase.config';
+import { hasCompletedOnboarding } from '../../src/services/onboarding/onboardingService';
 
 function Login() {
   const router = useRouter();
@@ -32,12 +33,27 @@ function Login() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       console.log('Login successful:', userCredential.user.email);
       
-      Alert.alert('Success', 'Welcome back!', [
-        {
-          text: 'OK',
-          onPress: () => router.replace('/onboarding/welcome'),
-        },
-      ]);
+      // ✅ CEK STATUS ONBOARDING
+      const completedOnboarding = await hasCompletedOnboarding();
+
+      // ✅ REDIRECT SESUAI STATUS
+      if (completedOnboarding) {
+        // User sudah onboarding → Langsung ke home
+        Alert.alert('Success', 'Welcome back!', [
+          {
+            text: 'OK',
+            onPress: () => router.replace('/(tabs)'),
+          },
+        ]);
+      } else {
+        // User belum onboarding → Ke onboarding
+        Alert.alert('Success', 'Welcome! Please complete your profile', [
+          {
+            text: 'OK',
+            onPress: () => router.replace('/onboarding/welcome'),
+          },
+        ]);
+      }
     } catch (error: any) {
       console.error('Login error:', error);
       
@@ -167,9 +183,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 15,
     top: 15,
-  },
-  eyeText: {
-    fontSize: 20,
   },
   button: {
     backgroundColor: '#256742ff',

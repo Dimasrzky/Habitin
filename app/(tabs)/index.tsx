@@ -17,8 +17,46 @@ import { auth } from '../../src/config/firebase.config';
 import { useDashboard } from '../../src/hooks/useDashboard';
 import { useUser } from '../../src/hooks/useUser';
 
+// ==================== TYPES ====================
 type RiskLevel = 'rendah' | 'sedang' | 'tinggi';
 
+interface CardProps {
+  children: React.ReactNode;
+}
+
+interface QuickAccessItem {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  color: string;
+}
+
+interface QuickAccessCardProps {
+  onPress: (label: string) => void;
+}
+
+// ==================== CONSTANTS ====================
+const QUICK_ACCESS_ITEMS: QuickAccessItem[] = [
+  { icon: 'pulse-outline', label: 'Tracker Rutin', color: '#ABE7B2' },
+  { icon: 'book-outline', label: 'Artikel Kesehatan', color: '#93BFC7' },
+  { icon: 'notifications-outline', label: 'Custom Reminder', color: '#ABE7B2' },
+  { icon: 'chatbubble-ellipses-outline', label: 'Chatbot', color: '#93BFC7' },
+  { icon: 'folder-open-outline', label: 'Arsip Lab', color: '#ABE7B2' },
+  { icon: 'location-outline', label: 'Lab Terdekat', color: '#93BFC7' },
+];
+
+const DAILY_TIPS = [
+  'Minum air putih 8 gelas sehari membantu menjaga kesehatan ginjal dan metabolisme tubuh.',
+  'Tidur 7-8 jam sehari sangat penting untuk kesehatan mental dan fisik.',
+  'Olahraga 30 menit sehari dapat meningkatkan mood dan energi Anda.',
+  'Konsumsi sayur dan buah setiap hari untuk memenuhi kebutuhan vitamin.',
+  'Hindari stres berlebihan dengan meditasi atau hobi yang menyenangkan.',
+];
+
+// AsyncStorage Keys
+const UPLOAD_MODAL_SHOWN_KEY = 'upload_modal_shown';
+const HAS_UPLOADED_LAB_KEY = 'has_uploaded_lab';
+
+// ==================== HELPER FUNCTIONS ====================
 const getRiskColor = (level: RiskLevel): string => {
   switch (level) {
     case 'rendah':
@@ -40,6 +78,8 @@ const getRiskStatusText = (level: RiskLevel): string => {
       return 'Risiko Sedang';
     case 'tinggi':
       return 'Risiko Tinggi';
+    default:
+      return 'Status Tidak Diketahui';
   }
 };
 
@@ -51,13 +91,12 @@ const getRiskCircleColor = (level: RiskLevel): string => {
       return '#FFD580';
     case 'tinggi':
       return '#FF8A8A';
+    default:
+      return '#D1D5DB';
   }
 };
 
-interface CardProps {
-  children: React.ReactNode;
-}
-
+// ==================== COMPONENTS ====================
 const Card: React.FC<CardProps> = ({ children }) => (
   <View
     style={{
@@ -77,25 +116,6 @@ const Card: React.FC<CardProps> = ({ children }) => (
     {children}
   </View>
 );
-
-interface QuickAccessItem {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  color: string;
-}
-
-const QUICK_ACCESS_ITEMS: QuickAccessItem[] = [
-  { icon: 'pulse-outline', label: 'Tracker Rutin', color: '#ABE7B2' },
-  { icon: 'book-outline', label: 'Artikel Kesehatan', color: '#93BFC7' },
-  { icon: 'notifications-outline', label: 'Custom Reminder', color: '#ABE7B2' },
-  { icon: 'chatbubble-ellipses-outline', label: 'Chatbot', color: '#93BFC7' },
-  { icon: 'folder-open-outline', label: 'Arsip Lab', color: '#ABE7B2' },
-  { icon: 'location-outline', label: 'Lab Terdekat', color: '#93BFC7' },
-];
-
-interface QuickAccessCardProps {
-  onPress: (label: string) => void;
-}
 
 const QuickAccessCard: React.FC<QuickAccessCardProps> = ({ onPress }) => (
   <Card>
@@ -150,31 +170,19 @@ const QuickAccessCard: React.FC<QuickAccessCardProps> = ({ onPress }) => (
   </Card>
 );
 
-// Daily tips array
-const DAILY_TIPS = [
-  'Minum air putih 8 gelas sehari membantu menjaga kesehatan ginjal dan metabolisme tubuh.',
-  'Tidur 7-8 jam sehari sangat penting untuk kesehatan mental dan fisik.',
-  'Olahraga 30 menit sehari dapat meningkatkan mood dan energi Anda.',
-  'Konsumsi sayur dan buah setiap hari untuk memenuhi kebutuhan vitamin.',
-  'Hindari stres berlebihan dengan meditasi atau hobi yang menyenangkan.',
-];
-
-// AsyncStorage Keys
-const UPLOAD_MODAL_SHOWN_KEY = 'upload_modal_shown';
-const LAB_UPLOAD_SKIPPED_KEY = 'lab_upload_skipped';
-const HAS_UPLOADED_LAB_KEY = 'has_uploaded_lab';
-
+// ==================== MAIN COMPONENT ====================
 export default function HomeScreen() {
+  // ===== State Management =====
   const [dailyMissionChecked, setDailyMissionChecked] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
-  const [labUploadSkipped, setLabUploadSkipped] = useState(false);
   const [hasUploadedLab, setHasUploadedLab] = useState(false);
 
+  // ===== Hooks =====
   const { user, loading: userLoading } = useUser();
   const { data: dashboardData, loading: dashboardLoading, refetch } = useDashboard();
 
-  // Get current user from Firebase
+  // ===== Computed Values =====
   const currentUser = auth.currentUser;
   const userName = user?.full_name || currentUser?.displayName || 'User';
 
@@ -185,18 +193,17 @@ export default function HomeScreen() {
     day: 'numeric',
   });
 
-  // Random daily tip
   const dailyTip = DAILY_TIPS[new Date().getDate() % DAILY_TIPS.length];
 
-  // Check lab upload status
+  // ===== Effects =====
+  
+  // Check lab upload status on mount
   useEffect(() => {
     const checkLabStatus = async () => {
       try {
         const modalShown = await AsyncStorage.getItem(UPLOAD_MODAL_SHOWN_KEY);
-        const skipped = await AsyncStorage.getItem(LAB_UPLOAD_SKIPPED_KEY);
         const uploaded = await AsyncStorage.getItem(HAS_UPLOADED_LAB_KEY);
 
-        setLabUploadSkipped(skipped === 'true');
         setHasUploadedLab(uploaded === 'true');
 
         // Show modal only if:
@@ -206,7 +213,7 @@ export default function HomeScreen() {
         if (!modalShown && uploaded !== 'true' && !userLoading && !dashboardLoading) {
           setTimeout(() => {
             setShowUploadModal(true);
-          }, 3000);
+          }, 2000);
         }
       } catch (error) {
         console.error('Error checking lab status:', error);
@@ -216,13 +223,15 @@ export default function HomeScreen() {
     checkLabStatus();
   }, [userLoading, dashboardLoading]);
 
+  // ===== Handlers =====
+
   const handleUploadNow = async () => {
     try {
       await AsyncStorage.setItem(UPLOAD_MODAL_SHOWN_KEY, 'true');
       setShowUploadModal(false);
-
-      // Navigate to upload screen (sesuaikan dengan route Anda)
-      router.push('../screens/cekKesehatan/uploadLab'); // Ganti dengan route upload yang sesuai
+      
+      // Navigate to upload screen
+      router.push('/screens/cekKesehatan/uploadLab' as any);
     } catch (error) {
       console.error('Error setting modal status:', error);
     }
@@ -230,38 +239,46 @@ export default function HomeScreen() {
 
   const handleUploadLater = async () => {
     try {
-      // Set flags
+      // Set flag that modal has been shown
       await AsyncStorage.setItem(UPLOAD_MODAL_SHOWN_KEY, 'true');
-      await AsyncStorage.setItem(LAB_UPLOAD_SKIPPED_KEY, 'true');
-      
+
       setShowUploadModal(false);
-      setLabUploadSkipped(true);
     } catch (error) {
       console.error('Error setting modal status:', error);
     }
   };
 
   const handleUploadCardPress = () => {
+    
     // Navigate to upload page
-    router.push('../screens/cekKesehatan/uploadLab'); // Ganti dengan route upload yang sesuai
+    router.push('/screens/cekKesehatan/uploadLab' as any);
   };
 
   const handleQuickAccessPress = (label: string) => {
     console.log(`Pressed: ${label}`);
     // TODO: Navigate to respective screens
+    alert(`Fitur "${label}" belum diimplementasikan`);
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await refetch();
     
-    // Recheck lab status after refresh
-    const uploaded = await AsyncStorage.getItem(HAS_UPLOADED_LAB_KEY);
-    setHasUploadedLab(uploaded === 'true');
-    
-    setRefreshing(false);
+    try {
+      await refetch();
+
+      // Recheck lab status after refresh
+      const uploaded = await AsyncStorage.getItem(HAS_UPLOADED_LAB_KEY);
+      
+      setHasUploadedLab(uploaded === 'true');
+      
+    } catch (error) {
+      console.error('Error refreshing:', error);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
+  // ===== Loading State =====
   if (userLoading || dashboardLoading) {
     return (
       <View
@@ -278,9 +295,11 @@ export default function HomeScreen() {
     );
   }
 
+  // ===== Main Render =====
   return (
     <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
@@ -293,61 +312,23 @@ export default function HomeScreen() {
             refreshing={refreshing}
             onRefresh={onRefresh}
             colors={['#ABE7B2']}
+            tintColor="#ABE7B2"
           />
         }
       >
-        {/* Header */}
+        {/* ==================== HEADER ==================== */}
         <View style={{ marginBottom: 24 }}>
           <Text style={{ fontSize: 28, fontWeight: '700', color: '#000000' }}>
             Hai, {userName}!
           </Text>
-          <Text style={{ fontSize: 14, color: '#6B7280', marginTop: 4 }}>{today}</Text>
+          <Text style={{ fontSize: 14, color: '#6B7280', marginTop: 4 }}>
+            {today}
+          </Text>
         </View>
 
-        {/* Health Risk Status Card OR Upload Lab Card */}
-        {!hasUploadedLab && labUploadSkipped ? (
-          // Upload Lab Card (Gray - when skipped)
-          <Pressable onPress={handleUploadCardPress}>
-            <Card>
-              <View style={{ alignItems: 'center', paddingVertical: 8 }}>
-                <View
-                  style={{
-                    width: 64,
-                    height: 64,
-                    borderRadius: 32,
-                    backgroundColor: '#F3F4F6',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    marginBottom: 12,
-                  }}
-                >
-                  <Ionicons name="cloud-upload-outline" size={32} color="#9CA3AF" />
-                </View>
-                <Text
-                  style={{
-                    fontSize: 16,
-                    fontWeight: '600',
-                    color: '#6B7280',
-                    marginBottom: 4,
-                  }}
-                >
-                  Upload Hasil Lab
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 13,
-                    color: '#9CA3AF',
-                    textAlign: 'center',
-                    paddingHorizontal: 20,
-                  }}
-                >
-                  Tap untuk upload hasil lab dan dapatkan analisis kesehatan
-                </Text>
-              </View>
-            </Card>
-          </Pressable>
-        ) : (
-          // Normal Health Risk Status Card
+        {/* ==================== HEALTH STATUS / UPLOAD LAB CARD ==================== */}
+        {hasUploadedLab ? (
+          // ✅ User sudah upload lab → Tampilkan Health Risk Status
           <Card>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <View
@@ -389,12 +370,62 @@ export default function HomeScreen() {
               </View>
             </View>
           </Card>
+        ) : (
+          // ✅ User belum upload lab → Tampilkan Upload Lab Card (Abu-abu)
+          <Pressable onPress={handleUploadCardPress}>
+            {({ pressed }) => (
+              <Card>
+                <View
+                  style={{
+                    alignItems: 'center',
+                    paddingVertical: 12,
+                    opacity: pressed ? 0.7 : 1,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 64,
+                      height: 64,
+                      borderRadius: 32,
+                      backgroundColor: '#F3F4F6',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      marginBottom: 12,
+                    }}
+                  >
+                    <Ionicons name="cloud-upload-outline" size={32} color="#9CA3AF" />
+                  </View>
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      fontWeight: '600',
+                      color: '#6B7280',
+                      marginBottom: 4,
+                    }}
+                  >
+                    Upload Hasil Lab
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      color: '#9CA3AF',
+                      textAlign: 'center',
+                      paddingHorizontal: 20,
+                      lineHeight: 18,
+                    }}
+                  >
+                    Tap untuk upload hasil lab dan dapatkan analisis kesehatan
+                  </Text>
+                </View>
+              </Card>
+            )}
+          </Pressable>
         )}
 
-        {/* Quick Access Features Card */}
+        {/* ==================== QUICK ACCESS ==================== */}
         <QuickAccessCard onPress={handleQuickAccessPress} />
 
-        {/* Daily Tips Card */}
+        {/* ==================== DAILY TIPS ==================== */}
         <Card>
           <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
             <Ionicons
@@ -421,7 +452,7 @@ export default function HomeScreen() {
           </View>
         </Card>
 
-        {/* Active Challenge Progress */}
+        {/* ==================== ACTIVE CHALLENGE ==================== */}
         {dashboardData?.activeChallenge && (
           <Card>
             <View style={{ marginBottom: 12 }}>
@@ -464,7 +495,7 @@ export default function HomeScreen() {
           </Card>
         )}
 
-        {/* Challenge Stats */}
+        {/* ==================== CHALLENGE STATS ==================== */}
         {dashboardData?.challengeStats && (
           <Card>
             <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
@@ -496,7 +527,7 @@ export default function HomeScreen() {
           </Card>
         )}
 
-        {/* Daily Mission Card */}
+        {/* ==================== DAILY MISSION ==================== */}
         <Card>
           <View
             style={{
@@ -533,7 +564,7 @@ export default function HomeScreen() {
         </Card>
       </ScrollView>
 
-      {/* Upload Lab Modal */}
+      {/* ==================== UPLOAD LAB MODAL ==================== */}
       <Modal
         visible={showUploadModal}
         transparent
@@ -557,8 +588,14 @@ export default function HomeScreen() {
               width: '100%',
               maxWidth: 400,
               alignItems: 'center',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.15,
+              shadowRadius: 12,
+              elevation: 8,
             }}
           >
+            {/* Icon */}
             <View
               style={{
                 width: 80,
@@ -573,6 +610,7 @@ export default function HomeScreen() {
               <Text style={{ fontSize: 40 }}>📋</Text>
             </View>
 
+            {/* Title */}
             <Text
               style={{
                 fontSize: 22,
@@ -585,6 +623,7 @@ export default function HomeScreen() {
               Upload Hasil Lab?
             </Text>
 
+            {/* Description */}
             <Text
               style={{
                 fontSize: 15,
@@ -598,6 +637,7 @@ export default function HomeScreen() {
               melakukannya nanti.
             </Text>
 
+            {/* Upload Now Button */}
             <TouchableOpacity
               style={{
                 width: '100%',
@@ -606,8 +646,14 @@ export default function HomeScreen() {
                 borderRadius: 12,
                 alignItems: 'center',
                 marginBottom: 12,
+                shadowColor: '#4CAF50',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.2,
+                shadowRadius: 4,
+                elevation: 3,
               }}
               onPress={handleUploadNow}
+              activeOpacity={0.8}
             >
               <Text
                 style={{
@@ -620,6 +666,7 @@ export default function HomeScreen() {
               </Text>
             </TouchableOpacity>
 
+            {/* Skip Button */}
             <TouchableOpacity
               style={{
                 width: '100%',
@@ -627,6 +674,7 @@ export default function HomeScreen() {
                 alignItems: 'center',
               }}
               onPress={handleUploadLater}
+              activeOpacity={0.7}
             >
               <Text
                 style={{

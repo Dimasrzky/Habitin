@@ -4,6 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from 'expo-router';
 import React, { useState } from "react";
 import { Alert, Pressable, ScrollView, StatusBar, Text, View } from "react-native";
+import { resetOnboardingStatus } from '../../src/services/onboarding/onboardingService';
 import { resetLabUploadStatus } from '../../src/utils/labUploadHelper';
 
 // TypeScript Interfaces
@@ -287,6 +288,42 @@ export default function ProfileScreen() {
         }
     };
 
+    const resetOnboarding = async () => {
+    Alert.alert(
+        "Reset Onboarding",
+        "Ini akan mereset status onboarding. Anda akan melihat onboarding lagi saat membuka app. Lanjutkan?",
+        [
+        {
+            text: "Batal",
+            style: "cancel"
+        },
+        {
+            text: "Reset",
+            style: "destructive",
+            onPress: async () => {
+            try {
+                await resetOnboardingStatus();
+                
+                Alert.alert(
+                "Berhasil! ✅",
+                "Status onboarding telah direset. Restart app untuk melihat onboarding lagi.",
+                [
+                    {
+                    text: "OK"
+                    }
+                ]
+                );
+                console.log('✅ Onboarding status reset!');
+            } catch (error) {
+                console.error('Error resetting onboarding:', error);
+                Alert.alert('Error', 'Gagal mereset onboarding.');
+            }
+            }
+        }
+        ]
+    );
+    };
+
     // Developer Options
     const DEVELOPER_ITEMS: DeveloperItem[] = [
     {
@@ -309,6 +346,13 @@ export default function ProfileScreen() {
         subtitle: "Debug AsyncStorage data",
         color: "#2196F3",
         action: viewStorageKeys
+    },
+    {
+        icon: "school-outline", // NEW ITEM
+        label: "Reset Onboarding",
+        subtitle: "Tampilkan onboarding lagi",
+        color: "#FF9800",
+        action: resetOnboarding
     },
     {
         icon: "trash-outline",
