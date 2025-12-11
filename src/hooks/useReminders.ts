@@ -156,10 +156,6 @@ export const useReminders = () => {
         throw new Error('User not authenticated');
       }
 
-      console.log('🔵 ==================== START: UPDATE REMINDER ====================');
-      console.log('🔄 Updating reminder:', id);
-      console.log('📝 Updates:', updates);
-
       // Find current reminder
       const oldReminder = reminders.find((r) => r.id === id);
       
@@ -170,11 +166,6 @@ export const useReminders = () => {
       if (oldReminder.user_id !== userId) {
         throw new Error('Unauthorized: Not your reminder');
       }
-
-      console.log('📋 Current reminder:', {
-        title: oldReminder.title,
-        time: new Date(oldReminder.reminder_time).toLocaleString('id-ID'),
-      });
 
       // Cancel old notification
       if (oldReminder?.notification_id) {
@@ -225,7 +216,6 @@ export const useReminders = () => {
       console.log('🔄 Refreshing reminders list...');
       await fetchReminders();
 
-      console.log('🔵 ==================== END: UPDATE REMINDER ====================');
     } catch (err: any) {
       console.error('❌ UPDATE REMINDER ERROR:', err);
       setError(err.message || 'Gagal update reminder');
@@ -241,9 +231,6 @@ export const useReminders = () => {
       if (!userId) {
         throw new Error('User not authenticated');
       }
-
-      console.log('🔵 ==================== START: DELETE REMINDER ====================');
-      console.log('🗑️ Deleting reminder:', id);
 
       // Find reminder
       const reminder = reminders.find((r) => r.id === id);

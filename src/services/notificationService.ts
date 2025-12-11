@@ -42,13 +42,6 @@ export const notificationService = {
   ): Promise<string> {
     const now = new Date();
     
-    console.log('🔔 ==================== SCHEDULE NOTIFICATION ====================');
-    console.log('📅 Current time:', now.toLocaleString('id-ID'));
-    console.log('📅 Trigger time:', triggerDate.toLocaleString('id-ID'));
-    console.log('📅 Current timestamp:', now.getTime());
-    console.log('📅 Trigger timestamp:', triggerDate.getTime());
-    console.log('⏱️ Delay (seconds):', Math.floor((triggerDate.getTime() - now.getTime()) / 1000));
-    
     let trigger: Notifications.NotificationTriggerInput;
 
     const secondsUntilTrigger = Math.floor((triggerDate.getTime() - now.getTime()) / 1000);
@@ -91,9 +84,6 @@ export const notificationService = {
       },
       trigger,
     });
-
-    console.log('✅ Notification scheduled with ID:', notificationId);
-    console.log('🔔 ==================== END SCHEDULE ====================');
 
     return notificationId;
   },

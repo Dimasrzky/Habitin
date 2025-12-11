@@ -53,12 +53,6 @@ export default function AddReminderScreen() {
       newDate.setMonth(selectedDate.getMonth());
       newDate.setDate(selectedDate.getDate());
       
-      console.log('📅 Date changed:', {
-        selected: selectedDate.toLocaleString('id-ID'),
-        updated: newDate.toLocaleString('id-ID'),
-        iso: newDate.toISOString(),
-      });
-      
       setReminderDate(newDate);
     }
   };
@@ -74,13 +68,6 @@ export default function AddReminderScreen() {
       newDate.setMinutes(selectedTime.getMinutes());
       newDate.setSeconds(0);
       newDate.setMilliseconds(0);
-      
-      console.log('⏰ Time changed:', {
-        selected: selectedTime.toLocaleTimeString('id-ID'),
-        updated: newDate.toLocaleString('id-ID'),
-        iso: newDate.toISOString(),
-        timestamp: newDate.getTime(),
-      });
       
       setReminderDate(newDate);
     }
@@ -111,13 +98,6 @@ export default function AddReminderScreen() {
 
     try {
       setLoading(true);
-
-      console.log('🔵 ==================== SUBMIT REMINDER ====================');
-      console.log('📅 Current Date:', new Date().toLocaleString('id-ID'));
-      console.log('📅 Reminder Date:', reminderDate.toLocaleString('id-ID'));
-      console.log('📅 ISO String:', reminderDate.toISOString());
-      console.log('📅 Timestamp:', reminderDate.getTime());
-      console.log('📅 Time until reminder (minutes):', Math.floor((reminderDate.getTime() - Date.now()) / 60000));
 
       await createReminder({
         title: title.trim(),

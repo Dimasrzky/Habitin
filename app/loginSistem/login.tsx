@@ -36,22 +36,10 @@ function Login() {
       const completedOnboarding = await hasCompletedOnboarding();
 
       // ✅ REDIRECT SESUAI STATUS
-      if (completedOnboarding) {
-        // User sudah onboarding → Langsung ke home
-        Alert.alert('Success', 'Welcome back!', [
-          {
-            text: 'OK',
-            onPress: () => router.replace('/(tabs)'),
-          },
-        ]);
+      if (completedOnboarding) {   
+        router.replace('/(tabs)');
       } else {
-        // User belum onboarding → Ke onboarding
-        Alert.alert('Success', 'Welcome! Please complete your profile', [
-          {
-            text: 'OK',
-            onPress: () => router.replace('/onboarding/welcome'),
-          },
-        ]);
+        router.replace('/onboarding/welcome');
       }
     } catch (error: any) {
       console.error('Login error:', error);

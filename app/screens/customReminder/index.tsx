@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router, useFocusEffect } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import { router } from 'expo-router';
+import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -18,11 +18,6 @@ export default function CustomReminderScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   // ✅ FIX: Auto refresh saat screen focus
-  useFocusEffect(
-    useCallback(() => {
-      refetch();
-    }, [refetch])
-  );
 
   const handleDelete = (id: string, title: string) => {
     Alert.alert(

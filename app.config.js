@@ -35,19 +35,20 @@ module.exports = {
       ],
     },
     notification: {
-      "icon": "./assets/images/Launcher_logos.jpeg",
-      "color": "#ABE7B2",
-      "androidMode": "default",
-      "androidCollapsedTitle": "Habitin Reminder"
+      icon: "./assets/images/Launcher_logos.jpeg",
+      color: "#ABE7B2",
+      androidMode: "default",
+      androidCollapsedTitle: "Habitin Reminder",
+      sounds: ["./assets/sound/Notification-habitin.wav"]
     },
     plugins: [
       'expo-router',
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/Launcher_logos.jpeg",
-          "color": "#ABE7B2",
-          "sounds": ["./assets/sound/Notification-habitin.wav"]
+          icon: "./assets/images/Launcher_logos.jpeg",
+          color: "#ABE7B2",
+          sounds: ["./assets/sound/Notification-habitin.wav"]
         }
       ]
     ],
