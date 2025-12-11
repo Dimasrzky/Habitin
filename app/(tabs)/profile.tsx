@@ -128,7 +128,6 @@ export default function ProfileScreen() {
     const userEmail = user?.email || currentUser?.email || 'email';
 
     const [healthData, setHealthData] = useState<HealthData | null>(null);
-    const [loading, setLoading] = useState(true);
 
     const calculateAge = (dob: string) => {
         const birthDate = new Date(dob);
@@ -188,14 +187,12 @@ export default function ProfileScreen() {
             });
         } catch (err) {
             console.error("Unexpected error:", err);
-        } finally {
-            setLoading(false);
-        }
+        } 
     };
 
     useEffect(() => {
         fetchHealthData();
-    }, []);
+    },);
 
     const bmiStatus = healthData ? getBMIStatus(healthData.bmi) : null
 
