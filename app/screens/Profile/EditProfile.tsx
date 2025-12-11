@@ -4,23 +4,22 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 export default function EditProfile() {
   const router = useRouter();
   const [name, setName] = useState('Budi Santoso');
   const [email, setEmail] = useState('budi.santoso@email.com');
-  const [phone, setPhone] = useState('081234567890');
   const [bio, setBio] = useState('Saya senang hidup sehat!');
 
   const handleSave = async () => {
@@ -34,7 +33,6 @@ export default function EditProfile() {
       const userData = {
         name,
         email,
-        phone,
         bio,
       };
       
@@ -106,22 +104,6 @@ export default function EditProfile() {
                 placeholderTextColor="#9CA3AF"
                 keyboardType="email-address"
                 autoCapitalize="none"
-              />
-            </View>
-          </View>
-
-          {/* Nomor Telepon */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Nomor Telepon</Text>
-            <View style={styles.inputWrapper}>
-              <Ionicons name="call-outline" size={20} color="#6B7280" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                value={phone}
-                onChangeText={setPhone}
-                placeholder="Masukkan nomor telepon"
-                placeholderTextColor="#9CA3AF"
-                keyboardType="phone-pad"
               />
             </View>
           </View>

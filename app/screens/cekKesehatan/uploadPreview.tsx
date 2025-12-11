@@ -17,6 +17,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { markLabAsUploaded } from '../../../src/utils/labUploadHelper'; // ← TAMBAHKAN INI
 
 // =====================================================
 // MAIN COMPONENT
@@ -26,11 +27,29 @@ export default function UploadPreviewScreen() {
   const params = useLocalSearchParams();
   const labResultId = params.labResultId as string;
   const imageUrl = params.imageUrl as string;
-  // riskLevel dihapus karena tidak digunakan (sudah ada di labResult)
 
   // State
   const [labResult, setLabResult] = useState<LabResult | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // =====================================================
+  // MARK LAB AS UPLOADED (useEffect terpisah)
+  // =====================================================
+  
+  useEffect(() => {
+    const markAsUploaded = async () => {
+      try {
+        console.log('✅ Marking lab as uploaded...');
+        await markLabAsUploaded();
+        console.log('✅ Lab status updated successfully');
+      } catch (error) {
+        console.error('⚠️ Failed to update lab status:', error);
+        // Don't block UI if this fails
+      }
+    };
+
+    markAsUploaded();
+  }, []); // Run once on mount
 
   // =====================================================
   // FETCH LAB RESULT (useCallback untuk fix warning)
@@ -60,11 +79,11 @@ export default function UploadPreviewScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [labResultId]); // ✅ Tambahkan dependency
+  }, [labResultId]);
 
   useEffect(() => {
     fetchLabResult();
-  }, [fetchLabResult]); // ✅ Tambahkan fetchLabResult sebagai dependency
+  }, [fetchLabResult]);
 
   // =====================================================
   // HELPERS
@@ -381,7 +400,7 @@ export default function UploadPreviewScreen() {
 }
 
 // =====================================================
-// TEST CARD COMPONENT
+// TEST CARD COMPONENT (tidak berubah)
 // =====================================================
 
 interface TestCardProps {
@@ -440,7 +459,7 @@ function TestCard({
 }
 
 // =====================================================
-// STYLES (TIDAK BERUBAH)
+// STYLES (tidak berubah)
 // =====================================================
 
 const styles = StyleSheet.create({

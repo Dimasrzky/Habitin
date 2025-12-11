@@ -2,8 +2,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from 'expo-router';
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Alert, Pressable, ScrollView, StatusBar, Text, View } from "react-native";
+import { auth } from '../../src/config/firebase.config';
+import { supabase } from '../../src/config/supabase.config';
+import { useUser } from '../../src/hooks/useUser';
 import { resetOnboardingStatus } from '../../src/services/onboarding/onboardingService';
 import { resetLabUploadStatus } from '../../src/utils/labUploadHelper';
 
@@ -24,6 +27,7 @@ interface HealthData {
     gender: 'Laki-laki' | 'Perempuan'
     height: number
     weight: number
+    bloodType?: string
     bmi: number
     physicalActivity: string
     dietPattern: string
@@ -117,8 +121,84 @@ export default function ProfileScreen() {
     const [healthDataExpanded, setHealthDataExpanded] = useState(false);
     const [developerExpanded, setDeveloperExpanded] = useState(false);
     const [userData] = useState(MOCK_USER);
+    const {user} = useUser();
 
-    const bmiStatus = getBMIStatus(MOCK_HEALTH_DATA.bmi);
+    const currentUser = auth.currentUser;
+    const userName = user?.full_name || currentUser?.displayName || 'User';
+    const userEmail = user?.email || currentUser?.email || 'email';
+
+    const [healthData, setHealthData] = useState<HealthData | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    const calculateAge = (dob: string) => {
+        const birthDate = new Date(dob);
+        const today = new Date();
+
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        const dayDiff = today.getDate() - birthDate.getDate();
+
+        // Jika belum ulang tahun di tahun berjalan → umur -1
+        if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+            age--;
+        }
+
+        return age;
+    };
+
+    const fetchHealthData = async () => {
+        try {
+            const firebaseId = auth.currentUser?.uid;
+
+            if (!firebaseId) {
+                console.warn("Firebase User ID tidak ditemukan");
+                return;
+            }
+
+            const { data, error } = await supabase
+                .from('onboarding_data')
+                .select('*')
+                .eq('user_id', firebaseId)
+                .single();
+
+            if (error) {
+                console.error("Supabase Error:", error);
+                return;
+            }
+
+            if (!data) {
+                console.warn("Data health tidak ditemukan di Supabase");
+                return;
+            }
+
+            const age = calculateAge(data.date_of_birth);
+
+            setHealthData({
+                fullName: data.full_name,
+                age: age,
+                gender: data.gender,
+                height: data.height_cm,
+                weight: data.weight_kg,
+                bmi: data.bmi,
+                bloodType: data.blood_type,
+                physicalActivity: data.exercise_frequency,
+                dietPattern: data.diet_pattern,
+                familyHistory: data.family_history,
+                familyCondition: data.family_condition,
+            });
+        } catch (err) {
+            console.error("Unexpected error:", err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchHealthData();
+    }, []);
+
+    const bmiStatus = healthData ? getBMIStatus(healthData.bmi) : null
+
 
     // Settings Items dengan route
     const SETTINGS_ITEMS: SettingsItem[] = [
@@ -482,10 +562,10 @@ export default function ProfileScreen() {
                         </View>
 
                         <Text style={{ fontSize: 20, fontWeight: "700", color: "#000000", marginBottom: 4 }}>
-                            {userData.name}
+                            {userName}
                         </Text>
                         <Text style={{ fontSize: 14, color: "#6B7280", marginBottom: 12 }}>
-                            {userData.email}
+                            {userEmail}
                         </Text>
 
                         <Pressable
@@ -606,7 +686,7 @@ export default function ProfileScreen() {
                                     width: 40,
                                     height: 40,
                                     borderRadius: 20,
-                                    backgroundColor: bmiStatus.color,
+                                    backgroundColor: "#7bb65eff",
                                     opacity: 0.3,
                                     marginRight: 12,
                                 }}
@@ -614,7 +694,7 @@ export default function ProfileScreen() {
                             <View>
                                 <Text style={{ fontSize: 14, color: "#6B7280" }}>BMI</Text>
                                 <Text style={{ fontSize: 18, fontWeight: "600", color: "#000000" }}>
-                                    {MOCK_HEALTH_DATA.bmi} - {bmiStatus.text}
+                                    {bmiStatus?.text}
                                 </Text>
                             </View>
                         </View>
@@ -623,21 +703,22 @@ export default function ProfileScreen() {
                     {healthDataExpanded && (
                         <View style={{ marginTop: 16 }}>
                             {[
-                                { label: "Nama Lengkap", value: MOCK_HEALTH_DATA.fullName },
-                                { label: "Umur", value: `${MOCK_HEALTH_DATA.age} tahun` },
-                                { label: "Jenis Kelamin", value: MOCK_HEALTH_DATA.gender },
-                                { label: "Tinggi Badan", value: `${MOCK_HEALTH_DATA.height} cm` },
-                                { label: "Berat Badan", value: `${MOCK_HEALTH_DATA.weight} kg` },
+                                { label: "Nama Lengkap", value: `${healthData?.fullName}` },
+                                { label: "Umur", value: `${healthData?.age}` },
+                                { label: "Jenis Kelamin", value: `${healthData?.gender}` },
+                                { label: "Tinggi Badan", value: `${healthData?.height} cm` },
+                                { label: "Berat Badan", value: `${healthData?.weight} kg` },
                                 {
                                     label: "BMI",
-                                    value: `${MOCK_HEALTH_DATA.bmi} (${bmiStatus.text})`,
-                                    valueColor: bmiStatus.color
+                                    value: `${healthData?.bmi} `+`${bmiStatus?.text}`,
+                                    valueColor: bmiStatus?.color
                                 },
-                                { label: "Aktivitas Fisik", value: MOCK_HEALTH_DATA.physicalActivity },
-                                { label: "Pola Makan", value: MOCK_HEALTH_DATA.dietPattern },
+                                { label: "Golongan Darah", value: `${healthData?.bloodType}` },
+                                { label: "Aktivitas Fisik", value: `${healthData?.physicalActivity}` },
+                                { label: "Pola Makan", value: `${healthData?.dietPattern}` },
                                 {
                                     label: "Riwayat Keluarga",
-                                    value: MOCK_HEALTH_DATA.familyHistory
+                                    value: `${healthData?.familyHistory}`
                                         ? `Ya (${MOCK_HEALTH_DATA.familyCondition})`
                                         : "Tidak"
                                 },
