@@ -49,7 +49,6 @@ export default function CustomReminderScreen() {
   };
 
   const onRefresh = async () => {
-    console.log('🔄 Manual refresh triggered');
     setRefreshing(true);
     await refetch();
     setRefreshing(false);
