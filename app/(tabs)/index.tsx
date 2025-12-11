@@ -255,9 +255,23 @@ export default function HomeScreen() {
   };
 
   const handleQuickAccessPress = (label: string) => {
-    console.log(`Pressed: ${label}`);
-    // TODO: Navigate to respective screens
-    alert(`Fitur "${label}" belum diimplementasikan`);
+    // Navigation logic
+    switch (label) {
+      case 'Custom Reminder':
+        router.push('/screens/customReminder' as any  );
+        break;
+      case 'Tracker Rutin':
+        // TODO: Navigate to tracker
+        alert(`Fitur "${label}" belum diimplementasikan`);
+        break;
+      case 'Artikel Kesehatan':
+        // TODO: Navigate to articles
+        alert(`Fitur "${label}" belum diimplementasikan`);
+        break;
+      // ... other cases
+      default:
+        alert(`Fitur "${label}" belum diimplementasikan`);
+    }
   };
 
   const onRefresh = async () => {

@@ -8,6 +8,7 @@ module.exports = {
     orientation: 'portrait',
     icon: './assets/images/Launcher_logos.jpeg',
     userInterfaceStyle: 'light',
+    scheme: "habitin",
     splash: {
       image: './assets/images/splash-icon.png',
       resizeMode: 'contain',
@@ -27,10 +28,28 @@ module.exports = {
         foregroundImage: './assets/images/Launcher_logos.jpeg',
         backgroundColor: '#ffffff',
       },
+      permissions: [
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
+        "android.permission.SCHEDULE_EXACT_ALARM"
+      ],
     },
-
+    notification: {
+      "icon": "./assets/images/Launcher_logos.jpeg",
+      "color": "#ABE7B2",
+      "androidMode": "default",
+      "androidCollapsedTitle": "Habitin Reminder"
+    },
     plugins: [
       'expo-router',
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/Launcher_logos.jpeg",
+          "color": "#ABE7B2",
+          "sounds": ["./assets/sound/Notification-habitin.wav"]
+        }
+      ]
     ],
 
     extra: {
