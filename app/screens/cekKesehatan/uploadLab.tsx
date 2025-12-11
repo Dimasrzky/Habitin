@@ -102,7 +102,7 @@ export default function UploadLabScreen() {
         }
 
         router.push({
-          pathname: '/screens/cekKesehatan/uploadPreview' as any,
+          pathname: '/screens/cekKesehatan/uploadCrop' as any,
           params: { 
             imageUri: asset.uri, 
             type: 'photo' 
@@ -137,7 +137,7 @@ export default function UploadLabScreen() {
         }
 
         router.push({
-          pathname: '/screens/cekKesehatan/uploadPreview' as any,
+          pathname: '/screens/cekKesehatan/uploadCrop' as any,
           params: { 
             imageUri: asset.uri, 
             type: 'gallery' 

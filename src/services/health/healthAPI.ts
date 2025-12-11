@@ -1,15 +1,24 @@
+// src/services/health/healthAPI.ts
+
 import { supabaseStorage as supabase } from '@/config/supabase.storage';
 import { LabResult } from '@/types/health.types';
+import { decode } from 'base64-arraybuffer';
+import * as FileSystem from 'expo-file-system/legacy';
+import { getAuth } from 'firebase/auth';
+import { extractHealthData } from '../ocr/healthDataExtractor';
+import { performOCR } from '../ocr/ocrService';
+import { calculateHealthRisk } from './riskCalculator';
 
-/**
- * Save lab result to database
- * Uses service role key to bypass RLS
- */
+// =====================================================
+// EXISTING FUNCTIONS (KEEP AS IS)
+// =====================================================
+
 export async function saveLabResult(
   userId: string,
   imageUrl: string,
   data: {
     glucose_level: number | null;
+    glucose_2h: number | null;
     cholesterol_total: number | null;
     cholesterol_ldl: number | null;
     cholesterol_hdl: number | null;
@@ -18,7 +27,7 @@ export async function saveLabResult(
   },
   riskLevel: 'rendah' | 'sedang' | 'tinggi',
   riskScore: number,
-  rawOcrText?: string  // ← NEW PARAMETER
+  rawOcrText?: string
 ): Promise<LabResult> {
   try {
     console.log('💾 Saving lab result to database...');
@@ -26,13 +35,13 @@ export async function saveLabResult(
     console.log('📊 Health data:', data);
     console.log('⚖️ Risk:', { level: riskLevel, score: riskScore });
 
-    // Insert lab result
     const { data: result, error } = await supabase
       .from('lab_results')
       .insert({
         user_id: userId,
         image_url: imageUrl,
         glucose_level: data.glucose_level,
+        glucose_2h: data.glucose_2h,
         cholesterol_total: data.cholesterol_total,
         cholesterol_ldl: data.cholesterol_ldl,
         cholesterol_hdl: data.cholesterol_hdl,
@@ -40,7 +49,7 @@ export async function saveLabResult(
         hba1c: data.hba1c,
         risk_level: riskLevel,
         risk_score: riskScore,
-        raw_ocr_text: rawOcrText || null,  // ← SAVE OCR TEXT
+        raw_ocr_text: rawOcrText || null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
@@ -60,9 +69,6 @@ export async function saveLabResult(
   }
 }
 
-/**
- * Get lab results for user
- */
 export async function getLabResults(userId: string): Promise<LabResult[]> {
   try {
     console.log('📊 Fetching lab results for user:', userId);
@@ -86,9 +92,6 @@ export async function getLabResults(userId: string): Promise<LabResult[]> {
   }
 }
 
-/**
- * Get latest lab result for user
- */
 export async function getLatestLabResult(userId: string): Promise<LabResult | null> {
   try {
     const { data, error } = await supabase
@@ -101,7 +104,6 @@ export async function getLatestLabResult(userId: string): Promise<LabResult | nu
 
     if (error) {
       if (error.code === 'PGRST116') {
-        // No rows found
         return null;
       }
       throw error;
@@ -111,5 +113,131 @@ export async function getLatestLabResult(userId: string): Promise<LabResult | nu
   } catch (error) {
     console.error('❌ Failed to fetch latest lab result:', error);
     return null;
+  }
+}
+
+// =====================================================
+// 🆕 NEW FUNCTION: UPLOAD WITH PROGRESS
+// =====================================================
+
+export interface UploadLabResponse {
+  success: boolean;
+  labResultId?: string;
+  imageUrl?: string;
+  riskLevel?: 'rendah' | 'sedang' | 'tinggi';
+  riskScore?: number;
+  error?: string;
+}
+
+export async function uploadLabResultWithProgress(
+  imageUri: string,
+  onProgress?: (step: number) => void
+): Promise<UploadLabResponse> {
+  try {
+    console.log('🚀 Starting lab upload process...');
+
+    // Auth check
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+    console.log('✅ Authenticated user:', user.uid);
+
+    // ============================================
+    // STEP 0: UPLOAD FILE TO STORAGE
+    // ============================================
+    console.log('📤 Step 1: Uploading file...');
+    onProgress?.(0);
+
+    // ✅ FIX: Gunakan string literal 'base64' langsung
+    const base64 = await FileSystem.readAsStringAsync(imageUri, {
+      encoding: 'base64', // ✅ String literal, bukan EncodingType
+    });
+    console.log('✅ File read as base64, length:', base64.length);
+
+    // Generate unique filename
+    const timestamp = Date.now();
+    const filename = `${timestamp}.jpeg`;
+    const filePath = `lab-results/${user.uid}/${filename}`;
+    console.log('📁 Upload path:', filePath);
+
+    // Upload to Supabase Storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('lab-results')
+      .upload(filePath, decode(base64), {
+        contentType: 'image/jpeg',
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error('❌ Upload error:', uploadError);
+      throw uploadError;
+    }
+
+    console.log('✅ Upload successful:', uploadData.path);
+
+    // Get public URL
+    const { data: publicUrlData } = supabase.storage
+      .from('lab-results')
+      .getPublicUrl(filePath);
+
+    const imageUrl = publicUrlData.publicUrl;
+    console.log('🔗 Public URL:', imageUrl);
+
+    // ============================================
+    // STEP 1: OCR PROCESSING
+    // ============================================
+    console.log('🔍 Step 2: Running OCR...');
+    onProgress?.(1);
+
+    const ocrResult = await performOCR(imageUri);
+    const ocrText = ocrResult.fullText;
+    console.log('✅ OCR complete, text length:', ocrText.length);
+
+    // ============================================
+    // STEP 2: EXTRACT DATA & CALCULATE RISK
+    // ============================================
+    console.log('📊 Step 3: Extracting health data...');
+    onProgress?.(2);
+
+    const healthData = extractHealthData(ocrText);
+    console.log('✅ Health data extracted:', healthData);
+
+    console.log('⚖️ Calculating risk...');
+    const riskResult = calculateHealthRisk(healthData);
+    console.log('✅ Risk calculated:', riskResult);
+
+    // ============================================
+    // STEP 3: SAVE TO DATABASE
+    // ============================================
+    console.log('💾 Step 4: Saving to database...');
+    onProgress?.(3);
+
+    const savedResult = await saveLabResult(
+      user.uid,
+      imageUrl,
+      healthData,
+      riskResult.level,
+      riskResult.score,
+      ocrText
+    );
+
+    console.log('✅ Lab result saved, ID:', savedResult.id);
+
+    return {
+      success: true,
+      labResultId: savedResult.id,
+      imageUrl: imageUrl,
+      riskLevel: riskResult.level,
+      riskScore: riskResult.score,
+    };
+
+  } catch (error) {
+    console.error('❌ Error in uploadLabResultWithProgress:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
   }
 }

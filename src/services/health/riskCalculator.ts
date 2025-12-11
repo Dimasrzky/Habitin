@@ -1,4 +1,4 @@
-// src/services/health/calculateRisk.ts
+// src/services/health/riskCalculator.ts
 
 interface HealthData {
   glucose_level: number | null;

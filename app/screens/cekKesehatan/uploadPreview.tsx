@@ -1,307 +1,452 @@
-import { useLabUpload } from '@/hooks/useLabUpload';
+// app/screens/cekKesehatan/uploadPreview.tsx
+
+import { supabaseStorage as supabase } from '@/config/supabase.storage';
+import type { LabResult } from '@/types/health.types';
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { getAuth } from 'firebase/auth';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
-  Pressable,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
-import { markLabAsUploaded } from '../../../src/utils/labUploadHelper'; // ← TAMBAHKAN INI
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+// =====================================================
+// MAIN COMPONENT
+// =====================================================
 
 export default function UploadPreviewScreen() {
-  const router = useRouter();
   const params = useLocalSearchParams();
-  const [isProcessing, setIsProcessing] = useState(false);
-  const { processLabUpload, uploadProgress } = useLabUpload();
+  const labResultId = params.labResultId as string;
+  const imageUrl = params.imageUrl as string;
+  // riskLevel dihapus karena tidak digunakan (sudah ada di labResult)
 
-  const { imageUri, documentName, type } = params;
+  // State
+  const [labResult, setLabResult] = useState<LabResult | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleConfirm = async () => {
-    if (isProcessing) return;
-    
-    setIsProcessing(true);
+  // =====================================================
+  // FETCH LAB RESULT (useCallback untuk fix warning)
+  // =====================================================
 
+  const fetchLabResult = useCallback(async () => {
     try {
-      console.log('🚀 Starting upload process...');
+      console.log('🔍 Fetching lab result with ID:', labResultId);
       
-      const result = await processLabUpload(imageUri as string);
-      
-      console.log('📊 Upload result:', result);
+      const auth = getAuth();
+      const user = auth.currentUser;
+      if (!user) throw new Error('Not authenticated');
 
-      if (result.success) {
-        console.log('✅ Upload process complete!');
-        
-        // ✅ TAMBAHKAN: Mark lab as uploaded
-        try {
-          await markLabAsUploaded();
-          console.log('✅ Lab status updated in AsyncStorage');
-        } catch (storageError) {
-          console.error('⚠️ Failed to update lab status:', storageError);
-          // Continue anyway, tidak perlu gagalkan proses
-        }
-        
-        // Navigate to result screen with data
-        router.replace({
-          pathname: '/screens/cekKesehatan/uploadHasil',
-          params: {
-            imageUrl: result.imageUrl,
-            riskLevel: result.riskLevel,
-            labResultId: result.labResultId,
-          },
-        });
-      } else {
-        // Show error
-        Alert.alert(
-          'Upload Gagal',
-          result.error || 'Terjadi kesalahan saat mengupload hasil lab',
-          [{ text: 'OK', onPress: () => setIsProcessing(false) }]
-        );
-      }
+      const { data, error } = await supabase
+        .from('lab_results')
+        .select('*')
+        .eq('id', labResultId)
+        .eq('user_id', user.uid)
+        .single();
+
+      if (error) throw error;
+      
+      console.log('✅ Lab result fetched:', data);
+      setLabResult(data);
     } catch (error) {
-      console.error('❌ Upload error:', error);
-      Alert.alert(
-        'Error',
-        'Terjadi kesalahan tak terduga. Silakan coba lagi.',
-        [{ text: 'OK', onPress: () => setIsProcessing(false) }]
-      );
+      console.error('❌ Error fetching lab result:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [labResultId]); // ✅ Tambahkan dependency
+
+  useEffect(() => {
+    fetchLabResult();
+  }, [fetchLabResult]); // ✅ Tambahkan fetchLabResult sebagai dependency
+
+  // =====================================================
+  // HELPERS
+  // =====================================================
+
+  const getRiskColor = (level: string) => {
+    switch (level) {
+      case 'rendah': return '#ABE7B2';
+      case 'sedang': return '#FFD580';
+      case 'tinggi': return '#FFB4B4';
+      default: return '#D1D5DB';
     }
   };
 
-  const handleRetake = () => {
-    router.back();
+  const getRiskIcon = (level: string) => {
+    switch (level) {
+      case 'rendah': return 'checkmark-circle';
+      case 'sedang': return 'alert-circle';
+      case 'tinggi': return 'warning';
+      default: return 'help-circle';
+    }
   };
 
-  // Get loading message based on progress
-  const getLoadingMessage = () => {
-    switch (uploadProgress) {
-      case 'uploading':
-        return {
-          title: 'Mengupload File...',
-          subtitle: 'Menyimpan gambar ke server',
-          icon: 'cloud-upload' as const,
-        };
-      case 'ocr':
-        return {
-          title: 'Membaca Hasil Lab...',
-          subtitle: 'Mengekstrak teks dari gambar',
-          icon: 'scan' as const,
-        };
-      case 'analyzing':
-        return {
-          title: 'Menganalisis Data...',
-          subtitle: 'Menghitung risiko kesehatan',
-          icon: 'analytics' as const,
-        };
-      case 'saving':
-        return {
-          title: 'Menyimpan Hasil...',
-          subtitle: 'Menyimpan ke database',
-          icon: 'save' as const,
-        };
+  const getRiskLabel = (level: string) => {
+    switch (level) {
+      case 'rendah': return 'Risiko Rendah';
+      case 'sedang': return 'Risiko Sedang';
+      case 'tinggi': return 'Risiko Tinggi';
+      default: return 'Unknown';
+    }
+  };
+
+  const getStatusColor = (value: number | null, type: string): string => {
+    if (value === null) return '#D1D5DB';
+
+    switch (type) {
+      case 'glucose':
+        if (value < 100) return '#ABE7B2';
+        if (value < 126) return '#FFD580';
+        return '#FFB4B4';
+      case 'glucose_2h':
+        if (value < 140) return '#ABE7B2';
+        if (value < 200) return '#FFD580';
+        return '#FFB4B4';
+      case 'hba1c':
+        if (value < 5.7) return '#ABE7B2';
+        if (value < 6.5) return '#FFD580';
+        return '#FFB4B4';
+      case 'cholesterol_total':
+        if (value < 200) return '#ABE7B2';
+        if (value < 240) return '#FFD580';
+        return '#FFB4B4';
+      case 'ldl':
+        if (value < 100) return '#ABE7B2';
+        if (value < 160) return '#FFD580';
+        return '#FFB4B4';
+      case 'hdl':
+        return value >= 40 ? '#ABE7B2' : '#FFB4B4';
+      case 'triglycerides':
+        if (value < 150) return '#ABE7B2';
+        if (value < 200) return '#FFD580';
+        return '#FFB4B4';
       default:
-        return {
-          title: 'Memproses...',
-          subtitle: 'Mohon tunggu',
-          icon: 'hourglass' as const,
-        };
+        return '#D1D5DB';
     }
   };
 
-  const loadingMessage = getLoadingMessage();
-
-  // Get progress step status
-  const getStepStatus = (step: number): 'completed' | 'active' | 'pending' => {
-    const steps = ['uploading', 'ocr', 'analyzing', 'saving'];
-    const currentStepIndex = uploadProgress ? steps.indexOf(uploadProgress) : -1;
-    
-    if (currentStepIndex === -1) return 'pending';
-    if (step < currentStepIndex) return 'completed';
-    if (step === currentStepIndex) return 'active';
-    return 'pending';
+  const getStatusIcon = (value: number | null, type: string) => {
+    const color = getStatusColor(value, type);
+    if (color === '#ABE7B2') return 'checkmark-circle';
+    if (color === '#FFD580') return 'alert-circle';
+    if (color === '#FFB4B4') return 'warning';
+    return 'help-circle';
   };
+
+  const getStatusText = (value: number | null, type: string): string => {
+    const color = getStatusColor(value, type);
+    if (color === '#ABE7B2') return 'Normal';
+    if (color === '#FFD580') return 'Borderline';
+    if (color === '#FFB4B4') return 'Tinggi';
+    return 'No Data';
+  };
+
+  // =====================================================
+  // RENDER LOADING
+  // =====================================================
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#ABE7B2" />
+          <Text style={styles.loadingText}>Memuat hasil analisis...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!labResult) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle" size={48} color="#FFB4B4" />
+          <Text style={styles.errorText}>Gagal memuat data</Text>
+          <TouchableOpacity 
+            style={styles.retryButton}
+            onPress={() => router.push('/(tabs)')}
+          >
+            <Text style={styles.retryButtonText}>Kembali ke Beranda</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // =====================================================
+  // RENDER MAIN
+  // =====================================================
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       
       {/* Header */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color="#1F2937" />
-        </Pressable>
-        <Text style={styles.headerTitle}>Preview & Konfirmasi</Text>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity onPress={() => router.push('/(tabs)')} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="#1E293B" />
+        </TouchableOpacity>
+        <Text style={styles.title}>Hasil Analisis</Text>
+        <TouchableOpacity style={styles.shareButton}>
+          <Ionicons name="share-outline" size={24} color="#64748B" />
+        </TouchableOpacity>
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Preview Section */}
-        <View style={styles.previewCard}>
-          <Text style={styles.sectionTitle}>Preview File</Text>
-          
-          {type === 'pdf' ? (
-            <View style={styles.pdfPreview}>
-              <Ionicons name="document" size={64} color="#FFD580" />
-              <Text style={styles.pdfName} numberOfLines={1}>
-                {documentName || 'Hasil Lab.pdf'}
-              </Text>
-              <Text style={styles.pdfSize}>PDF Document</Text>
-            </View>
-          ) : (
-            <View style={styles.imagePreview}>
-              <Image
-                source={{ uri: imageUri as string }}
-                style={styles.previewImage}
-                resizeMode="contain"
-              />
-            </View>
-          )}
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Image Preview Section */}
+        <View style={styles.imageSection}>
+          <Text style={styles.sectionTitle}>📄 Dokumen yang Dianalisis</Text>
+          <View style={styles.imageContainer}>
+            <Image source={{ uri: imageUrl }} style={styles.image} resizeMode="contain" />
+          </View>
         </View>
 
-        {/* Privacy Notice */}
-        <View style={styles.privacyCard}>
-          <View style={styles.privacyHeader}>
-            <Ionicons name="lock-closed" size={18} color="#6B7280" />
-            <Text style={styles.privacyTitle}>Privasi Terjamin</Text>
+        {/* Risk Status Card */}
+        <View style={[styles.statusCard, { backgroundColor: getRiskColor(labResult.risk_level) }]}>
+          <View style={styles.statusHeader}>
+            <Ionicons name={getRiskIcon(labResult.risk_level)} size={32} color="#FFFFFF" />
+            <View style={styles.statusContent}>
+              <Text style={styles.statusLabel}>{getRiskLabel(labResult.risk_level)}</Text>
+              <Text style={styles.statusScore}>Skor Risiko: {labResult.risk_score}</Text>
+            </View>
           </View>
-          <Text style={styles.privacyText}>
-            Data hasil lab Anda akan dienkripsi dan hanya dapat diakses oleh Anda. 
-            Kami tidak akan membagikan data ke pihak ketiga tanpa izin Anda.
+          <Text style={styles.statusDate}>
+            Diperiksa {new Date(labResult.created_at).toLocaleDateString('id-ID', {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+            })}
           </Text>
         </View>
-      </ScrollView>
 
-      {/* Bottom Action */}
-      <View style={styles.bottomAction}>
-        <Pressable
-          style={({ pressed }) => [
-            styles.retakeButton,
-            { opacity: pressed ? 0.8 : 1 },
-            isProcessing && styles.buttonDisabled,
-          ]}
-          onPress={handleRetake}
-          disabled={isProcessing}
-        >
-          <Text style={styles.retakeText}>Ambil Ulang</Text>
-        </Pressable>
+        {/* Detail Pemeriksaan */}
+        <View style={styles.detailSection}>
+          <Text style={styles.sectionTitle}>📊 Detail Pemeriksaan</Text>
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.confirmButton,
-            { opacity: pressed ? 0.9 : 1 },
-            isProcessing && styles.buttonDisabled,
-          ]}
-          onPress={handleConfirm}
-          disabled={isProcessing}
-        >
-          {isProcessing ? (
-            <>
-              <ActivityIndicator size="small" color="#FFFFFF" />
-              <Text style={styles.confirmText}>Memproses...</Text>
-            </>
-          ) : (
-            <>
-              <Text style={styles.confirmText}>Konfirmasi & Analisis</Text>
-            </>
+          {/* Diabetes Section */}
+          {(labResult.glucose_level || labResult.glucose_2h || labResult.hba1c) && (
+            <View style={styles.categoryCard}>
+              <Text style={styles.categoryTitle}>🩸 Pemeriksaan Diabetes</Text>
+
+              {/* Gula Darah Puasa */}
+              {labResult.glucose_level !== null && (
+                <TestCard
+                  label="Gula Darah Puasa"
+                  value={labResult.glucose_level}
+                  unit="mg/dL"
+                  normalRange="< 100 mg/dL"
+                  status={getStatusText(labResult.glucose_level, 'glucose')}
+                  statusColor={getStatusColor(labResult.glucose_level, 'glucose')}
+                  statusIcon={getStatusIcon(labResult.glucose_level, 'glucose')}
+                  maxValue={200}
+                />
+              )}
+
+              {/* Glukosa 2 Jam */}
+              {labResult.glucose_2h !== null && (
+                <TestCard
+                  label="Glukosa Darah 2 Jam"
+                  value={labResult.glucose_2h}
+                  unit="mg/dL"
+                  normalRange="< 140 mg/dL"
+                  status={getStatusText(labResult.glucose_2h, 'glucose_2h')}
+                  statusColor={getStatusColor(labResult.glucose_2h, 'glucose_2h')}
+                  statusIcon={getStatusIcon(labResult.glucose_2h, 'glucose_2h')}
+                  maxValue={250}
+                />
+              )}
+
+              {/* HbA1c */}
+              {labResult.hba1c !== null && (
+                <TestCard
+                  label="HbA1c"
+                  value={labResult.hba1c}
+                  unit="%"
+                  normalRange="< 5.7%"
+                  status={getStatusText(labResult.hba1c, 'hba1c')}
+                  statusColor={getStatusColor(labResult.hba1c, 'hba1c')}
+                  statusIcon={getStatusIcon(labResult.hba1c, 'hba1c')}
+                  maxValue={10}
+                />
+              )}
+            </View>
           )}
-        </Pressable>
-      </View>
 
-      {/* Loading Overlay */}
-      {isProcessing && (
-        <View style={styles.loadingOverlay}>
-          <View style={styles.loadingCard}>
-            {/* Icon Container */}
-            <View style={styles.loadingIconContainer}>
-              <Ionicons name={loadingMessage.icon} size={40} color="#ABE7B2" />
+          {/* Cholesterol Section */}
+          {(labResult.cholesterol_total || labResult.cholesterol_ldl || 
+            labResult.cholesterol_hdl || labResult.triglycerides) && (
+            <View style={styles.categoryCard}>
+              <Text style={styles.categoryTitle}>💊 Pemeriksaan Kolesterol</Text>
+
+              {/* Kolesterol Total */}
+              {labResult.cholesterol_total !== null && (
+                <TestCard
+                  label="Kolesterol Total"
+                  value={labResult.cholesterol_total}
+                  unit="mg/dL"
+                  normalRange="< 200 mg/dL"
+                  status={getStatusText(labResult.cholesterol_total, 'cholesterol_total')}
+                  statusColor={getStatusColor(labResult.cholesterol_total, 'cholesterol_total')}
+                  statusIcon={getStatusIcon(labResult.cholesterol_total, 'cholesterol_total')}
+                  maxValue={300}
+                />
+              )}
+
+              {/* LDL */}
+              {labResult.cholesterol_ldl !== null && (
+                <TestCard
+                  label="Kolesterol LDL (Jahat)"
+                  value={labResult.cholesterol_ldl}
+                  unit="mg/dL"
+                  normalRange="< 100 mg/dL"
+                  status={getStatusText(labResult.cholesterol_ldl, 'ldl')}
+                  statusColor={getStatusColor(labResult.cholesterol_ldl, 'ldl')}
+                  statusIcon={getStatusIcon(labResult.cholesterol_ldl, 'ldl')}
+                  maxValue={200}
+                />
+              )}
+
+              {/* HDL */}
+              {labResult.cholesterol_hdl !== null && (
+                <TestCard
+                  label="Kolesterol HDL (Baik)"
+                  value={labResult.cholesterol_hdl}
+                  unit="mg/dL"
+                  normalRange="> 40 mg/dL"
+                  status={getStatusText(labResult.cholesterol_hdl, 'hdl')}
+                  statusColor={getStatusColor(labResult.cholesterol_hdl, 'hdl')}
+                  statusIcon={getStatusIcon(labResult.cholesterol_hdl, 'hdl')}
+                  maxValue={100}
+                />
+              )}
+
+              {/* Trigliserida */}
+              {labResult.triglycerides !== null && (
+                <TestCard
+                  label="Trigliserida"
+                  value={labResult.triglycerides}
+                  unit="mg/dL"
+                  normalRange="< 150 mg/dL"
+                  status={getStatusText(labResult.triglycerides, 'triglycerides')}
+                  statusColor={getStatusColor(labResult.triglycerides, 'triglycerides')}
+                  statusIcon={getStatusIcon(labResult.triglycerides, 'triglycerides')}
+                  maxValue={250}
+                />
+              )}
             </View>
+          )}
+        </View>
 
-            {/* Spinner */}
-            <ActivityIndicator size="large" color="#ABE7B2" style={styles.spinner} />
-
-            {/* Title & Subtitle */}
-            <Text style={styles.loadingTitle}>{loadingMessage.title}</Text>
-            <Text style={styles.loadingSubtitle}>{loadingMessage.subtitle}</Text>
-
-            {/* Progress Steps */}
-            <View style={styles.progressSteps}>
-              <ProgressStep 
-                label="Upload" 
-                status={getStepStatus(0)} 
-              />
-              <ProgressStep 
-                label="OCR" 
-                status={getStepStatus(1)} 
-              />
-              <ProgressStep 
-                label="Analisis" 
-                status={getStepStatus(2)} 
-              />
-              <ProgressStep 
-                label="Simpan" 
-                status={getStepStatus(3)} 
-              />
-            </View>
+        {/* Info Card */}
+        <View style={styles.infoCard}>
+          <View style={styles.infoIconContainer}>
+            <Ionicons name="information-circle" size={24} color="#3B82F6" />
+          </View>
+          <View style={styles.infoContent}>
+            <Text style={styles.infoTitle}>Catatan Penting</Text>
+            <Text style={styles.infoText}>
+              Hasil analisis ini bersifat informatif. Untuk diagnosis akurat dan penanganan medis,
+              konsultasikan dengan dokter atau profesional kesehatan.
+            </Text>
           </View>
         </View>
-      )}
+
+        {/* Action Buttons */}
+        <View style={styles.actionButtons}>
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={() => router.push('/(tabs)')}
+          >
+            <Text style={styles.secondaryButtonText}>Kembali ke Beranda</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.primaryButton}>
+            <Text style={styles.primaryButtonText}>Mulai Tantangan Sehat</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={{ height: 32 }} />
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+// =====================================================
+// TEST CARD COMPONENT
+// =====================================================
+
+interface TestCardProps {
+  label: string;
+  value: number;
+  unit: string;
+  normalRange: string;
+  status: string;
+  statusColor: string;
+  statusIcon: keyof typeof Ionicons.glyphMap;
+  maxValue: number;
+}
+
+function TestCard({
+  label,
+  value,
+  unit,
+  normalRange,
+  status,
+  statusColor,
+  statusIcon,
+  maxValue,
+}: TestCardProps) {
+  const percentage = Math.min((value / maxValue) * 100, 100);
+
+  return (
+    <View style={styles.testCard}>
+      {/* Header */}
+      <View style={styles.testHeader}>
+        <Text style={styles.testLabel}>{label}</Text>
+        <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
+          <Ionicons name={statusIcon} size={14} color="#FFFFFF" />
+          <Text style={styles.statusBadgeText}>{status}</Text>
+        </View>
+      </View>
+
+      {/* Value */}
+      <View style={styles.testValueRow}>
+        <Text style={styles.testValue}>
+          {value} <Text style={styles.testUnit}>{unit}</Text>
+        </Text>
+        <Text style={styles.testNormalRange}>{normalRange}</Text>
+      </View>
+
+      {/* Progress Bar */}
+      <View style={styles.progressBarContainer}>
+        <View
+          style={[
+            styles.progressBarFill,
+            { width: `${percentage}%`, backgroundColor: statusColor },
+          ]}
+        />
+      </View>
     </View>
   );
 }
 
-const ProgressStep = ({ 
-  label, 
-  status 
-}: { 
-  label: string; 
-  status: 'completed' | 'active' | 'pending';
-}) => {
-  const getColor = () => {
-    if (status === 'completed') return '#ABE7B2';
-    if (status === 'active') return '#ABE7B2';
-    return '#E5E7EB';
-  };
-
-  return (
-    <View style={styles.progressStep}>
-      <View style={[styles.progressStepCircle, { backgroundColor: getColor() }]}>
-        {status === 'completed' ? (
-          <Ionicons name="checkmark" size={16} color="#FFFFFF" />
-        ) : (
-          <View style={[
-            styles.progressStepDot, 
-            { backgroundColor: status === 'active' ? '#FFFFFF' : '#9CA3AF' }
-          ]} />
-        )}
-      </View>
-      <Text style={[
-        styles.progressStepLabel,
-        { color: status === 'pending' ? '#9CA3AF' : '#1F2937' }
-      ]}>
-        {label}
-      </Text>
-    </View>
-  );
-};
-
 // =====================================================
-// STYLES
+// STYLES (TIDAK BERUBAH)
 // =====================================================
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F8FAFC',
   },
   header: {
     flexDirection: 'row',
@@ -311,212 +456,262 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    marginTop: 30,
+    borderBottomColor: '#E2E8F0',
   },
   backButton: {
-    padding: 4,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  headerTitle: {
+  title: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
+  },
+  shareButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scrollView: {
     flex: 1,
   },
-  scrollContent: {
-    padding: 16,
-    paddingBottom: 100,
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
   },
-  previewCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+  loadingText: {
+    fontSize: 16,
+    color: '#64748B',
+  },
+  errorContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+    padding: 32,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#64748B',
+    textAlign: 'center',
+  },
+  retryButton: {
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    backgroundColor: '#ABE7B2',
+    borderRadius: 12,
+  },
+  retryButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+
+  // Image Section
+  imageSection: {
     padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1E293B',
     marginBottom: 12,
   },
-  imagePreview: {
+  imageContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  image: {
     width: '100%',
     height: 300,
-    borderRadius: 12,
-    backgroundColor: '#F3F4F6',
-    overflow: 'hidden',
   },
-  previewImage: {
-    width: '100%',
-    height: '100%',
-  },
-  pdfPreview: {
-    alignItems: 'center',
-    padding: 32,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 12,
-  },
-  pdfName: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#1F2937',
-    marginTop: 12,
-    maxWidth: '80%',
-  },
-  pdfSize: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 4,
-  },
-  privacyCard: {
-    backgroundColor: '#F3F4F6',
-    borderRadius: 12,
-    padding: 16,
-  },
-  privacyHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    gap: 8,
-  },
-  privacyTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1F2937',
-  },
-  privacyText: {
-    fontSize: 12,
-    color: '#6B7280',
-    lineHeight: 18,
-  },
-  bottomAction: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#FFFFFF',
-    flexDirection: 'row',
-    padding: 25,
-    gap: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-  },
-  retakeButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F3F4F6',
-    borderRadius: 12,
-    paddingVertical: 14,
-    gap: 8,
-  },
-  retakeText: {
-    fontSize: 14,
-    fontWeight: '600',
-    left: 30,
-    bottom: 5,
-    color: '#6B7280',
-  },
-  confirmButton: {
-    flex: 2,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#ABE7B2',
-    borderRadius: 12,
-    paddingVertical: 14,
-    gap: 8,
-  },
-  confirmText: {
-    fontSize: 14,
-    fontWeight: '500',
-    left: 90,
-    bottom: 5,
-    color: '#60d955ff',
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  loadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 999,
-  },
-  loadingCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 32,
-    alignItems: 'center',
-    width: '85%',
-    maxWidth: 340,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  loadingIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#ECF4E8',
-    justifyContent: 'center',
-    alignItems: 'center',
+
+  // Status Card
+  statusCard: {
+    marginHorizontal: 16,
     marginBottom: 16,
+    padding: 20,
+    borderRadius: 16,
   },
-  spinner: {
-    marginVertical: 16,
+  statusHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 8,
   },
-  loadingTitle: {
+  statusContent: {
+    flex: 1,
+  },
+  statusLabel: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1F2937',
-    marginBottom: 8,
-    textAlign: 'center',
+    color: '#FFFFFF',
+    marginBottom: 4,
   },
-  loadingSubtitle: {
+  statusScore: {
     fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-    marginBottom: 24,
+    color: '#FFFFFF',
+    opacity: 0.9,
   },
-  progressSteps: {
+  statusDate: {
+    fontSize: 13,
+    color: '#FFFFFF',
+    opacity: 0.8,
+  },
+
+  // Detail Section
+  detailSection: {
+    paddingHorizontal: 16,
+  },
+  categoryCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    gap: 12,
+  },
+  categoryTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1E293B',
+    marginBottom: 4,
+  },
+
+  // Test Card
+  testCard: {
+    padding: 16,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    gap: 8,
+  },
+  testHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    marginTop: 8,
-  },
-  progressStep: {
     alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  testLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#334155',
     flex: 1,
   },
-  progressStepCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
+  statusBadge: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
   },
-  progressStepDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  statusBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
-  progressStepLabel: {
-    fontSize: 11,
-    fontWeight: '500',
-    textAlign: 'center',
+  testValueRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+  },
+  testValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  testUnit: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: '#64748B',
+  },
+  testNormalRange: {
+    fontSize: 12,
+    color: '#64748B',
+  },
+  progressBarContainer: {
+    height: 6,
+    backgroundColor: '#E2E8F0',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+
+  // Info Card
+  infoCard: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    padding: 16,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 12,
+    marginBottom: 16,
+    gap: 12,
+  },
+  infoIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#DBEAFE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  infoContent: {
+    flex: 1,
+  },
+  infoTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1E40AF',
+    marginBottom: 4,
+  },
+  infoText: {
+    fontSize: 13,
+    color: '#1E40AF',
+    lineHeight: 18,
+  },
+
+  // Action Buttons
+  actionButtons: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  secondaryButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+  },
+  secondaryButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  primaryButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#ABE7B2',
+    alignItems: 'center',
+  },
+  primaryButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

@@ -47,4 +47,5 @@ export interface RiskAnalysis {
   level: RiskLevel;
   score: number;
   recommendations: string[];
+  detectedConditions: string[];
 }
