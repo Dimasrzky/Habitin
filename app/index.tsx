@@ -17,7 +17,7 @@ export default function IndexScreen() {
     <View style={styles.container}>
       <Text style={styles.logo}>🏃‍♂️</Text>
       <Text style={styles.title}>Habitin</Text>
-      <ActivityIndicator size="large" color="#667eea" style={styles.loader} />
+      <ActivityIndicator size="large" color="#1b7623ff" style={styles.loader} />
     </View>
   );
 }
