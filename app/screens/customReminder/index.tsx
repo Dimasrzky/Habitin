@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -12,12 +12,51 @@ import {
 } from 'react-native';
 import { ReminderCard } from '../../../components/customReminder/ReminderCard';
 import { useReminders } from '../../../src/hooks/useReminders';
+import { REMINDER_EVENTS, reminderEvents } from '../../../src/utils/eventEmitter';
 
 export default function CustomReminderScreen() {
   const { reminders, loading, deleteReminder, toggleActive, refetch } = useReminders();
   const [refreshing, setRefreshing] = useState(false);
 
-  // ✅ FIX: Auto refresh saat screen focus
+  // ✅ Listen to CRUD events untuk auto refresh
+  useEffect(() => {
+    console.log('📡 Setting up event listeners...');
+
+    const handleReminderCreated = (data: any) => {
+      console.log('🆕 Reminder created event received:', data?.id);
+      refetch();
+    };
+
+    const handleReminderUpdated = (data: any) => {
+      console.log('📝 Reminder updated event received:', data?.id);
+      refetch();
+    };
+
+    const handleReminderDeleted = (id: string) => {
+      console.log('🗑️ Reminder deleted event received:', id);
+      refetch();
+    };
+
+    const handleReminderToggled = (data: any) => {
+      console.log('🔄 Reminder toggled event received:', data?.id);
+      refetch();
+    };
+
+    // Subscribe to events
+    reminderEvents.on(REMINDER_EVENTS.CREATED, handleReminderCreated);
+    reminderEvents.on(REMINDER_EVENTS.UPDATED, handleReminderUpdated);
+    reminderEvents.on(REMINDER_EVENTS.DELETED, handleReminderDeleted);
+    reminderEvents.on(REMINDER_EVENTS.TOGGLED, handleReminderToggled);
+
+    // Cleanup on unmount
+    return () => {
+      console.log('🔌 Cleaning up event listeners...');
+      reminderEvents.off(REMINDER_EVENTS.CREATED, handleReminderCreated);
+      reminderEvents.off(REMINDER_EVENTS.UPDATED, handleReminderUpdated);
+      reminderEvents.off(REMINDER_EVENTS.DELETED, handleReminderDeleted);
+      reminderEvents.off(REMINDER_EVENTS.TOGGLED, handleReminderToggled);
+    };
+  }, [refetch]);
 
   const handleDelete = (id: string, title: string) => {
     Alert.alert(
@@ -32,7 +71,7 @@ export default function CustomReminderScreen() {
             try {
               await deleteReminder(id);
               Alert.alert('Berhasil', 'Reminder berhasil dihapus');
-              // ✅ Auto refresh sudah di-handle oleh useFocusEffect
+              // ✅ Refresh akan otomatis via event
             } catch (err) {
               console.error('Delete error:', err);
               Alert.alert('Error', 'Gagal menghapus reminder');
@@ -44,6 +83,7 @@ export default function CustomReminderScreen() {
   };
 
   const onRefresh = async () => {
+    console.log('🔄 Manual refresh triggered');
     setRefreshing(true);
     await refetch();
     setRefreshing(false);
@@ -90,7 +130,7 @@ export default function CustomReminderScreen() {
             </Text>
           </View>
           
-          {/* ✅ Manual Refresh Button */}
+          {/* Manual Refresh Button */}
           <TouchableOpacity 
             onPress={onRefresh}
             disabled={refreshing}

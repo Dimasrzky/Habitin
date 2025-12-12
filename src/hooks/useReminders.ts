@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { auth } from '../config/firebase.config';
 import { supabase } from '../config/supabase.config';
 import { notificationService } from '../services/notificationService';
+import { REMINDER_EVENTS, reminderEvents } from '../utils/eventEmitter';
 
 // ==================== TYPES ====================
 export interface Reminder {
@@ -49,6 +50,15 @@ export const useReminders = () => {
         console.error('❌ Fetch error:', fetchError);
         throw fetchError;
       }
+      
+      if (data && data.length > 0) {
+        console.log('📋 Reminders:', data.map(r => ({
+          id: r.id.substring(0, 8),
+          title: r.title,
+          time: new Date(r.reminder_time).toLocaleString('id-ID'),
+          active: r.is_active
+        })));
+      }
 
       setReminders(data || []);
     } catch (err: any) {
@@ -94,8 +104,6 @@ export const useReminders = () => {
           dueDate,
           'temp-due-id'
         );
-
-        console.log('✅ Due date notification scheduled');
       }
 
       // Prepare data for insert
@@ -110,8 +118,6 @@ export const useReminders = () => {
         repeat_pattern: reminderData.repeat_pattern,
       };
 
-      console.log('📤 Inserting to Supabase:', dataToInsert);
-
       // Insert to database
       const { data, error: insertError } = await supabase
         .from('reminders')
@@ -124,13 +130,7 @@ export const useReminders = () => {
         throw insertError;
       }
 
-      console.log('✅ Insert SUCCESS:', {
-        id: data.id,
-        title: data.title,
-        created_at: data.created_at,
-      });
-
-      await fetchReminders();
+      reminderEvents.emit(REMINDER_EVENTS.CREATED, data);
       
       return data;
     } catch (err: any) {
@@ -186,8 +186,6 @@ export const useReminders = () => {
           newDate,
           id
         );
-
-        console.log('✅ New notification scheduled:', newNotificationId);
       }
 
       // Update database
@@ -210,11 +208,7 @@ export const useReminders = () => {
         throw updateError;
       }
 
-      console.log('✅ Update SUCCESS');
-
-      // Refetch
-      console.log('🔄 Refreshing reminders list...');
-      await fetchReminders();
+      reminderEvents.emit(REMINDER_EVENTS.UPDATED, { id, updates });
 
     } catch (err: any) {
       console.error('❌ UPDATE REMINDER ERROR:', err);
@@ -250,9 +244,7 @@ export const useReminders = () => {
 
       // Cancel notification
       if (reminder?.notification_id) {
-        console.log('🔕 Canceling notification:', reminder.notification_id);
         await notificationService.cancelNotification(reminder.notification_id);
-        console.log('✅ Notification canceled');
       }
 
       // Delete from database
@@ -269,13 +261,8 @@ export const useReminders = () => {
         throw deleteError;
       }
 
-      console.log('✅ Delete SUCCESS');
+      reminderEvents.emit(REMINDER_EVENTS.DELETED, id);
 
-      // Refetch
-      console.log('🔄 Refreshing reminders list...');
-      await fetchReminders();
-
-      console.log('🔵 ==================== END: DELETE REMINDER ====================');
     } catch (err: any) {
       console.error('❌ DELETE REMINDER ERROR:', err);
       setError(err.message || 'Gagal hapus reminder');
@@ -292,13 +279,11 @@ export const useReminders = () => {
         throw new Error('User not authenticated');
       }
 
-      console.log('🔵 ==================== START: TOGGLE ACTIVE ====================');
-      console.log('🔄 Toggling active status for reminder:', id);
-
       const reminder = reminders.find((r) => r.id === id);
       
       if (!reminder) {
-        throw new Error('Reminder not found');
+        console.warn('⚠️ Reminder not found:', id);
+        return;
       }
 
       if (reminder.user_id !== userId) {
@@ -306,11 +291,9 @@ export const useReminders = () => {
       }
 
       const newActiveStatus = !reminder.is_active;
-      console.log(`📋 Changing status from ${reminder.is_active} to ${newActiveStatus}`);
 
       if (newActiveStatus) {
         // Activate: schedule notification
-        console.log('🔔 Activating reminder - scheduling notification...');
         
         const notificationId = await notificationService.scheduleNotification(
           reminder.title,
@@ -318,8 +301,6 @@ export const useReminders = () => {
           new Date(reminder.reminder_time),
           id
         );
-
-        console.log('✅ Notification scheduled:', notificationId);
 
         await supabase
           .from('reminders')
@@ -330,14 +311,12 @@ export const useReminders = () => {
           .eq('id', id)
           .eq('user_id', userId);
 
-        console.log('✅ Reminder activated');
       } else {
         // Deactivate: cancel notification
         console.log('🔕 Deactivating reminder - canceling notification...');
         
         if (reminder.notification_id) {
           await notificationService.cancelNotification(reminder.notification_id);
-          console.log('✅ Notification canceled');
         }
 
         await supabase
@@ -345,13 +324,9 @@ export const useReminders = () => {
           .update({ is_active: false })
           .eq('id', id)
           .eq('user_id', userId);
-
-        console.log('✅ Reminder deactivated');
       }
 
-      // Refetch
-      console.log('🔄 Refreshing reminders list...');
-      await fetchReminders();
+      reminderEvents.emit(REMINDER_EVENTS.TOGGLED, { id, active: newActiveStatus });
 
       console.log('🔵 ==================== END: TOGGLE ACTIVE ====================');
     } catch (err: any) {
