@@ -20,25 +20,20 @@ export default function CustomReminderScreen() {
 
   // ✅ Listen to CRUD events untuk auto refresh
   useEffect(() => {
-    console.log('📡 Setting up event listeners...');
 
     const handleReminderCreated = (data: any) => {
-      console.log('🆕 Reminder created event received:', data?.id);
       refetch();
     };
 
     const handleReminderUpdated = (data: any) => {
-      console.log('📝 Reminder updated event received:', data?.id);
       refetch();
     };
 
     const handleReminderDeleted = (id: string) => {
-      console.log('🗑️ Reminder deleted event received:', id);
       refetch();
     };
 
     const handleReminderToggled = (data: any) => {
-      console.log('🔄 Reminder toggled event received:', data?.id);
       refetch();
     };
 
@@ -50,7 +45,6 @@ export default function CustomReminderScreen() {
 
     // Cleanup on unmount
     return () => {
-      console.log('🔌 Cleaning up event listeners...');
       reminderEvents.off(REMINDER_EVENTS.CREATED, handleReminderCreated);
       reminderEvents.off(REMINDER_EVENTS.UPDATED, handleReminderUpdated);
       reminderEvents.off(REMINDER_EVENTS.DELETED, handleReminderDeleted);
@@ -83,7 +77,6 @@ export default function CustomReminderScreen() {
   };
 
   const onRefresh = async () => {
-    console.log('🔄 Manual refresh triggered');
     setRefreshing(true);
     await refetch();
     setRefreshing(false);

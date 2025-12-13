@@ -32,20 +32,6 @@ class SimpleEventEmitter {
       return;
     }
 
-    // Filter out the callback
-    const initialLength = this.events[eventName].length;
-    this.events[eventName] = this.events[eventName].filter(
-      (cb) => cb !== callback
-    );
-
-    const removedCount = initialLength - this.events[eventName].length;
-
-    if (removedCount > 0) {
-      console.log(`🔌 Event listener removed: ${eventName} (removed: ${removedCount})`);
-    } else {
-      console.warn(`⚠️ Callback not found for event: ${eventName}`);
-    }
-
     // Clean up if no listeners left
     if (this.events[eventName].length === 0) {
       delete this.events[eventName];
@@ -61,9 +47,6 @@ class SimpleEventEmitter {
     if (!this.events[eventName]) {
       return;
     }
-
-    const listenerCount = this.events[eventName].length;
-    console.log(`📡 Emitting event: ${eventName} (listeners: ${listenerCount})`);
 
     // Call all listeners
     this.events[eventName].forEach((callback, index) => {
@@ -132,21 +115,6 @@ class SimpleEventEmitter {
     };
 
     this.on(eventName, onceWrapper);
-  }
-
-  /**
-   * Debug: Print all registered events and listener counts
-   */
-  debug(): void {
-    const eventNames = this.eventNames();
-    
-    if (eventNames.length === 0) {
-      console.log('  No events registered');
-    } else {
-      eventNames.forEach((name) => {
-        console.log(`  ${name}: ${this.listenerCount(name)} listener(s)`);
-      });
-    }
   }
 }
 
@@ -228,3 +196,4 @@ export const onReminderEvent = <K extends ReminderEventType>(
  * Export the class for creating additional instances if needed
  */
 export { SimpleEventEmitter };
+

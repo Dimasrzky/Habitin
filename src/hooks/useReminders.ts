@@ -169,7 +169,6 @@ export const useReminders = () => {
 
       // Cancel old notification
       if (oldReminder?.notification_id) {
-        console.log('🔕 Canceling old notification:', oldReminder.notification_id);
         await notificationService.cancelNotification(oldReminder.notification_id);
       }
 
@@ -178,7 +177,6 @@ export const useReminders = () => {
       
       if (updates.reminder_time) {
         const newDate = new Date(updates.reminder_time);
-        console.log('🔔 Scheduling new notification for:', newDate.toLocaleString('id-ID'));
 
         newNotificationId = await notificationService.scheduleNotification(
           updates.title || oldReminder?.title || '',
@@ -194,8 +192,6 @@ export const useReminders = () => {
         notification_id: newNotificationId,
         updated_at: new Date().toISOString(),
       };
-
-      console.log('📤 Updating Supabase:', updateData);
 
       const { error: updateError } = await supabase
         .from('reminders')
@@ -237,18 +233,10 @@ export const useReminders = () => {
         throw new Error('Unauthorized: Not your reminder');
       }
 
-      console.log('📋 Reminder to delete:', {
-        title: reminder.title,
-        notification_id: reminder.notification_id,
-      });
-
       // Cancel notification
       if (reminder?.notification_id) {
         await notificationService.cancelNotification(reminder.notification_id);
       }
-
-      // Delete from database
-      console.log('📤 Deleting from Supabase...');
 
       const { error: deleteError } = await supabase
         .from('reminders')
@@ -313,7 +301,6 @@ export const useReminders = () => {
 
       } else {
         // Deactivate: cancel notification
-        console.log('🔕 Deactivating reminder - canceling notification...');
         
         if (reminder.notification_id) {
           await notificationService.cancelNotification(reminder.notification_id);
@@ -328,7 +315,6 @@ export const useReminders = () => {
 
       reminderEvents.emit(REMINDER_EVENTS.TOGGLED, { id, active: newActiveStatus });
 
-      console.log('🔵 ==================== END: TOGGLE ACTIVE ====================');
     } catch (err: any) {
       console.error('❌ TOGGLE ACTIVE ERROR:', err);
       setError(err.message || 'Gagal toggle reminder');
