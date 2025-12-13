@@ -370,7 +370,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: '#ABE7B2',
+    backgroundColor: '#2aaa39ff',
     gap: 8,
   },
   confirmText: {
