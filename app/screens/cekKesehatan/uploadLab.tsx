@@ -273,6 +273,28 @@ export default function UploadLabScreen() {
             <TipItem text="Format: JPG, PNG, atau PDF" />
           </View>
         </View>
+
+        {/* Info Card */}
+      <View style={styles.infoCard}>
+        <View style={styles.infoHeader}>
+          <Ionicons name="information-circle" size={20} color="#93BFC7" />
+          <Text style={styles.infoTitle}>Yang Akan Dianalisis</Text>
+        </View>
+        <View style={styles.infoList}>
+          <InfoItem text="Kadar Gula Darah" />
+          <InfoItem text="Kolesterol Total" />
+          <InfoItem text="Kolesterol LDL" />
+          <InfoItem text="Kolesterol HDL" />
+          <InfoItem text="Trigliserida" />
+          <InfoItem text="HbA1c (jika ada)" />
+        </View>
+        <View style={styles.autoDetectNote}>
+          <Ionicons name="sparkles" size={16} color="#FFD580" />
+            <Text style={styles.autoDetectText}>
+                Sistem akan otomatis mendeteksi jenis pemeriksaan (Diabetes/Kolesterol)
+            </Text>
+        </View>
+      </View>
       </ScrollView>
     </View>
   );
@@ -282,6 +304,13 @@ const TipItem = ({ text }: { text: string }) => (
   <View style={styles.tipItem}>
     <Ionicons name="checkmark-circle" size={16} color="#ABE7B2" />
     <Text style={styles.tipText}>{text}</Text>
+  </View>
+);
+
+const InfoItem = ({ text }: { text: string }) => (
+  <View style={styles.infoItem}>
+    <Ionicons name="checkmark" size={16} color="#ABE7B2" />
+    <Text style={styles.infoItemText}>{text}</Text>
   </View>
 );
 
@@ -411,5 +440,49 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#78350F',
     flex: 1,
+  },
+  infoCard: {
+    backgroundColor: '#E3F2FD',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 18,
+  },
+  infoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 8,
+  },
+  infoTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  infoList: {
+    gap: 8,
+  },
+  infoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  infoItemText: {
+    fontSize: 13,
+    color: '#374151',
+  },
+  autoDetectNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(147, 191, 199, 0.2)',
+  },
+  autoDetectText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#6B7280',
+    fontStyle: 'italic',
   },
 });

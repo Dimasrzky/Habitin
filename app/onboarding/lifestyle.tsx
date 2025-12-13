@@ -18,7 +18,7 @@ const EXERCISE_OPTIONS = [
 ];
 
 const DIET_OPTIONS = [
-  'Sangat tidak sehat (fast food, gorengan sering)',
+  'Sangat tidak sehat (fast food, gorengan)',
   'Cukup sehat (kadang sayur/buah)',
   'Sehat (rutin sayur/buah)',
   'Sangat sehat (diet teratur)',

@@ -114,7 +114,7 @@ export default function SelfCheckScreen() {
       <View style={styles.bottomAction}>
         <SwipeToStartButton
           onComplete={handleSwipeComplete}
-          text="Geser untuk Mulai Self-Check"
+          text="Geser untuk Mulai"
           backgroundColor="#93BFC7"
           sliderColor="#FFFFFF"
         />
@@ -283,6 +283,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: '#FEF3C7',
+    marginBottom: 32,
   },
   benefitsTitle: {
     fontSize: 16,

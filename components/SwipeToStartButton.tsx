@@ -2,7 +2,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect, useRef } from 'react';
+import React, { useRef } from 'react';
 import {
   Animated,
   Dimensions,
@@ -36,18 +36,8 @@ export default function SwipeToStartButton({
 }: SwipeToStartButtonProps) {
   const translateX = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  const widthAnim = useRef(new Animated.Value(0)).current;
   const [completed, setCompleted] = React.useState(false);
   const gradientColors = ['#4CAF50', '#81C784'] as const;
-
-
-  useEffect(() => {
-  Animated.timing(widthAnim, {
-    toValue: 200,
-    duration: 800,
-    useNativeDriver: false, // ✅ aman
-  }).start();
-}, [widthAnim]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -107,9 +97,10 @@ export default function SwipeToStartButton({
     outputRange: ['0deg', '360deg'],
   });
 
-  const progressWidth = translateX.interpolate({
+  // ✅ GANTI progressWidth dengan scaleX
+  const progressScale = translateX.interpolate({
     inputRange: [0, SWIPE_THRESHOLD],
-    outputRange: [0, BUTTON_WIDTH],
+    outputRange: [0, 1],
   });
 
   const chevronOpacity = translateX.interpolate({
@@ -120,19 +111,18 @@ export default function SwipeToStartButton({
   return (
     <View style={styles.container}>
       <View style={styles.trackContainer}>
-        {/* Perbaikan LinearGradient — gunakan { x, y } bukan array */}
         <LinearGradient
           colors={gradientColors}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.track}
         >
-          {/* Progress Overlay */}
+          {/* Progress Overlay - FIXED */}
           <Animated.View
             style={[
               styles.progressOverlay,
               {
-                width: progressWidth,
+                transform: [{ scaleX: progressScale }],
                 opacity: 0.3,
               },
             ]}
@@ -172,25 +162,30 @@ export default function SwipeToStartButton({
               },
             ]}
           >
-            <Ionicons name="chevron-forward" size={20} color="rgba(255, 255, 255, 0.4)" />
+            <Ionicons 
+              name="chevron-forward" 
+              size={20} 
+              color="rgba(255, 255, 255, 0.4)" 
+              style={{ marginLeft: -2, left: 45 }}
+            />
             <Ionicons
               name="chevron-forward"
               size={20}
               color="rgba(255, 255, 255, 0.5)"
-              style={{ marginLeft: -8 }}
+              style={{ marginLeft: -2, left: 45 }}
             />
             <Ionicons
               name="chevron-forward"
               size={20}
               color="rgba(255, 255, 255, 0.6)"
-              style={{ marginLeft: -8 }}
+              style={{ marginLeft: -2, left: 45 }}
             />
           </Animated.View>
 
           {/* Success Text */}
           {completed && (
             <Animated.View style={styles.successTextContainer}>
-              <Text style={styles.successText}>✓ Berhasil!</Text>
+              <Text style={styles.successText}>Berhasil!</Text>
             </Animated.View>
           )}
         </LinearGradient>
@@ -243,13 +238,6 @@ export default function SwipeToStartButton({
           )}
         </Animated.View>
       </View>
-
-      {/* Hint Text */}
-      {!completed && (
-        <Animated.View style={{ opacity: textOpacity }}>
-          <Text style={styles.hintText}>Geser tombol ke kanan untuk memulai →</Text>
-        </Animated.View>
-      )}
     </View>
   );
 }
@@ -257,6 +245,7 @@ export default function SwipeToStartButton({
 const styles = StyleSheet.create({
   container: {
     width: '100%',
+    height: 80,
     alignItems: 'center',
   },
   trackContainer: {
@@ -281,7 +270,9 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     height: '100%',
+    width: BUTTON_WIDTH, // ✅ Fixed width
     borderRadius: 32,
+    transformOrigin: 'left', // Scale dari kiri
   },
   successOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -340,12 +331,5 @@ const styles = StyleSheet.create({
   },
   shimmerGradient: {
     ...StyleSheet.absoluteFillObject,
-  },
-  hintText: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginTop: 12,
-    textAlign: 'center',
-    fontWeight: '500',
   },
 });

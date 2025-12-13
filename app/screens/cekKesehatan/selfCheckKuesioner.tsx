@@ -209,30 +209,49 @@ export default function SelfCheckQuestionsScreen() {
           <Text style={styles.questionText}>{question.question}</Text>
         </View>
 
-        {/* Options */}
         <View style={styles.optionsContainer}>
           {question.options.map((option, index) => (
             <Pressable
               key={index}
-              style={({ pressed }) => [
-                styles.optionCard,
-                answers[currentQuestion] === index && styles.optionCardSelected,
-                { opacity: pressed ? 0.8 : 1 },
-              ]}
               onPress={() => handleAnswer(index)}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: answers[currentQuestion] === index ? '#e2f8e0ff' : '#FFFFFF',
+                borderWidth: 2,
+                borderColor: answers[currentQuestion] === index ? '#256742ff' : '#E5E7EB',
+                borderRadius: 12,
+                padding: 16,
+                marginBottom: 10,
+              }}
             >
-              <View style={[
-                styles.optionRadio,
-                answers[currentQuestion] === index && styles.optionRadioSelected,
-              ]}>
+              {/* Radio */}
+              <View style={{
+                width: 24,
+                height: 24,
+                borderRadius: 12,
+                borderWidth: 2,
+                borderColor: answers[currentQuestion] === index ? '#256742ff' : '#D1D5DB',
+                marginRight: 12,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}>
                 {answers[currentQuestion] === index && (
-                  <View style={styles.optionRadioInner} />
+                  <View style={{
+                    width: 12,
+                    height: 12,
+                    borderRadius: 6,
+                    backgroundColor: '#256742ff',
+                  }} />
                 )}
               </View>
-              <Text style={[
-                styles.optionText,
-                answers[currentQuestion] === index && styles.optionTextSelected,
-              ]}>
+
+              {/* Text - LANGSUNG TANPA WRAPPER */}
+              <Text style={{
+                flex: 1,
+                fontSize: 15,
+                color: '#1F2937',
+              }}>
                 {option}
               </Text>
             </Pressable>
@@ -241,36 +260,40 @@ export default function SelfCheckQuestionsScreen() {
       </ScrollView>
 
       {/* Bottom Navigation */}
-      <View style={styles.bottomAction}>
+      <View style={styles.bottomNav}>
         <Pressable
-          style={({ pressed }) => [
-            styles.previousButton,
-            { opacity: pressed ? 0.8 : 1 },
-            currentQuestion === 0 && styles.buttonDisabled,
-          ]}
           onPress={handlePrevious}
           disabled={currentQuestion === 0}
+          style={[
+            styles.btnPrevious,
+            currentQuestion === 0 && styles.btnDisabled,
+          ]}
         >
-          <Ionicons name="arrow-back" size={20} color={currentQuestion === 0 ? '#7fcc5cff' : '#6B7280'} />
-          <Text style={[
-            styles.previousButtonText,
-            currentQuestion === 0 && styles.buttonTextDisabled,
-          ]}>
-            Sebelumnya
+          <Ionicons 
+            name="arrow-back" 
+            size={20} 
+            color={currentQuestion === 0 ? '#ffffffff' : '#93BFC7'} 
+          />
+          <Text style={[styles.btnPreviousText,
+            currentQuestion === 0 && styles.btnDisabledText,
+          ]}
+        >
+            {currentQuestion === 0 ? '' : 'Sebelumnya'}
           </Text>
         </Pressable>
 
         <Pressable
-          style={({ pressed }) => [
-            styles.nextButton,
-            { opacity: pressed ? 0.9 : 1 },
-          ]}
           onPress={handleNext}
+          style={styles.btnNext}
         >
-          <Text style={styles.nextButtonText}>
+          <Text style={styles.btnNextText}>
             {currentQuestion === QUESTIONS.length - 1 ? 'Selesai' : 'Lanjut'}
           </Text>
-          <Ionicons name="arrow-forward" size={20} color="#7fcc5cff" />
+          <Ionicons 
+            name="arrow-forward" 
+            size={20} 
+            color="#FFFFFF" 
+          />
         </Pressable>
       </View>
     </View>
@@ -291,22 +314,26 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
+    marginBottom: 20,
   },
   backButton: {
     padding: 4,
+    marginTop: 40,
   },
   headerTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1F2937',
+    marginTop: 40,
   },
   progressContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F9FAFB',
     gap: 12,
+    left: 16,
   },
   progressBarBackground: {
     flex: 1,
@@ -317,13 +344,13 @@ const styles = StyleSheet.create({
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: '#93BFC7',
+    backgroundColor: '#256742ff',
     borderRadius: 4,
   },
   progressText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#93BFC7',
+    color: '#256742ff',
     minWidth: 45,
   },
   scrollView: {
@@ -342,7 +369,7 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   questionNumberBadge: {
-    backgroundColor: '#E3F2FD',
+    backgroundColor: '#256742ff',
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
@@ -352,7 +379,7 @@ const styles = StyleSheet.create({
   questionNumberText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#93BFC7',
+    color: '#ffffffff',
   },
   questionText: {
     fontSize: 18,
@@ -361,50 +388,9 @@ const styles = StyleSheet.create({
     lineHeight: 26,
   },
   optionsContainer: {
-    gap: 12,
+    gap: 2,
   },
-  optionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
-  },
-  optionCardSelected: {
-    borderColor: '#93BFC7',
-    backgroundColor: '#E3F2FD',
-  },
-  optionRadio: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#D1D5DB',
-    marginRight: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  optionRadioSelected: {
-    borderColor: '#93BFC7',
-  },
-  optionRadioInner: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#93BFC7',
-  },
-  optionText: {
-    fontSize: 15,
-    color: '#374151',
-    flex: 1,
-  },
-  optionTextSelected: {
-    color: '#1F2937',
-    fontWeight: '500',
-  },
-  bottomAction: {
+  bottomNav: {
     position: 'absolute',
     bottom: 0,
     left: 0,
@@ -412,46 +398,73 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     flexDirection: 'row',
     padding: 16,
-    gap: 12,
+    gap: 15,
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: -2,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 5,
   },
-  previousButton: {
+
+  // Previous Button
+  btnPrevious: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#ffffffff',
+    borderWidth: 2,
+    borderColor: '#ffffffff',
     borderRadius: 12,
     paddingVertical: 14,
     gap: 8,
+    right: 8,
   },
-  previousButtonText: {
+
+  btnPreviousText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#6B7280',
-    marginLeft: 30,
+    color: '#256742ff',
   },
-  nextButton: {
-    flex: 2,
+
+  // Previous Button Disabled
+  btnDisabled: {
+    backgroundColor: '#ffffffff',
+    borderColor: '#ffffffff',
+  },
+
+  btnDisabledText: {
+    color: '#ffffffff',
+  },
+
+  // Next Button
+  btnNext: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#93BFC7',
-    borderRadius: 12,
+    backgroundColor: '#256742ff',
+    borderRadius: 10,
+    height: 50,
     paddingVertical: 14,
     gap: 8,
+    paddingHorizontal: 45,
+    shadowColor: '#000000ff',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  nextButtonText: {
+
+  btnNextText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#d2c0c0ff',
-    left: 120,
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonTextDisabled: {
-    color: '#D1D5DB',
+    color: '#FFFFFFFF',
   },
 });
