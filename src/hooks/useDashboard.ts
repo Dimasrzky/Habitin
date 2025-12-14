@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { auth } from '../config/firebase.config';
 import { ChallengeService } from '../services/database/challenge.service';
 import { HealthService } from '../services/database/health.service';
+import { getLatestLabResult } from '../services/health/healthAPI';
+import { LabResult } from '../types/health.types';
 
 type RiskLevel = 'rendah' | 'sedang' | 'tinggi';
 
@@ -33,6 +35,7 @@ interface ChallengeData {
 interface DashboardData {
   riskLevel: RiskLevel;
   latestHealthCheck: HealthCheckData | null;
+  latestLabResult: LabResult | null;
   activeChallenge: ChallengeData | null;
   challengeStats: {
     total: number;
@@ -78,6 +81,7 @@ export const useDashboard = () => {
       setData({
         riskLevel: 'rendah',
         latestHealthCheck: null,
+        latestLabResult: null,
         activeChallenge: null,
         challengeStats: { total: 0, active: 0, completed: 0 },
       });
@@ -85,22 +89,27 @@ export const useDashboard = () => {
     }
 
     try {
-      const [healthResult, challengesResult, statsResult] = await Promise.all([
+      const [healthResult, challengesResult, statsResult, labResult] = await Promise.all([
         HealthService.getLatestHealthCheck(currentUser.uid),
         ChallengeService.getActiveChallenges(currentUser.uid),
         ChallengeService.getChallengeStats(currentUser.uid),
+        getLatestLabResult(currentUser.uid),
       ]);
 
       const healthData = healthResult.data;
       const challenges = challengesResult.data || [];
       const stats = statsResult.data || { total: 0, active: 0, completed: 0 };
+      const latestLab = labResult;
 
       const activeChallenge = challenges.length > 0 ? challenges[0] : null;
-      const riskLevel = calculateRiskLevel(healthData);
+
+      // Use lab result risk level if available, otherwise calculate from health check
+      const riskLevel = latestLab ? latestLab.risk_level : calculateRiskLevel(healthData);
 
       setData({
         riskLevel,
         latestHealthCheck: healthData,
+        latestLabResult: latestLab,
         activeChallenge,
         challengeStats: stats,
       });
@@ -113,6 +122,7 @@ export const useDashboard = () => {
       setData({
         riskLevel: 'rendah',
         latestHealthCheck: null,
+        latestLabResult: null,
         activeChallenge: null,
         challengeStats: { total: 0, active: 0, completed: 0 },
       });

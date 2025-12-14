@@ -2,8 +2,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from "react";
-import { Alert, Pressable, ScrollView, StatusBar, Text, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { Alert, Animated, Pressable, ScrollView, StatusBar, Text, View } from "react-native";
 import { auth } from '../../src/config/firebase.config';
 import { supabase } from '../../src/config/supabase.config';
 import { useUser } from '../../src/hooks/useUser';
@@ -129,6 +129,10 @@ export default function ProfileScreen() {
 
     const [healthData, setHealthData] = useState<HealthData | null>(null);
 
+    // Animation refs
+    const healthDataAnimation = useRef(new Animated.Value(0)).current;
+    const healthDataRotation = useRef(new Animated.Value(0)).current;
+
     const calculateAge = (dob: string) => {
         const birthDate = new Date(dob);
         const today = new Date();
@@ -193,6 +197,22 @@ export default function ProfileScreen() {
     useEffect(() => {
         fetchHealthData();
     },);
+
+    // Animate health data dropdown
+    useEffect(() => {
+        Animated.parallel([
+            Animated.timing(healthDataAnimation, {
+                toValue: healthDataExpanded ? 1 : 0,
+                duration: 300,
+                useNativeDriver: false,
+            }),
+            Animated.timing(healthDataRotation, {
+                toValue: healthDataExpanded ? 1 : 0,
+                duration: 300,
+                useNativeDriver: true,
+            }),
+        ]).start();
+    }, [healthDataExpanded, healthDataAnimation, healthDataRotation]);
 
     const bmiStatus = healthData ? getBMIStatus(healthData.bmi) : null
 
@@ -668,11 +688,24 @@ export default function ProfileScreen() {
                             onPress={() => setHealthDataExpanded(!healthDataExpanded)}
                             style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
                         >
-                            <Ionicons
-                                name={healthDataExpanded ? "chevron-up" : "chevron-down"}
-                                size={24}
-                                color="#6B7280"
-                            />
+                            <Animated.View
+                                style={{
+                                    transform: [
+                                        {
+                                            rotate: healthDataRotation.interpolate({
+                                                inputRange: [0, 1],
+                                                outputRange: ['0deg', '180deg'],
+                                            }),
+                                        },
+                                    ],
+                                }}
+                            >
+                                <Ionicons
+                                    name="chevron-down"
+                                    size={24}
+                                    color="#6B7280"
+                                />
+                            </Animated.View>
                         </Pressable>
                     </View>
 
@@ -697,7 +730,20 @@ export default function ProfileScreen() {
                         </View>
                     )}
 
-                    {healthDataExpanded && (
+                    <Animated.View
+                        style={{
+                            maxHeight: healthDataAnimation.interpolate({
+                                inputRange: [0, 1],
+                                outputRange: [0, 1000],
+                            }),
+                            opacity: healthDataAnimation.interpolate({
+                                inputRange: [0, 0.5, 1],
+                                outputRange: [0, 0, 1],
+                            }),
+                            overflow: 'hidden',
+                        }}
+                    >
+                        {healthDataExpanded && (
                         <View style={{ marginTop: 16 }}>
                             {[
                                 { label: "Nama Lengkap", value: `${healthData?.fullName}` },
@@ -758,12 +804,13 @@ export default function ProfileScreen() {
                                 })}
                                 onPress={handleEditHealthData}
                             >
-                                <Text style={{ fontSize: 14, fontWeight: "500", color: "#1F2937" }}>
+                                <Text style={{ fontSize: 14, fontWeight: "500", color: "#ffffffff", marginTop: 15, marginRight: 210, borderWidth: 2,borderColor: "#097b2bff", backgroundColor: "#097b2bff",paddingHorizontal: 20, paddingVertical: 8, borderRadius: 8, alignItems: "center", left: 105, }}>
                                     Edit Data
                                 </Text>
                             </Pressable>
                         </View>
                     )}
+                    </Animated.View>
                 </Card>
 
                 {/* Achievement Section */}

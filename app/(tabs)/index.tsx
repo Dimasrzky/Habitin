@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   Modal,
   Pressable,
   RefreshControl,
@@ -96,6 +97,117 @@ const getRiskCircleColor = (level: RiskLevel): string => {
   }
 };
 
+// Fungsi untuk menghitung skor risiko individual per parameter (0-100)
+const calculateRiskScore = (value: number | null, type: string): number => {
+  if (value === null) return 0;
+
+  switch (type) {
+    case 'glucose':
+      // Normal: < 100 (0%), Prediabetes: 100-125 (50%), Diabetes: >= 126 (100%)
+      if (value < 100) return 0;
+      if (value < 126) return ((value - 100) / 26) * 50; // 0-50%
+      return Math.min(50 + ((value - 126) / 74) * 50, 100); // 50-100%
+
+    case 'glucose_2h':
+      // Normal: < 140 (0%), Prediabetes: 140-199 (50%), Diabetes: >= 200 (100%)
+      if (value < 140) return 0;
+      if (value < 200) return ((value - 140) / 60) * 50;
+      return Math.min(50 + ((value - 200) / 50) * 50, 100);
+
+    case 'hba1c':
+      // Normal: < 5.7 (0%), Prediabetes: 5.7-6.4 (50%), Diabetes: >= 6.5 (100%)
+      if (value < 5.7) return 0;
+      if (value < 6.5) return ((value - 5.7) / 0.8) * 50;
+      return Math.min(50 + ((value - 6.5) / 3.5) * 50, 100);
+
+    case 'cholesterol_total':
+      // Desirable: < 200 (0%), Borderline: 200-239 (50%), High: >= 240 (100%)
+      if (value < 200) return 0;
+      if (value < 240) return ((value - 200) / 40) * 50;
+      return Math.min(50 + ((value - 240) / 60) * 50, 100);
+
+    case 'ldl':
+      // Optimal: < 100 (0%), Borderline: 100-159 (50%), High: >= 160 (100%)
+      if (value < 100) return 0;
+      if (value < 160) return ((value - 100) / 60) * 50;
+      return Math.min(50 + ((value - 160) / 40) * 50, 100);
+
+    case 'hdl':
+      // Good: >= 60 (0%), Borderline: 40-59 (50%), Low: < 40 (100%)
+      if (value >= 60) return 0;
+      if (value >= 40) return ((60 - value) / 20) * 50;
+      return Math.min(50 + ((40 - value) / 40) * 50, 100);
+
+    case 'triglycerides':
+      // Normal: < 150 (0%), Borderline: 150-199 (50%), High: >= 200 (100%)
+      if (value < 150) return 0;
+      if (value < 200) return ((value - 150) / 50) * 50;
+      return Math.min(50 + ((value - 200) / 50) * 50, 100);
+
+    default:
+      return 0;
+  }
+};
+
+// Fungsi untuk menghitung persentase risiko diabetes (rata-rata dari semua parameter diabetes)
+const calculateDiabetesRiskPercentage = (labResult: any): number => {
+  const scores: number[] = [];
+
+  if (labResult.glucose_level !== null) {
+    scores.push(calculateRiskScore(labResult.glucose_level, 'glucose'));
+  }
+  if (labResult.glucose_2h !== null) {
+    scores.push(calculateRiskScore(labResult.glucose_2h, 'glucose_2h'));
+  }
+  if (labResult.hba1c !== null) {
+    scores.push(calculateRiskScore(labResult.hba1c, 'hba1c'));
+  }
+
+  if (scores.length === 0) return 0;
+
+  const average = scores.reduce((sum, score) => sum + score, 0) / scores.length;
+  return Math.round(average);
+};
+
+// Fungsi untuk menghitung persentase risiko kolesterol (rata-rata dari semua parameter kolesterol)
+const calculateCholesterolRiskPercentage = (labResult: any): number => {
+  const scores: number[] = [];
+
+  if (labResult.cholesterol_total !== null) {
+    scores.push(calculateRiskScore(labResult.cholesterol_total, 'cholesterol_total'));
+  }
+  if (labResult.cholesterol_ldl !== null) {
+    scores.push(calculateRiskScore(labResult.cholesterol_ldl, 'ldl'));
+  }
+  if (labResult.cholesterol_hdl !== null) {
+    scores.push(calculateRiskScore(labResult.cholesterol_hdl, 'hdl'));
+  }
+  if (labResult.triglycerides !== null) {
+    scores.push(calculateRiskScore(labResult.triglycerides, 'triglycerides'));
+  }
+
+  if (scores.length === 0) return 0;
+
+  const average = scores.reduce((sum, score) => sum + score, 0) / scores.length;
+  return Math.round(average);
+};
+
+// Fungsi untuk mendapatkan status berdasarkan persentase
+const getRiskStatusFromPercentage = (percentage: number): string => {
+  if (percentage < 25) return 'Rendah';
+  if (percentage < 50) return 'Sedang';
+  if (percentage < 75) return 'Tinggi';
+  return 'Sangat Tinggi';
+};
+
+// Fungsi untuk mendapatkan warna berdasarkan persentase
+const getRiskColorFromPercentage = (percentage: number): string => {
+  if (percentage < 25) return '#ABE7B2'; // Hijau
+  if (percentage < 50) return '#FFD580'; // Kuning
+  if (percentage < 75) return '#FFB4B4'; // Merah muda
+  return '#FF8A8A'; // Merah
+};
+
 // ==================== COMPONENTS ====================
 const Card: React.FC<CardProps> = ({ children }) => (
   <View
@@ -123,52 +235,139 @@ const QuickAccessCard: React.FC<QuickAccessCardProps> = ({ onPress }) => (
       style={{
         flexDirection: 'row',
         flexWrap: 'wrap',
-        justifyContent: 'space-between',
+        marginHorizontal: -6,
       }}
     >
       {QUICK_ACCESS_ITEMS.map((item, index) => (
-        <Pressable
+        <View
           key={index}
-          onPress={() => onPress(item.label)}
-          style={({ pressed }) => ({
-            width: '30%',
-            alignItems: 'center',
-            marginBottom: index < 3 ? 16 : 0,
-            opacity: pressed ? 0.7 : 1,
-            minHeight: 90,
-          })}
+          style={{
+            width: '33.333%',
+            paddingHorizontal: 23,
+            marginBottom: 16,
+          }}
         >
-          <View
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 24,
-              backgroundColor: item.color,
-              justifyContent: 'center',
+          <Pressable
+            onPress={() => onPress(item.label)}
+            style={({ pressed }) => ({
               alignItems: 'center',
-              marginBottom: 8,
-            }}
+              paddingVertical: 12,
+              paddingHorizontal: 4,
+              backgroundColor: pressed ? '#F9FAFB' : 'transparent',
+              borderRadius: 12,
+              opacity: pressed ? 0.8 : 1,
+            })}
           >
-            <Ionicons name={item.icon} size={24} color="#1F2937" />
-          </View>
-          <Text
-            numberOfLines={2}
-            style={{
-              fontSize: 12,
-              color: '#1F2937',
-              textAlign: 'center',
-              lineHeight: 16,
-              width: '100%',
-              height: 32,
-            }}
-          >
-            {item.label}
-          </Text>
-        </Pressable>
-      ))}
+            <View
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: 28,
+                backgroundColor: item.color,
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginBottom: 10,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.08,
+                shadowRadius: 4,
+                elevation: 2,
+                left: 4,
+              }}
+            >
+              <Ionicons name={item.icon} size={26} color="#1F2937" />
+            </View>
+            <Text
+              numberOfLines={2}
+              style={{
+                fontSize: 11.5,
+                fontWeight: '500',
+                color: '#374151',
+                textAlign: 'center',
+                lineHeight: 15,
+                paddingHorizontal: 1,
+                minHeight: 30,
+              }}
+            >
+              {item.label}
+            </Text>
+          </Pressable>
+        </View>
+      ))} 
     </View>
   </Card>
 );
+
+// Component untuk menampilkan persentase risiko penyakit
+interface DiseaseRiskItemProps {
+  icon: string;
+  diseaseName: string;
+  riskPercentage: number;
+}
+
+const DiseaseRiskItem: React.FC<DiseaseRiskItemProps> = ({ icon, diseaseName, riskPercentage }) => {
+  const status = getRiskStatusFromPercentage(riskPercentage);
+  const color = getRiskColorFromPercentage(riskPercentage);
+
+  return (
+    <View style={{ marginBottom: 16 }}>
+      {/* Header */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={{ fontSize: 18 }}>{icon}</Text>
+          <Text style={{ fontSize: 15, fontWeight: '600', color: '#1F2937' }}>{diseaseName}</Text>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Text style={{ fontSize: 24, fontWeight: '700', color: color }}>
+            {riskPercentage}%
+          </Text>
+          <View
+            style={{
+              paddingHorizontal: 10,
+              paddingVertical: 4,
+              backgroundColor: color,
+              borderRadius: 12,
+            }}
+          >
+            <Text style={{ fontSize: 11, fontWeight: '600', color: '#FFFFFF' }}>
+              {status}
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Progress Bar */}
+      <View
+        style={{
+          height: 8,
+          backgroundColor: '#F3F4F6',
+          borderRadius: 4,
+          overflow: 'hidden',
+        }}
+      >
+        <View
+          style={{
+            width: `${riskPercentage}%`,
+            height: '100%',
+            backgroundColor: color,
+            borderRadius: 4,
+          }}
+        />
+      </View>
+
+      {/* Status Description */}
+      <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 6 }}>
+        {riskPercentage < 25
+          ? 'Hasil pemeriksaan Anda dalam batas normal'
+          : riskPercentage < 50
+          ? 'Perlu perhatian, pertimbangkan konsultasi dengan dokter'
+          : riskPercentage < 75
+          ? 'Risiko tinggi, segera konsultasi dengan dokter'
+          : 'Risiko sangat tinggi, segera periksakan ke dokter'}
+      </Text>
+    </View>
+  );
+};
 
 // ==================== MAIN COMPONENT ====================
 export default function HomeScreen() {
@@ -177,6 +376,11 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [hasUploadedLab, setHasUploadedLab] = useState(false);
+  const [isHealthDetailExpanded, setIsHealthDetailExpanded] = useState(false);
+
+  // ===== Animation =====
+  const dropdownAnimation = useRef(new Animated.Value(0)).current;
+  const rotateAnimation = useRef(new Animated.Value(0)).current;
 
   // ===== Hooks =====
   const { user, loading: userLoading } = useUser();
@@ -196,7 +400,23 @@ export default function HomeScreen() {
   const dailyTip = DAILY_TIPS[new Date().getDate() % DAILY_TIPS.length];
 
   // ===== Effects =====
-  
+
+  // Animate dropdown when expanded/collapsed
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(dropdownAnimation, {
+        toValue: isHealthDetailExpanded ? 1 : 0,
+        duration: 300,
+        useNativeDriver: false,
+      }),
+      Animated.timing(rotateAnimation, {
+        toValue: isHealthDetailExpanded ? 1 : 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [isHealthDetailExpanded, dropdownAnimation, rotateAnimation]);
+
   // Check lab upload status on mount
   useEffect(() => {
     const checkLabStatus = async () => {
@@ -342,47 +562,111 @@ export default function HomeScreen() {
 
         {/* ==================== HEALTH STATUS / UPLOAD LAB CARD ==================== */}
         {hasUploadedLab ? (
-          // ✅ User sudah upload lab → Tampilkan Health Risk Status
+          // ✅ User sudah upload lab → Tampilkan Health Risk Status with dropdown
           <Card>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <View
-                style={{
-                  width: 56,
-                  height: 56,
-                  borderRadius: 28,
-                  backgroundColor: getRiskColor(dashboardData?.riskLevel || 'rendah'),
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  marginRight: 16,
-                }}
-              >
-                <View
+            <Pressable onPress={() => setIsHealthDetailExpanded(!isHealthDetailExpanded)}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                  <View
+                    style={{
+                      width: 56,
+                      height: 56,
+                      borderRadius: 28,
+                      backgroundColor: getRiskColor(dashboardData?.riskLevel || 'rendah'),
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      marginRight: 16,
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: 12,
+                        backgroundColor: getRiskCircleColor(
+                          dashboardData?.riskLevel || 'rendah'
+                        ),
+                      }}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 14, color: '#6B7280' }}>
+                      Status Kesehatan Anda
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 18,
+                        fontWeight: '600',
+                        color: '#000000',
+                        marginTop: 4,
+                      }}
+                    >
+                      {getRiskStatusText(dashboardData?.riskLevel || 'rendah')}
+                    </Text>
+                  </View>
+                </View>
+                <Animated.View
                   style={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: 12,
-                    backgroundColor: getRiskCircleColor(
-                      dashboardData?.riskLevel || 'rendah'
-                    ),
-                  }}
-                />
-              </View>
-              <View>
-                <Text style={{ fontSize: 14, color: '#6B7280' }}>
-                  Status Kesehatan Anda
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 18,
-                    fontWeight: '600',
-                    color: '#000000',
-                    marginTop: 4,
+                    transform: [
+                      {
+                        rotate: rotateAnimation.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: ['0deg', '180deg'],
+                        }),
+                      },
+                    ],
                   }}
                 >
-                  {getRiskStatusText(dashboardData?.riskLevel || 'rendah')}
-                </Text>
+                  <Ionicons name="chevron-down" size={24} color="#6B7280" />
+                </Animated.View>
               </View>
-            </View>
+            </Pressable>
+
+            {/* Dropdown Content - Persentase Risiko Penyakit dengan Animasi */}
+            <Animated.View
+              style={{
+                maxHeight: dropdownAnimation.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 500],
+                }),
+                opacity: dropdownAnimation.interpolate({
+                  inputRange: [0, 0.5, 1],
+                  outputRange: [0, 0, 1],
+                }),
+                overflow: 'hidden',
+              }}
+            >
+              {dashboardData?.latestLabResult && (
+                <View style={{ marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#F3F4F6' }}>
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: '#6B7280', marginBottom: 12 }}>
+                    Rincian Hasil Analisis
+                  </Text>
+
+                  {/* Diabetes Risk */}
+                  {(dashboardData.latestLabResult.glucose_level !== null ||
+                    dashboardData.latestLabResult.glucose_2h !== null ||
+                    dashboardData.latestLabResult.hba1c !== null) && (
+                    <DiseaseRiskItem
+                      icon="🩸"
+                      diseaseName="Risiko Diabetes"
+                      riskPercentage={calculateDiabetesRiskPercentage(dashboardData.latestLabResult)}
+                    />
+                  )}
+
+                  {/* Cholesterol Risk */}
+                  {(dashboardData.latestLabResult.cholesterol_total !== null ||
+                    dashboardData.latestLabResult.cholesterol_ldl !== null ||
+                    dashboardData.latestLabResult.cholesterol_hdl !== null ||
+                    dashboardData.latestLabResult.triglycerides !== null) && (
+                    <DiseaseRiskItem
+                      icon="💊"
+                      diseaseName="Risiko Kolesterol"
+                      riskPercentage={calculateCholesterolRiskPercentage(dashboardData.latestLabResult)}
+                    />
+                  )}
+                </View>
+              )}
+            </Animated.View>
           </Card>
         ) : (
           // ✅ User belum upload lab → Tampilkan Upload Lab Card (Abu-abu)
