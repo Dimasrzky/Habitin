@@ -486,7 +486,7 @@ export default function HomeScreen() {
         break;
       case 'Artikel Kesehatan':
         // TODO: Navigate to articles
-        alert(`Fitur "${label}" belum diimplementasikan`);
+        router.push('/screens/artikelKesehatan' as any  );
         break;
       // ... other cases
       default:

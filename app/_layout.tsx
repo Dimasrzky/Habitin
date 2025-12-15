@@ -1,11 +1,14 @@
+// app/_layout.tsx
+
+import { AuthProvider } from '@/context/AuthContext'; // ✅ Import AuthProvider
 import { OnboardingProvider } from '@/context/OnboardingContext';
 import * as Notifications from 'expo-notifications';
 import { Stack, useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
-import { checkOnboardingCompleted } from '.././src/services/onboarding/onboardingService';
 import "../global.css";
 import { auth } from '../src/config/firebase.config';
+import { checkOnboardingCompleted } from '../src/services/onboarding/onboardingService';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -26,12 +29,17 @@ export default function RootLayout() {
     const checkUserOnboarding = async () => {
       const user = auth.currentUser;
       if (user) {
+        console.log('🔐 [RootLayout] User detected:', user.email);
+        console.log('🔐 [RootLayout] User UID:', user.uid);
+        
         const isCompleted = await checkOnboardingCompleted(user.uid);
         if (!isCompleted) {
           router.replace('/onboarding/welcome');
         } else {
           router.replace('/(tabs)');
         }
+      } else {
+        console.log('🔐 [RootLayout] No user logged in');
       }
     };
     
@@ -86,9 +94,11 @@ export default function RootLayout() {
   }, [router]);
 
   return (
-    <OnboardingProvider>
-      {/* ✅ Expo Router auto-detects all files in app/ */}
-      <Stack screenOptions={{ headerShown: false }} />
-    </OnboardingProvider>
+    // ✅ Wrap dengan AuthProvider (paling luar)
+    <AuthProvider>
+      <OnboardingProvider>
+        <Stack screenOptions={{ headerShown: false }} />
+      </OnboardingProvider>
+    </AuthProvider>
   );
 }
