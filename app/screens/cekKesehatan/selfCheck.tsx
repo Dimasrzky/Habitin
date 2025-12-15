@@ -312,6 +312,8 @@ const styles = StyleSheet.create({
     padding: 16,
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
+    borderTopLeftRadius: 50,
+    borderTopRightRadius: 50,
   },
   startButton: {
     flexDirection: 'row',
