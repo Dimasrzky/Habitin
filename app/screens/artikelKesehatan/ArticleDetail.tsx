@@ -206,14 +206,22 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
 
           {/* Content */}
           <Animated.View entering={FadeInDown.delay(600).duration(600)}>
-            <Text style={styles.contentTitle}>📖 Isi Artikel</Text>
+            <Text style={styles.contentTitle}>📖 Ringkasan Artikel</Text>
             <Text style={styles.content}>
               {article.content_id}
             </Text>
+
+            {/* Info Box untuk konten terbatas */}
+            <View style={styles.contentInfoBox}>
+              <Text style={styles.contentInfoIcon}>ℹ️</Text>
+              <Text style={styles.contentInfoText}>
+                Ini adalah ringkasan artikel. Untuk membaca artikel lengkap, silakan klik tombol di bawah.
+              </Text>
+            </View>
           </Animated.View>
 
           {/* Read Original Button */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.originalButton}
             onPress={handleOpenOriginal}
             activeOpacity={0.8}
@@ -223,7 +231,7 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
               style={styles.originalButtonGradient}
             >
               <Text style={styles.originalButtonText}>
-                🔗 Baca Artikel Asli (Bahasa Inggris)
+                📖 Baca Artikel Lengkap (Bahasa Inggris)
               </Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -267,8 +275,9 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
             <Text style={styles.disclaimerIcon}>⚠️</Text>
             <Text style={styles.disclaimerText}>
               <Text style={styles.disclaimerBold}>Disclaimer: </Text>
-              Artikel ini diterjemahkan secara otomatis dan hanya untuk tujuan edukasi. 
-              Informasi ini bukan pengganti konsultasi medis profesional. 
+              Artikel ini diterjemahkan secara otomatis dari sumber berbahasa Inggris dan hanya menampilkan ringkasan.
+              Untuk informasi lengkap, klik tombol "Baca Artikel Lengkap" di atas.
+              Informasi ini bukan pengganti konsultasi medis profesional.
               Selalu konsultasikan kondisi kesehatan Anda dengan dokter.
             </Text>
           </View>
@@ -408,7 +417,26 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#334155',
     lineHeight: 28,
-    marginBottom: 32,
+    marginBottom: 16,
+  },
+  contentInfoBox: {
+    flexDirection: 'row',
+    backgroundColor: '#E0F2FE',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 24,
+    borderLeftWidth: 3,
+    borderLeftColor: '#4A90E2',
+  },
+  contentInfoIcon: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  contentInfoText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#1E40AF',
+    lineHeight: 20,
   },
   originalButton: {
     marginBottom: 32,

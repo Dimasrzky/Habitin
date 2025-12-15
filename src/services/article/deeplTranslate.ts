@@ -96,15 +96,14 @@ export async function translateArticle(
   console.log(`📄 [DeepL] Translating article: ${article.title}`);
 
   const titleId = await translateText(article.title);
-  
+
   const descriptionId = article.description
     ? await translateText(article.description)
     : '';
 
+  // Clean NewsAPI content truncation marker (e.g., "...[+4445 chars]")
   let contentToTranslate = article.content || '';
-  if (contentToTranslate.length > 4500) {
-    contentToTranslate = contentToTranslate.substring(0, 4500) + '...';
-  }
+  contentToTranslate = contentToTranslate.replace(/\.\.\.\s*\[\+\d+\s*(?:chars?|karakter)\]/gi, '...');
 
   const contentId = await translateText(contentToTranslate);
 
