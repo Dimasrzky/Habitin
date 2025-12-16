@@ -656,7 +656,6 @@ export function extractHealthData(ocrText: string): HealthData {
       if (rowIndex === -1) continue;
 
       console.log(`\n🔍 [HbA1c] Ditemukan di baris ${rowIndex}:`, lines[rowIndex]);
-
       const candidates: {value: number, source: string, priority: number}[] = [];
 
       // PATTERN 1: Same row - cari desimal dengan koma atau titik

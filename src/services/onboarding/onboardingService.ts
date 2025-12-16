@@ -94,20 +94,35 @@ export const checkOnboardingCompleted = async (
   userId: string
 ): Promise<boolean> => {
   try {
-    if (!userId) return false;
+    if (!userId) {
+      console.log('No userId provided');
+      return false;
+    }
+
+    console.log('Checking onboarding for user:', userId);
 
     const { data, error } = await supabase
       .from('onboarding_data')
       .select('id')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.log('Check onboarding error:', error);
       return false;
     }
 
-    return data !== null;
+    const hasCompleted = data !== null;
+    console.log('Onboarding completed:', hasCompleted);
+
+    // ✅ SYNC STATUS KE ASYNCSTORAGE
+    if (hasCompleted) {
+      await AsyncStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true');
+    } else {
+      await AsyncStorage.removeItem(ONBOARDING_COMPLETED_KEY);
+    }
+
+    return hasCompleted;
   } catch (error) {
     console.error('Check onboarding error:', error);
     return false;

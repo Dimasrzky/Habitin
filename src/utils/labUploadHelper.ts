@@ -20,7 +20,7 @@ export const markLabAsUploaded = async (): Promise<void> => {
 };
 
 /**
- * Check if user has uploaded lab
+ * Check if user has uploaded lab (from AsyncStorage only)
  */
 export const hasUploadedLab = async (): Promise<boolean> => {
   try {
@@ -28,6 +28,48 @@ export const hasUploadedLab = async (): Promise<boolean> => {
     return uploaded === 'true';
   } catch (error) {
     console.error('Error checking lab upload status:', error);
+    return false;
+  }
+};
+
+/**
+ * Sync lab upload status with database
+ * This ensures AsyncStorage matches the actual database state
+ */
+export const syncLabUploadStatus = async (userId: string): Promise<boolean> => {
+  try {
+    // Import supabase here to avoid circular dependency
+    const { supabaseStorage } = await import('../config/supabase.storage');
+
+    // Check if user has any lab results in database
+    const { data, error } = await supabaseStorage
+      .from('lab_results')
+      .select('id')
+      .eq('user_id', userId)
+      .limit(1)
+      .maybeSingle();
+
+    if (error && error.code !== 'PGRST116') {
+      console.error('Error checking lab results:', error);
+      return false;
+    }
+
+    const hasLabInDb = data !== null;
+
+    // Sync AsyncStorage with database
+    if (hasLabInDb) {
+      await AsyncStorage.setItem(HAS_UPLOADED_LAB_KEY, 'true');
+    } else {
+      await AsyncStorage.removeItem(HAS_UPLOADED_LAB_KEY);
+      // ✅ RESET MODAL STATUS untuk user yang belum upload lab
+      // Ini memastikan modal muncul lagi untuk user baru atau user yang belum upload
+      await AsyncStorage.removeItem(UPLOAD_MODAL_SHOWN_KEY);
+    }
+
+    console.log(`✅ Lab status synced: ${hasLabInDb}`);
+    return hasLabInDb;
+  } catch (error) {
+    console.error('Error syncing lab upload status:', error);
     return false;
   }
 };

@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native';
 import { auth } from '../../src/config/firebase.config';
-import { hasCompletedOnboarding } from '../../src/services/onboarding/onboardingService';
+import { checkOnboardingCompleted } from '../../src/services/onboarding/onboardingService';
 
 function Login() {
   const router = useRouter();
@@ -32,11 +32,11 @@ function Login() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       console.log('Login successful:', userCredential.user.email);
       
-      // ✅ CEK STATUS ONBOARDING
-      const completedOnboarding = await hasCompletedOnboarding();
+      // ✅ CEK STATUS ONBOARDING DARI DATABASE
+      const completedOnboarding = await checkOnboardingCompleted(userCredential.user.uid);
 
       // ✅ REDIRECT SESUAI STATUS
-      if (completedOnboarding) {   
+      if (completedOnboarding) {
         router.replace('/(tabs)');
       } else {
         router.replace('/onboarding/welcome');
