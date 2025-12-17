@@ -375,12 +375,14 @@ export default function HomeScreen() {
   const [dailyMissionChecked, setDailyMissionChecked] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
-  const [hasUploadedLab, setHasUploadedLab] = useState(false);
   const [isHealthDetailExpanded, setIsHealthDetailExpanded] = useState(false);
 
   // ===== Animation =====
   const dropdownAnimation = useRef(new Animated.Value(0)).current;
   const rotateAnimation = useRef(new Animated.Value(0)).current;
+
+  // ===== Refs untuk tracking modal =====
+  const hasCheckedModal = useRef(false);
 
   // ===== Hooks =====
   const { user, loading: userLoading } = useUser();
@@ -398,6 +400,18 @@ export default function HomeScreen() {
   });
 
   const dailyTip = DAILY_TIPS[new Date().getDate() % DAILY_TIPS.length];
+
+  // ✅ FIX: Computed value - langsung cek dari dashboardData (bukan state)
+  const hasUploadedLab = dashboardData?.latestLabResult !== null;
+
+  // 🔍 DEBUG: Log status
+  console.log('🏠 HomeScreen Render:', {
+    userLoading,
+    dashboardLoading,
+    hasUploadedLab,
+    latestLabResult: dashboardData?.latestLabResult?.id || 'null',
+    userName: user?.full_name || 'loading...',
+  });
 
   // ===== Effects =====
 
@@ -417,31 +431,62 @@ export default function HomeScreen() {
     ]).start();
   }, [isHealthDetailExpanded, dropdownAnimation, rotateAnimation]);
 
-  // Check lab upload status on mount
+  // Check lab upload status on mount and show modal for new users
   useEffect(() => {
-    const checkLabStatus = async () => {
+    const checkAndShowModal = async () => {
       try {
-        const modalShown = await AsyncStorage.getItem(UPLOAD_MODAL_SHOWN_KEY);
-        const uploaded = await AsyncStorage.getItem(HAS_UPLOADED_LAB_KEY);
+        // ✅ Only run when loading is complete
+        if (userLoading || dashboardLoading || !dashboardData) {
+          console.log('⏳ Still loading or no data yet...');
+          return;
+        }
 
-        setHasUploadedLab(uploaded === 'true');
+        // ✅ Prevent multiple checks (but only during this mount)
+        if (hasCheckedModal.current) {
+          console.log('⚠️ Modal already checked in this session, skipping...');
+          return;
+        }
+
+        hasCheckedModal.current = true;
+
+        const modalShown = await AsyncStorage.getItem(UPLOAD_MODAL_SHOWN_KEY);
+        const hasLabInDatabase = dashboardData.latestLabResult !== null;
+
+        console.log('📊 Modal Check:', {
+          modalShown: modalShown || 'null',
+          hasLabInDatabase,
+        });
+
+        // Sync AsyncStorage dengan database jika ada lab
+        if (hasLabInDatabase) {
+          await AsyncStorage.setItem(HAS_UPLOADED_LAB_KEY, 'true');
+          console.log('✅ Lab found in DB, synced AsyncStorage');
+        } else {
+          // ✅ Jika tidak ada lab di database, hapus flag AsyncStorage
+          await AsyncStorage.removeItem(HAS_UPLOADED_LAB_KEY);
+          console.log('🗑️ No lab in DB, cleared AsyncStorage flag');
+        }
 
         // Show modal only if:
         // 1. Modal hasn't been shown before
-        // 2. User hasn't uploaded lab yet
-        // 3. User data is loaded
-        if (!modalShown && uploaded !== 'true' && !userLoading && !dashboardLoading) {
+        // 2. User hasn't uploaded lab yet (no lab in database)
+        if (!modalShown && !hasLabInDatabase) {
+          console.log('🎯 Showing upload modal in 2 seconds...');
           setTimeout(() => {
             setShowUploadModal(true);
           }, 2000);
+        } else {
+          console.log('❌ Modal not shown:', {
+            reason: modalShown ? 'Already shown before' : 'Has lab in DB'
+          });
         }
       } catch (error) {
         console.error('Error checking lab status:', error);
       }
     };
 
-    checkLabStatus();
-  }, [userLoading, dashboardLoading]);
+    checkAndShowModal();
+  }, [userLoading, dashboardLoading, dashboardData]);
 
   // ===== Handlers =====
 
@@ -496,15 +541,16 @@ export default function HomeScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    
+
     try {
       await refetch();
 
-      // Recheck lab status after refresh
-      const uploaded = await AsyncStorage.getItem(HAS_UPLOADED_LAB_KEY);
-      
-      setHasUploadedLab(uploaded === 'true');
-      
+      // Sync AsyncStorage dengan database setelah refresh
+      const hasLabInDatabase = dashboardData?.latestLabResult !== null;
+      if (hasLabInDatabase) {
+        await AsyncStorage.setItem(HAS_UPLOADED_LAB_KEY, 'true');
+      }
+
     } catch (error) {
       console.error('Error refreshing:', error);
     } finally {
@@ -561,6 +607,13 @@ export default function HomeScreen() {
         </View>
 
         {/* ==================== HEALTH STATUS / UPLOAD LAB CARD ==================== */}
+        {(() => {
+          console.log('🎯 Card Render Decision:', {
+            hasUploadedLab,
+            willShow: hasUploadedLab ? 'HEALTH STATUS CARD' : 'UPLOAD LAB CARD',
+          });
+          return null;
+        })()}
         {hasUploadedLab ? (
           // ✅ User sudah upload lab → Tampilkan Health Risk Status with dropdown
           <Card>

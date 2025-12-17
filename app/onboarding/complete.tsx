@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import React, { useEffect } from 'react';
 import {
@@ -13,6 +14,10 @@ import Animated, {
   withSequence,
   withSpring,
 } from 'react-native-reanimated';
+
+// AsyncStorage Keys
+const UPLOAD_MODAL_SHOWN_KEY = 'upload_modal_shown';
+const HAS_UPLOADED_LAB_KEY = 'has_uploaded_lab';
 
 export default function CompleteScreen() {
   const scale = useSharedValue(0);
@@ -42,9 +47,22 @@ export default function CompleteScreen() {
     transform: [{ scale: checkScale.value }],
   }));
 
-  const handleContinue = () => {
-    // Redirect to home screen
-    router.replace('/(tabs)');
+  const handleContinue = async () => {
+    try {
+      // ✅ RESET modal flags untuk user baru
+      // Ini memastikan modal upload muncul untuk user yang baru selesai onboarding
+      console.log('🔄 Resetting upload modal flags for new user...');
+      await AsyncStorage.removeItem(UPLOAD_MODAL_SHOWN_KEY);
+      await AsyncStorage.removeItem(HAS_UPLOADED_LAB_KEY);
+      console.log('✅ Modal flags reset complete');
+
+      // Redirect to home screen
+      router.replace('/(tabs)');
+    } catch (error) {
+      console.error('Error resetting modal flags:', error);
+      // Still redirect even if reset fails
+      router.replace('/(tabs)');
+    }
   };
 
   return (
