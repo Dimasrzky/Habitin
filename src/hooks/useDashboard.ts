@@ -1,40 +1,24 @@
 import { useEffect, useState } from 'react';
 import { auth } from '../config/firebase.config';
 import { ChallengeService } from '../services/database/challenge.service';
-import { HealthService } from '../services/database/health.service';
 import { getLatestLabResult } from '../services/health/healthAPI';
+import { MasterChallenge } from '../types/challenge.types';
 import { LabResult } from '../types/health.types';
+import { getCompletionPercentage } from '../utils/challengeHelpers';
 
 type RiskLevel = 'rendah' | 'sedang' | 'tinggi';
 
-interface HealthCheckData {
-  id: string;
-  user_id: string;
-  weight: number | null;
-  height: number | null;
-  blood_pressure: string | null;
-  heart_rate: number | null;
-  check_date: string;
-  notes: string | null;
-  created_at: string;
-}
-
 interface ChallengeData {
   id: string;
-  user_id: string;
   title: string;
-  description: string | null;
-  target: number;
   progress: number;
-  status: 'active' | 'completed' | 'failed';
-  start_date: string;
-  end_date: string;
-  created_at: string;
+  target: number;
+  status: string;
 }
 
 interface DashboardData {
   riskLevel: RiskLevel;
-  latestHealthCheck: HealthCheckData | null;
+  latestHealthCheck: LabResult | null;
   latestLabResult: LabResult | null;
   activeChallenge: ChallengeData | null;
   challengeStats: {
@@ -43,31 +27,6 @@ interface DashboardData {
     completed: number;
   };
 }
-
-const calculateRiskLevel = (healthCheck: HealthCheckData | null): RiskLevel => {
-  if (!healthCheck) {
-    return 'rendah';
-  }
-
-  const bloodPressure = healthCheck.blood_pressure;
-  if (!bloodPressure || typeof bloodPressure !== 'string') {
-    return 'rendah';
-  }
-
-  const parts = bloodPressure.split('/');
-  if (parts.length !== 2) {
-    return 'rendah';
-  }
-
-  const systolic = parseInt(parts[0], 10);
-  if (isNaN(systolic)) {
-    return 'rendah';
-  }
-
-  if (systolic > 140) return 'tinggi';
-  if (systolic > 120) return 'sedang';
-  return 'rendah';
-};
 
 export const useDashboard = () => {
   const [data, setData] = useState<DashboardData | null>(null);
@@ -89,26 +48,38 @@ export const useDashboard = () => {
     }
 
     try {
-      const [healthResult, challengesResult, statsResult, labResult] = await Promise.all([
-        HealthService.getLatestHealthCheck(currentUser.uid),
+      const [challengesResult, statsResult, labResult] = await Promise.all([
         ChallengeService.getActiveChallenges(currentUser.uid),
         ChallengeService.getChallengeStats(currentUser.uid),
         getLatestLabResult(currentUser.uid),
       ]);
 
-      const healthData = healthResult.data;
       const challenges = challengesResult.data || [];
       const stats = statsResult.data || { total: 0, active: 0, completed: 0 };
       const latestLab = labResult;
 
-      const activeChallenge = challenges.length > 0 ? challenges[0] : null;
+      // Transform UserActiveChallenge to ChallengeData format
+      let activeChallenge: ChallengeData | null = null;
+      if (challenges.length > 0) {
+        const challenge = challenges[0];
+        const masterChallenge = challenge.challenge as MasterChallenge;
+        const progress = getCompletionPercentage(challenge);
 
-      // Use lab result risk level if available, otherwise calculate from health check
-      const riskLevel = latestLab ? latestLab.risk_level : calculateRiskLevel(healthData);
+        activeChallenge = {
+          id: challenge.id,
+          title: masterChallenge.title,
+          progress: Math.round(progress),
+          target: masterChallenge.duration_days,
+          status: challenge.status,
+        };
+      }
+
+      // Use lab result risk level if available, otherwise default to 'rendah'
+      const riskLevel = latestLab ? latestLab.risk_level : 'rendah';
 
       setData({
         riskLevel,
-        latestHealthCheck: healthData,
+        latestHealthCheck: latestLab,
         latestLabResult: latestLab,
         activeChallenge,
         challengeStats: stats,

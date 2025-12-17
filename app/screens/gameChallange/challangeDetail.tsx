@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Alert,
     Modal,
@@ -12,46 +12,16 @@ import {
     View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
+import { useChallengeStore } from '@/stores/useChallengeStore';
+import { ChallengeTask, UserActiveChallenge } from '@/types/challenge.types';
 
 // =====================================================
 // TYPESCRIPT INTERFACES & TYPES
 // =====================================================
 
 type ChallengeCategory = 'physical' | 'nutrition' | 'lifestyle';
-type ChallengeDifficulty = 'easy' | 'medium' | 'hard';
-type DayStatus = 'completed' | 'today' | 'future' | 'missed';
 
-interface ChallengeDay {
-    day: number;
-    date: Date;
-    status: DayStatus;
-    completed: boolean;
-    hasReward: boolean;
-    rewardClaimed?: boolean;
-}
-
-interface ChallengeDetail {
-    id: string;
-    title: string;
-    description: string;
-    category: ChallengeCategory;
-    difficulty: ChallengeDifficulty;
-    duration: number;
-    currentDay: number;
-    totalDays: number;
-    streak: number;
-    completedDays: number;
-    target: string;
-    icon: string;
-    totalPoints: number;
-    dailyPoints: number;
-    badgeName: string;
-    participantsCount: number;
-    days: ChallengeDay[];
-    rules: string[];
-    tips: string[];
-    isActive: boolean;
-}
 
 // =====================================================
 // HELPER FUNCTIONS
@@ -83,84 +53,58 @@ const getCategoryAccent = (category: ChallengeCategory): string => {
     }
 };
 
-const getDifficultyLabel = (difficulty: ChallengeDifficulty): string => {
-    switch (difficulty) {
-        case 'easy':
-            return 'Mudah';
-        case 'medium':
-            return 'Sedang';
-        case 'hard':
-            return 'Sulit';
-        default:
-            return 'Mudah';
-    }
-};
-
-// Generate mock challenge days
-const generateChallengeDays = (totalDays: number, currentDay: number): ChallengeDay[] => {
-    const days: ChallengeDay[] = [];
-    const rewardDays = [7, 15, 23]; // Random reward days
-
-    for (let i = 1; i <= totalDays; i++) {
-        let status: DayStatus;
-        if (i < currentDay) {
-            status = 'completed';
-        } else if (i === currentDay) {
-            status = 'today';
-        } else {
-            status = 'future';
-        }
-
-        days.push({
-            day: i,
-            date: new Date(Date.now() + (i - currentDay) * 24 * 60 * 60 * 1000),
-            status,
-            completed: i < currentDay,
-            hasReward: rewardDays.includes(i),
-            rewardClaimed: i < currentDay && rewardDays.includes(i),
-        });
-    }
-
-    return days;
-};
-
 // =====================================================
-// MOCK DATA
+// TASK CHECKBOX COMPONENT
 // =====================================================
 
-const MOCK_CHALLENGE: ChallengeDetail = {
-    id: 'ac1',
-    title: '30 Hari Lari 5KM',
-    description: 'Lari minimal 5km setiap hari selama 30 hari untuk meningkatkan stamina dan kesehatan jantung',
-    category: 'physical',
-    difficulty: 'hard',
-    duration: 30,
-    currentDay: 7,
-    totalDays: 30,
-    streak: 7,
-    completedDays: 7,
-    target: 'Lari minimal 5km per hari',
-    icon: 'bicycle',
-    totalPoints: 300,
-    dailyPoints: 10,
-    badgeName: 'Marathon Runner Badge',
-    participantsCount: 245,
-    days: generateChallengeDays(30, 7),
-    rules: [
-        'Lari minimal 5km setiap hari',
-        'Tidak boleh skip lebih dari 2 hari berturut-turut',
-        'Catat progress di tracker rutin',
-        'Jangan lupa pemanasan dan pendinginan',
-    ],
-    tips: [
-        'Mulai dengan kecepatan yang nyaman',
-        'Tingkatkan jarak secara bertahap',
-        'Jaga hidrasi sebelum, saat, dan setelah lari',
-        'Gunakan sepatu lari yang tepat',
-        'Dengarkan tubuhmu, istirahat jika perlu',
-    ],
-    isActive: true,
-};
+interface TaskCheckboxItemProps {
+    task: ChallengeTask;
+    isCompleted: boolean;
+    isDisabled: boolean;
+    onToggle: () => void;
+}
+
+const TaskCheckboxItem: React.FC<TaskCheckboxItemProps> = ({
+    task,
+    isCompleted,
+    isDisabled,
+    onToggle,
+}) => (
+    <Pressable
+        onPress={onToggle}
+        disabled={isDisabled}
+        className={`flex-row items-center p-3 mb-2 rounded-xl ${isCompleted ? 'bg-[#ECF4E8]' : 'bg-[#F3F4F6]'
+            }`}
+        style={({ pressed }) => ({ opacity: pressed ? 0.7 : isDisabled ? 0.5 : 1 })}
+    >
+        {/* Checkbox */}
+        <View
+            className={`w-6 h-6 rounded-full mr-3 items-center justify-center ${isCompleted ? 'bg-[#ABE7B2]' : 'bg-[#9CA3AF]'
+                }`}
+        >
+            {isCompleted && <Ionicons name="checkmark" size={16} color="white" />}
+        </View>
+
+        {/* Icon emoji */}
+        <Text className="text-2xl mr-2">{task.icon}</Text>
+
+        {/* Task text */}
+        <View className="flex-1">
+            <Text
+                className={`text-sm font-medium ${isCompleted ? 'text-[#6B7280] line-through' : 'text-black'
+                    }`}
+            >
+                {task.text}
+            </Text>
+        </View>
+
+        {/* Points badge */}
+        <View className="bg-[#FFF9E6] px-2 py-1 rounded-full">
+            <Text className="text-xs font-semibold text-[#FFD93D]">+{task.points}</Text>
+        </View>
+    </Pressable>
+);
+
 
 // =====================================================
 // MAIN COMPONENT
@@ -168,96 +112,131 @@ const MOCK_CHALLENGE: ChallengeDetail = {
 
 export default function ChallengeDetailScreen() {
     const router = useRouter();
-    const params = useLocalSearchParams();
+    const params = useLocalSearchParams<{ challengeId: string }>();
+    const { activeChallenges, completeTaskAction } = useChallengeStore();
 
-    const [challenge, setChallenge] = useState<ChallengeDetail>(MOCK_CHALLENGE);
+    const [challenge, setChallenge] = useState<UserActiveChallenge | null>(null);
     const [showRulesExpanded, setShowRulesExpanded] = useState(false);
     const [showRewardModal, setShowRewardModal] = useState(false);
-    const [todayMarkedComplete, setTodayMarkedComplete] = useState(false);
+    const [isCompleting, setIsCompleting] = useState(false);
+    const [lastDayComplete, setLastDayComplete] = useState(false);
 
-    const progress = (challenge.completedDays / challenge.totalDays) * 100;
-    const remainingDays = challenge.totalDays - challenge.currentDay + 1;
-    const totalEarnedPoints = challenge.completedDays * challenge.dailyPoints;
-    const gradient = getCategoryGradient(challenge.category);
-    const accentColor = getCategoryAccent(challenge.category);
+    // Fetch real challenge data from store
+    useEffect(() => {
+        const foundChallenge = activeChallenges.find(c => c.id === params.challengeId);
+        if (foundChallenge) {
+            setChallenge(foundChallenge);
 
-    // Handle mark today as complete
-    const handleMarkComplete = () => {
-        Alert.alert(
-            'Tandai Selesai',
-            `Sudah ${challenge.target.toLowerCase()} hari ini?`,
-            [
-                { text: 'Belum', style: 'cancel' },
-                {
-                    text: 'Sudah!',
-                    onPress: () => {
-                        // Update challenge state
-                        setChallenge(prev => ({
-                            ...prev,
-                            completedDays: prev.completedDays + 1,
-                            currentDay: prev.currentDay + 1,
-                            streak: prev.streak + 1,
-                            days: prev.days.map(day =>
-                                day.day === prev.currentDay
-                                    ? { ...day, status: 'completed', completed: true }
-                                    : day.day === prev.currentDay + 1
-                                        ? { ...day, status: 'today' }
-                                        : day
-                            ),
-                        }));
+            // Check if day just completed for reward modal
+            const dayKey = `day_${foundChallenge.current_day}`;
+            const justCompleted = foundChallenge.daily_progress[dayKey]?.is_complete && !lastDayComplete;
+            if (justCompleted) {
+                setShowRewardModal(true);
+                setLastDayComplete(true);
+            }
+        }
+    }, [activeChallenges, params.challengeId, lastDayComplete]);
 
-                        setTodayMarkedComplete(true);
-
-                        // Check if today has reward
-                        const today = challenge.days.find(d => d.day === challenge.currentDay);
-                        if (today?.hasReward) {
-                            setTimeout(() => {
-                                setShowRewardModal(true);
-                            }, 500);
-                        }
-
-                        // TODO: Integration with Tracker
-                        // Auto-update from tracker data
-                    },
-                },
-            ]
+    // Show loading or not found state
+    if (!challenge) {
+        return (
+            <SafeAreaView className="flex-1 bg-[#F9FAFB] items-center justify-center">
+                <Text className="text-base text-[#6B7280]">Tantangan tidak ditemukan</Text>
+                <Pressable
+                    onPress={() => router.back()}
+                    className="mt-4 px-6 py-3 bg-[#ABE7B2] rounded-full"
+                >
+                    <Text className="text-sm font-semibold text-white">Kembali</Text>
+                </Pressable>
+            </SafeAreaView>
         );
+    }
+
+    const masterChallenge = challenge.challenge!;
+
+    // Helper functions
+    const isTaskCompleted = (taskId: string): boolean => {
+        const dayKey = `day_${challenge.current_day}`;
+        const completed = challenge.daily_progress[dayKey]?.completed_tasks || [];
+        return completed.includes(taskId);
+    };
+
+    const isDayCompleteCheck = (): boolean => {
+        const dayKey = `day_${challenge.current_day}`;
+        return challenge.daily_progress[dayKey]?.is_complete || false;
+    };
+
+    const getCompletedTasksCount = (): number => {
+        const dayKey = `day_${challenge.current_day}`;
+        return challenge.daily_progress[dayKey]?.completed_tasks?.length || 0;
+    };
+
+    const getCompletedDaysCount = (): number => {
+        return Object.values(challenge.daily_progress).filter(d => d.is_complete).length;
+    };
+
+    // Calculated values
+    const completedDays = getCompletedDaysCount();
+    const progress = (completedDays / masterChallenge.duration_days) * 100;
+    const remainingDays = masterChallenge.duration_days - challenge.current_day + 1;
+    const dailyPoints = Math.floor(masterChallenge.total_points / masterChallenge.duration_days);
+    const totalEarnedPoints = completedDays * dailyPoints;
+    const gradient = getCategoryGradient(masterChallenge.category);
+    const accentColor = getCategoryAccent(masterChallenge.category);
+
+    // Handle task toggle
+    const handleTaskToggle = async (taskId: string) => {
+        if (isCompleting) return;
+
+        const isAlreadyCompleted = isTaskCompleted(taskId);
+
+        // Prevent unchecking (optional - bisa diubah jika mau allow unchecking)
+        if (isAlreadyCompleted) {
+            return;
+        }
+
+        try {
+            setIsCompleting(true);
+
+            // Call store action
+            await completeTaskAction(challenge.id, taskId);
+
+            // Haptic feedback
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+            // Check if day just completed
+            const updatedChallenge = activeChallenges.find(c => c.id === challenge.id);
+            if (updatedChallenge) {
+                const dayKey = `day_${updatedChallenge.current_day}`;
+                const updatedDayProgress = updatedChallenge.daily_progress[dayKey];
+
+                // Show reward modal if day complete
+                if (updatedDayProgress?.is_complete && !lastDayComplete) {
+                    setTimeout(() => {
+                        setShowRewardModal(true);
+                        setLastDayComplete(true);
+                    }, 300);
+                }
+            }
+        } catch (error: any) {
+            console.error('Error completing task:', error);
+            Alert.alert('Error', error.message || 'Gagal menyelesaikan task');
+        } finally {
+            setIsCompleting(false);
+        }
     };
 
     // Handle share achievement
     const handleShare = async () => {
         try {
             await Share.share({
-                message: `🎉 Saya sudah menyelesaikan ${challenge.completedDays} hari dari ${challenge.title}! Streak ${challenge.streak} hari 🔥\n\nYuk ikutan tantangan kesehatan di Habitin!`,
+                message: `🎉 Saya sudah menyelesaikan ${completedDays} hari dari ${masterChallenge.title}! Streak ${challenge.current_streak} hari 🔥\n\nYuk ikutan tantangan kesehatan di Habitin!`,
             });
         } catch (error) {
             console.error(error);
         }
     };
 
-    // Handle start challenge
-    const handleStartChallenge = () => {
-        Alert.alert(
-            'Mulai Tantangan',
-            `Siap memulai ${challenge.title}?`,
-            [
-                { text: 'Nanti Dulu', style: 'cancel' },
-                {
-                    text: 'Mulai Sekarang!',
-                    onPress: () => {
-                        setChallenge(prev => ({
-                            ...prev,
-                            isActive: true,
-                            currentDay: 1,
-                            days: prev.days.map(day =>
-                                day.day === 1 ? { ...day, status: 'today' } : day
-                            ),
-                        }));
-                    },
-                },
-            ]
-        );
-    };
 
     // =====================================================
     // RENDER CIRCULAR PROGRESS
@@ -265,42 +244,14 @@ export default function ChallengeDetailScreen() {
 
     const renderCircularProgress = () => {
         const size = 120;
-        const strokeWidth = 10;
-        const radius = (size - strokeWidth) / 2;
-        const circumference = 2 * Math.PI * radius;
-        const progressOffset = circumference - (progress / 100) * circumference;
 
         return (
             <View className="items-center justify-center" style={{ width: size, height: size }}>
-                <svg width={size} height={size}>
-                    {/* Background Circle */}
-                    <circle
-                        cx={size / 2}
-                        cy={size / 2}
-                        r={radius}
-                        stroke="#E5E7EB"
-                        strokeWidth={strokeWidth}
-                        fill="none"
-                    />
-                    {/* Progress Circle */}
-                    <circle
-                        cx={size / 2}
-                        cy={size / 2}
-                        r={radius}
-                        stroke={accentColor}
-                        strokeWidth={strokeWidth}
-                        fill="none"
-                        strokeDasharray={circumference}
-                        strokeDashoffset={progressOffset}
-                        strokeLinecap="round"
-                        transform={`rotate(-90 ${size / 2} ${size / 2})`}
-                    />
-                </svg>
                 <View className="absolute items-center justify-center">
                     <Text className="text-3xl font-bold text-black">
-                        {challenge.currentDay}
+                        {challenge.current_day}
                     </Text>
-                    <Text className="text-sm text-[#6B7280]">/{challenge.totalDays}</Text>
+                    <Text className="text-sm text-[#6B7280]">/{masterChallenge.duration_days}</Text>
                 </View>
             </View>
         );
@@ -311,41 +262,50 @@ export default function ChallengeDetailScreen() {
     // =====================================================
 
     const renderCalendarGrid = () => {
-        const rows: ChallengeDay[][] = [];
-        for (let i = 0; i < challenge.days.length; i += 7) {
-            rows.push(challenge.days.slice(i, i + 7));
+        const days = [];
+        for (let i = 1; i <= masterChallenge.duration_days; i++) {
+            const dayKey = `day_${i}`;
+            const dayProgress = challenge.daily_progress[dayKey];
+
+            days.push({
+                day: i,
+                isComplete: dayProgress?.is_complete || false,
+                isCurrent: i === challenge.current_day,
+                isUpcoming: i > challenge.current_day,
+            });
+        }
+
+        const rows = [];
+        for (let i = 0; i < days.length; i += 7) {
+            rows.push(days.slice(i, i + 7));
         }
 
         return (
             <View className="bg-white rounded-2xl p-4" style={{ elevation: 1 }}>
-                <Text className="text-base font-bold text-black mb-4">Checklist Harian</Text>
+                <Text className="text-base font-bold text-black mb-4">Progress Harian</Text>
 
                 {rows.map((row, rowIndex) => (
                     <View key={rowIndex} className="flex-row justify-between mb-2">
                         {row.map((day) => {
-                            let bgColor = '#E5E7EB'; // future (gray)
+                            let bgColor = '#E5E7EB';
                             let textColor = '#6B7280';
                             let borderColor = 'transparent';
                             let icon: string | null = null;
 
-                            if (day.status === 'completed') {
-                                bgColor = '#ABE7B2'; // completed (green)
+                            if (day.isComplete) {
+                                bgColor = '#ABE7B2';
                                 textColor = 'white';
                                 icon = 'checkmark';
-                            } else if (day.status === 'today') {
+                            } else if (day.isCurrent) {
                                 bgColor = 'white';
                                 textColor = accentColor;
                                 borderColor = accentColor;
-                            } else if (day.status === 'missed') {
-                                bgColor = '#FF6B6B'; // missed (red)
-                                textColor = 'white';
-                                icon = 'close';
                             }
 
                             return (
-                                <Pressable
+                                <View
                                     key={day.day}
-                                    className="items-center justify-center rounded-xl relative"
+                                    className="items-center justify-center rounded-xl"
                                     style={{
                                         width: 42,
                                         height: 42,
@@ -354,13 +314,6 @@ export default function ChallengeDetailScreen() {
                                         borderColor: borderColor,
                                     }}
                                 >
-                                    {/* Reward Badge */}
-                                    {day.hasReward && !day.completed && (
-                                        <View className="absolute -top-1 -right-1 w-4 h-4 bg-[#FFD93D] rounded-full items-center justify-center">
-                                            <Ionicons name="gift" size={10} color="white" />
-                                        </View>
-                                    )}
-
                                     {icon ? (
                                         <Ionicons name={icon as any} size={20} color={textColor} />
                                     ) : (
@@ -368,14 +321,7 @@ export default function ChallengeDetailScreen() {
                                             {day.day}
                                         </Text>
                                     )}
-
-                                    {/* Reward Claimed Indicator */}
-                                    {day.hasReward && day.rewardClaimed && (
-                                        <View className="absolute -top-1 -right-1 w-4 h-4 bg-[#FFD93D] rounded-full items-center justify-center">
-                                            <Ionicons name="star" size={10} color="white" />
-                                        </View>
-                                    )}
-                                </Pressable>
+                                </View>
                             );
                         })}
                     </View>
@@ -388,50 +334,58 @@ export default function ChallengeDetailScreen() {
     // RENDER REWARD MODAL
     // =====================================================
 
-    const renderRewardModal = () => (
-        <Modal
-            visible={showRewardModal}
-            transparent
-            animationType="fade"
-            onRequestClose={() => setShowRewardModal(false)}
-        >
-            <View className="flex-1 bg-black/50 items-center justify-center px-6">
-                <View className="bg-white rounded-3xl p-6 w-full max-w-sm items-center">
-                    <View className="w-20 h-20 bg-[#FFF9E6] rounded-full items-center justify-center mb-4">
-                        <Text className="text-4xl">🎁</Text>
-                    </View>
+    const renderRewardModal = () => {
+        // Calculate points earned from daily tasks
+        const dailyTasksPoints = masterChallenge.daily_tasks?.reduce((sum: number, task: ChallengeTask) => sum + (task.points || 0), 0) || 0;
 
-                    <Text className="text-xl font-bold text-black mb-2 text-center">
-                        Surprise Reward!
-                    </Text>
-
-                    <Text className="text-sm text-[#6B7280] text-center mb-4">
-                        Selamat! Kamu mendapat hadiah spesial
-                    </Text>
-
-                    <View className="bg-[#ECF4E8] rounded-2xl p-4 w-full mb-4">
-                        <View className="flex-row items-center justify-center mb-2">
-                            <Ionicons name="trophy" size={24} color="#FFD93D" />
-                            <Text className="text-lg font-bold text-black ml-2">+50 Bonus Poin</Text>
+        return (
+            <Modal
+                visible={showRewardModal}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowRewardModal(false)}
+            >
+                <View className="flex-1 bg-black/50 items-center justify-center px-6">
+                    <View className="bg-white rounded-3xl p-6 w-full max-w-sm items-center">
+                        <View className="w-20 h-20 bg-[#FFF9E6] rounded-full items-center justify-center mb-4">
+                            <Text className="text-4xl">🎉</Text>
                         </View>
-                        <Text className="text-xs text-[#6B7280] text-center">
-                            Terus konsisten untuk unlock reward lainnya!
-                        </Text>
-                    </View>
 
-                    <Pressable
-                        onPress={() => setShowRewardModal(false)}
-                        className="bg-[#ABE7B2] px-8 py-3 rounded-full w-full"
-                        style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1 })}
-                    >
-                        <Text className="text-sm font-semibold text-black text-center">
-                            Mantap! 🎉
+                        <Text className="text-xl font-bold text-black mb-2 text-center">
+                            Hari ke-{challenge.current_day} Selesai!
                         </Text>
-                    </Pressable>
+
+                        <Text className="text-sm text-[#6B7280] text-center mb-4">
+                            Hebat! Kamu telah menyelesaikan semua task hari ini
+                        </Text>
+
+                        <View className="bg-[#ECF4E8] rounded-2xl p-4 w-full mb-4">
+                            <View className="flex-row items-center justify-center mb-2">
+                                <Ionicons name="trophy" size={24} color="#FFD93D" />
+                                <Text className="text-lg font-bold text-black ml-2">+{dailyTasksPoints} Poin</Text>
+                            </View>
+                            <View className="flex-row items-center justify-center">
+                                <Text className="text-2xl mr-2">🔥</Text>
+                                <Text className="text-sm text-[#6B7280]">
+                                    Streak: {challenge.current_streak} hari
+                                </Text>
+                            </View>
+                        </View>
+
+                        <Pressable
+                            onPress={() => setShowRewardModal(false)}
+                            className="bg-[#ABE7B2] px-8 py-3 rounded-full w-full"
+                            style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1 })}
+                        >
+                            <Text className="text-sm font-semibold text-black text-center">
+                                Lanjutkan! 💪
+                            </Text>
+                        </Pressable>
+                    </View>
                 </View>
-            </View>
-        </Modal>
-    );
+            </Modal>
+        );
+    };
 
     // =====================================================
     // MAIN RENDER
@@ -474,34 +428,34 @@ export default function ChallengeDetailScreen() {
                     >
                         {/* Icon */}
                         <View className="w-24 h-24 rounded-full bg-white/30 items-center justify-center mb-4">
-                            <Ionicons name={challenge.icon as any} size={48} color="white" />
+                            <Text className="text-5xl">{masterChallenge.icon_emoji || '🎯'}</Text>
                         </View>
 
                         {/* Title */}
                         <Text className="text-xl font-bold text-white text-center mb-2">
-                            {challenge.title}
+                            {masterChallenge.title}
                         </Text>
 
                         {/* Badges */}
                         <View className="flex-row items-center gap-2 mb-4">
                             <View className="px-3 py-1 bg-white/30 rounded-full">
                                 <Text className="text-xs font-medium text-white">
-                                    {challenge.duration} Hari
+                                    {masterChallenge.duration_days} Hari
                                 </Text>
                             </View>
                             <View className="px-3 py-1 bg-white/30 rounded-full">
                                 <Text className="text-xs font-medium text-white">
-                                    {getDifficultyLabel(challenge.difficulty)}
+                                    {masterChallenge.category}
                                 </Text>
                             </View>
                         </View>
 
                         {/* Streak */}
-                        {challenge.isActive && (
+                        {challenge.status === 'active' && (
                             <View className="flex-row items-center bg-white/30 px-4 py-2 rounded-full">
                                 <Text className="text-2xl mr-2">🔥</Text>
                                 <Text className="text-lg font-bold text-white">
-                                    Streak: {challenge.streak} hari
+                                    Streak: {challenge.current_streak} hari
                                 </Text>
                             </View>
                         )}
@@ -509,7 +463,7 @@ export default function ChallengeDetailScreen() {
                 </View>
 
                 {/* PROGRESS OVERVIEW */}
-                {challenge.isActive && (
+                {challenge.status === 'active' && (
                     <View className="px-4 pt-4">
                         <View className="bg-white rounded-2xl p-4" style={{ elevation: 1 }}>
                             {/* Circular Progress */}
@@ -524,7 +478,7 @@ export default function ChallengeDetailScreen() {
                                 <View className="flex-1 items-center">
                                     <Ionicons name="checkmark-circle" size={24} color="#ABE7B2" />
                                     <Text className="text-xl font-bold text-black mt-1">
-                                        {challenge.completedDays}
+                                        {completedDays}
                                     </Text>
                                     <Text className="text-xs text-[#6B7280]">Hari Selesai</Text>
                                 </View>
@@ -554,51 +508,53 @@ export default function ChallengeDetailScreen() {
                 )}
 
                 {/* CALENDAR CHECKLIST */}
-                {challenge.isActive && (
+                {challenge.status === 'active' && (
                     <View className="px-4 pt-4">
                         {renderCalendarGrid()}
                     </View>
                 )}
 
-                {/* MARK COMPLETE SECTION */}
-                {challenge.isActive && !todayMarkedComplete && (
+                {/* DAILY TASKS CHECKLIST - Show if challenge is active and within duration */}
+                {challenge.status === 'active' && challenge.current_day <= masterChallenge.duration_days && (
                     <View className="px-4 pt-4">
-                        <LinearGradient
-                            colors={gradient}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                            className="rounded-2xl p-4"
-                            style={{ elevation: 1 }}
-                        >
-                            <View className="flex-row items-center mb-3">
-                                <View className="w-12 h-12 rounded-full bg-white/30 items-center justify-center mr-3">
-                                    <Ionicons name="checkmark-circle" size={28} color="white" />
-                                </View>
-                                <View className="flex-1">
-                                    <Text className="text-base font-bold text-white mb-1">
-                                        Sudah selesai hari ini?
-                                    </Text>
-                                    <Text className="text-sm text-white/80">
-                                        {challenge.target}
-                                    </Text>
-                                </View>
-                            </View>
+                        <View className="bg-white rounded-2xl p-4" style={{ elevation: 1 }}>
+                            <Text className="text-base font-bold text-black mb-3">
+                                Task Hari Ini (Hari {challenge.current_day})
+                            </Text>
 
-                            <Pressable
-                                onPress={handleMarkComplete}
-                                className="bg-white py-3 rounded-xl"
-                                style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
-                            >
-                                <Text className="text-center text-sm font-bold text-black">
-                                    Tandai Selesai
-                                </Text>
-                            </Pressable>
-                        </LinearGradient>
+                            {masterChallenge.daily_tasks && masterChallenge.daily_tasks.length > 0 ? (
+                                <>
+                                    {masterChallenge.daily_tasks.map((task: ChallengeTask) => {
+                                        const taskCompleted = isTaskCompleted(task.id);
+                                        const dayComplete = isDayCompleteCheck();
+
+                                        return (
+                                            <TaskCheckboxItem
+                                                key={task.id}
+                                                task={task}
+                                                isCompleted={taskCompleted}
+                                                isDisabled={dayComplete || isCompleting}
+                                                onToggle={() => handleTaskToggle(task.id)}
+                                            />
+                                        );
+                                    })}
+
+                                    {/* Progress indicator */}
+                                    <View className="mt-3 pt-3 border-t border-gray-200">
+                                        <Text className="text-sm text-gray-600">
+                                            {getCompletedTasksCount()}/{masterChallenge.daily_tasks.length} task selesai
+                                        </Text>
+                                    </View>
+                                </>
+                            ) : (
+                                <Text className="text-sm text-gray-500">Tidak ada task untuk hari ini</Text>
+                            )}
+                        </View>
                     </View>
                 )}
 
                 {/* TODAY COMPLETED MESSAGE */}
-                {todayMarkedComplete && (
+                {isDayCompleteCheck() && challenge.status === 'active' && (
                     <View className="px-4 pt-4">
                         <View className="bg-[#ABE7B2] rounded-2xl p-4 flex-row items-center">
                             <Ionicons name="checkmark-circle" size={32} color="white" />
@@ -623,8 +579,8 @@ export default function ChallengeDetailScreen() {
                                 <Ionicons name="trophy" size={24} color="white" />
                             </View>
                             <View className="flex-1">
-                                <Text className="text-sm font-bold text-black">{challenge.badgeName}</Text>
-                                <Text className="text-xs text-[#6B7280]">+{challenge.totalPoints} poin</Text>
+                                <Text className="text-sm font-bold text-black">Badge {masterChallenge.title}</Text>
+                                <Text className="text-xs text-[#6B7280]">+{masterChallenge.total_points} poin total</Text>
                             </View>
                         </View>
 
@@ -634,7 +590,7 @@ export default function ChallengeDetailScreen() {
                             <View className="flex-1">
                                 <Text className="text-sm font-bold text-black">Bonus Streak</Text>
                                 <Text className="text-xs text-[#6B7280]">
-                                    +{challenge.dailyPoints} poin per hari
+                                    Dapatkan poin dengan selesaikan task setiap hari
                                 </Text>
                             </View>
                         </View>
@@ -670,48 +626,55 @@ export default function ChallengeDetailScreen() {
                         {showRulesExpanded && (
                             <>
                                 {/* Description */}
-                                <Text className="text-sm text-[#6B7280] mb-4 leading-5">
-                                    {challenge.description}
-                                </Text>
+                                {masterChallenge.description && (
+                                    <Text className="text-sm text-[#6B7280] mb-4 leading-5">
+                                        {masterChallenge.description}
+                                    </Text>
+                                )}
 
-                                {/* Rules */}
-                                <Text className="text-sm font-semibold text-black mb-2">Aturan:</Text>
-                                {challenge.rules.map((rule, index) => (
+                                {/* Daily Tasks List */}
+                                <Text className="text-sm font-semibold text-black mb-2">Task Harian:</Text>
+                                {masterChallenge.daily_tasks && masterChallenge.daily_tasks.map((task: ChallengeTask, index: number) => (
                                     <View key={index} className="flex-row mb-2">
-                                        <Text className="text-sm text-[#6B7280] mr-2">•</Text>
-                                        <Text className="text-sm text-[#6B7280] flex-1">{rule}</Text>
+                                        <Text className="text-sm mr-2">{task.icon}</Text>
+                                        <Text className="text-sm text-[#6B7280] flex-1">{task.text}</Text>
                                     </View>
                                 ))}
 
-                                {/* Tips */}
-                                <Text className="text-sm font-semibold text-black mb-2 mt-3">Tips Sukses:</Text>
-                                {challenge.tips.map((tip, index) => (
-                                    <View key={index} className="flex-row mb-2">
-                                        <Text className="text-sm text-[#6B7280] mr-2">✓</Text>
-                                        <Text className="text-sm text-[#6B7280] flex-1">{tip}</Text>
-                                    </View>
-                                ))}
+                                {/* Challenge Info */}
+                                <Text className="text-sm font-semibold text-black mb-2 mt-3">Info Tantangan:</Text>
+                                <View className="flex-row mb-2">
+                                    <Text className="text-sm text-[#6B7280] mr-2">•</Text>
+                                    <Text className="text-sm text-[#6B7280] flex-1">
+                                        Durasi: {masterChallenge.duration_days} hari
+                                    </Text>
+                                </View>
+                                <View className="flex-row mb-2">
+                                    <Text className="text-sm text-[#6B7280] mr-2">•</Text>
+                                    <Text className="text-sm text-[#6B7280] flex-1">
+                                        Kategori: {masterChallenge.category}
+                                    </Text>
+                                </View>
+                                <View className="flex-row mb-2">
+                                    <Text className="text-sm text-[#6B7280] mr-2">•</Text>
+                                    <Text className="text-sm text-[#6B7280] flex-1">
+                                        Fokus Kesehatan: {masterChallenge.health_focus}
+                                    </Text>
+                                </View>
                             </>
                         )}
                     </View>
                 </View>
 
-                {/* PARTICIPANTS */}
-                <View className="px-4 pt-4 pb-24">
-                    <View className="bg-white rounded-2xl p-4 flex-row items-center" style={{ elevation: 1 }}>
-                        <Ionicons name="people" size={24} color="#ABE7B2" />
-                        <Text className="text-sm text-[#6B7280] ml-2">
-                            {challenge.participantsCount} orang ikut tantangan ini
-                        </Text>
-                    </View>
-                </View>
+                {/* BOTTOM SPACING */}
+                <View className="px-4 pt-4 pb-24" />
             </ScrollView>
 
-            {/* BOTTOM ACTION BUTTON */}
-            {!challenge.isActive && (
+            {/* BOTTOM ACTION BUTTON - Only show for completed/abandoned challenges */}
+            {(challenge.status === 'completed' || challenge.status === 'abandoned') && (
                 <View className="absolute bottom-0 left-0 right-0 bg-white border-t border-[#F3F4F6] px-4 py-4">
                     <Pressable
-                        onPress={handleStartChallenge}
+                        onPress={() => router.back()}
                         style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
                     >
                         <LinearGradient
@@ -721,7 +684,7 @@ export default function ChallengeDetailScreen() {
                             className="py-4 rounded-full"
                         >
                             <Text className="text-center text-base font-bold text-white">
-                                Mulai Tantangan
+                                {challenge.status === 'completed' ? 'Kembali' : 'Tutup'}
                             </Text>
                         </LinearGradient>
                     </Pressable>

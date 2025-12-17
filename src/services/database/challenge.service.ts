@@ -1,21 +1,9 @@
 import { supabase } from '../../config/supabase.config';
+import { UserActiveChallenge } from '../../types/challenge.types';
 import { ChallengeInsert } from '../../types/database.types';
 
-interface ChallengeRow {
-  id: string;
-  user_id: string;
-  title: string;
-  description: string | null;
-  target: number;
-  progress: number;
-  status: 'active' | 'completed' | 'failed';
-  start_date: string;
-  end_date: string;
-  created_at: string;
-}
-
 interface ChallengeStatus {
-  status: 'active' | 'completed' | 'failed';
+  status: 'active' | 'completed' | 'failed' | 'abandoned';
 }
 
 export class ChallengeService {
@@ -23,15 +11,18 @@ export class ChallengeService {
   static async getActiveChallenges(userId: string) {
     try {
       const { data, error } = await supabase
-        .from('challenges')
-        .select('*')
+        .from('user_active_challenges')
+        .select(`
+          *,
+          challenge:master_challenges (*)
+        `)
         .eq('user_id', userId)
         .eq('status', 'active')
-        .order('created_at', { ascending: false });
+        .order('started_at', { ascending: false });
 
       if (error) throw error;
 
-      return { data: (data as ChallengeRow[]) || [], error: null };
+      return { data: (data as UserActiveChallenge[]) || [], error: null };
     } catch (error: any) {
       console.error('Error getting active challenges:', error);
       return { data: [], error: error.message };
@@ -42,7 +33,7 @@ export class ChallengeService {
   static async getChallengeStats(userId: string) {
     try {
       const { data, error } = await supabase
-        .from('challenges')
+        .from('user_active_challenges')
         .select('status')
         .eq('user_id', userId);
 
@@ -71,14 +62,14 @@ export class ChallengeService {
     try {
       // @ts-ignore - Supabase type inference issue
       const { data, error } = await supabase
-        .from('challenges')
+        .from('user_active_challenges')
         .insert(challenge)
         .select()
         .single();
 
       if (error) throw error;
 
-      return { data: data as ChallengeRow, error: null };
+      return { data, error: null };
     } catch (error: any) {
       console.error('Error creating challenge:', error);
       return { data: null, error: error.message };
@@ -93,7 +84,7 @@ export class ChallengeService {
 
       // @ts-ignore - Supabase type inference issue
       const { data, error } = await supabase
-        .from('challenges')
+        .from('user_active_challenges')
         .update({
           progress: validProgress,
           status: status,
@@ -104,7 +95,7 @@ export class ChallengeService {
 
       if (error) throw error;
 
-      return { data: data as ChallengeRow, error: null };
+      return { data, error: null };
     } catch (error: any) {
       console.error('Error updating challenge progress:', error);
       return { data: null, error: error.message };

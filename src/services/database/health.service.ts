@@ -1,27 +1,16 @@
 import { supabase } from '../../config/supabase.config';
 import { HealthCheckInsert } from '../../types/database.types';
-
-interface HealthCheckRow {
-  id: string;
-  user_id: string;
-  weight: number | null;
-  height: number | null;
-  blood_pressure: string | null;
-  heart_rate: number | null;
-  check_date: string;
-  notes: string | null;
-  created_at: string;
-}
+import { LabResult } from '../../types/health.types';
 
 export class HealthService {
   // Get latest health check for user
   static async getLatestHealthCheck(userId: string) {
     try {
       const { data, error } = await supabase
-        .from('health_checks')
+        .from('lab_results')
         .select('*')
         .eq('user_id', userId)
-        .order('check_date', { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(1);
 
       if (error) {
@@ -31,7 +20,7 @@ export class HealthService {
         throw error;
       }
 
-      const healthChecks = (data as HealthCheckRow[]) || [];
+      const healthChecks = (data as LabResult[]) || [];
       const healthCheck = healthChecks.length > 0 ? healthChecks[0] : null;
 
       return { data: healthCheck, error: null };
@@ -45,14 +34,14 @@ export class HealthService {
   static async getHealthChecks(userId: string) {
     try {
       const { data, error } = await supabase
-        .from('health_checks')
+        .from('lab_results')
         .select('*')
         .eq('user_id', userId)
-        .order('check_date', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      return { data: (data as HealthCheckRow[]) || [], error: null };
+      return { data: (data as LabResult[]) || [], error: null };
     } catch (error: any) {
       console.error('Error getting health checks:', error);
       return { data: [], error: error.message };
@@ -64,14 +53,14 @@ export class HealthService {
     try {
       // @ts-ignore - Supabase type inference issue
       const { data, error } = await supabase
-        .from('health_checks')
+        .from('lab_results')
         .insert(healthCheck)
         .select()
         .single();
 
       if (error) throw error;
 
-      return { data: data as HealthCheckRow, error: null };
+      return { data: data as LabResult, error: null };
     } catch (error: any) {
       console.error('Error creating health check:', error);
       return { data: null, error: error.message };

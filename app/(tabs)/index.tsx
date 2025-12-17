@@ -404,15 +404,6 @@ export default function HomeScreen() {
   // ✅ FIX: Computed value - langsung cek dari dashboardData (bukan state)
   const hasUploadedLab = dashboardData?.latestLabResult !== null;
 
-  // 🔍 DEBUG: Log status
-  console.log('🏠 HomeScreen Render:', {
-    userLoading,
-    dashboardLoading,
-    hasUploadedLab,
-    latestLabResult: dashboardData?.latestLabResult?.id || 'null',
-    userName: user?.full_name || 'loading...',
-  });
-
   // ===== Effects =====
 
   // Animate dropdown when expanded/collapsed
@@ -443,7 +434,6 @@ export default function HomeScreen() {
 
         // ✅ Prevent multiple checks (but only during this mount)
         if (hasCheckedModal.current) {
-          console.log('⚠️ Modal already checked in this session, skipping...');
           return;
         }
 
@@ -608,10 +598,6 @@ export default function HomeScreen() {
 
         {/* ==================== HEALTH STATUS / UPLOAD LAB CARD ==================== */}
         {(() => {
-          console.log('🎯 Card Render Decision:', {
-            hasUploadedLab,
-            willShow: hasUploadedLab ? 'HEALTH STATUS CARD' : 'UPLOAD LAB CARD',
-          });
           return null;
         })()}
         {hasUploadedLab ? (
