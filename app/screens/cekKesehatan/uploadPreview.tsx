@@ -121,30 +121,37 @@ export default function UploadPreviewScreen() {
 
     switch (type) {
       case 'glucose':
-        if (value < 100) return '#ABE7B2';
-        if (value < 126) return '#FFD580';
-        return '#FFB4B4';
+        // Normal: 70-105
+        if (value >= 70 && value <= 105) return '#ABE7B2';
+        if (value < 70) return '#FFD580'; // Rendah
+        return '#FFB4B4'; // Tinggi (>105)
       case 'glucose_2h':
         if (value < 140) return '#ABE7B2';
         if (value < 200) return '#FFD580';
         return '#FFB4B4';
       case 'hba1c':
-        if (value < 5.7) return '#ABE7B2';
-        if (value < 6.5) return '#FFD580';
-        return '#FFB4B4';
+        // Normal: <6%
+        if (value < 6) return '#ABE7B2';
+        return '#FFB4B4'; // Tinggi (>=6)
       case 'cholesterol_total':
+        // Optimal: <200, Borderline: 200-239, High: >239
         if (value < 200) return '#ABE7B2';
-        if (value < 240) return '#FFD580';
+        if (value <= 239) return '#FFD580';
         return '#FFB4B4';
       case 'ldl':
-        if (value < 100) return '#ABE7B2';
-        if (value < 160) return '#FFD580';
+        // Optimal: <129, Borderline: 130-159, High: >159
+        if (value < 129) return '#ABE7B2';
+        if (value <= 159) return '#FFD580';
         return '#FFB4B4';
       case 'hdl':
-        return value >= 40 ? '#ABE7B2' : '#FFB4B4';
+        // Normal: 40-60
+        if (value >= 40 && value <= 60) return '#ABE7B2';
+        if (value < 40) return '#FFB4B4'; // Rendah
+        return '#ABE7B2'; // Tinggi (>60) adalah baik
       case 'triglycerides':
+        // Optimal: <150, Borderline: 150-199, High: >200
         if (value < 150) return '#ABE7B2';
-        if (value < 200) return '#FFD580';
+        if (value <= 199) return '#FFD580';
         return '#FFB4B4';
       default:
         return '#D1D5DB';
@@ -262,7 +269,7 @@ export default function UploadPreviewScreen() {
                   label="Gula Darah Puasa"
                   value={labResult.glucose_level}
                   unit="mg/dL"
-                  normalRange="< 100 mg/dL"
+                  normalRange="70 - 105 mg/dL"
                   status={getStatusText(labResult.glucose_level, 'glucose')}
                   statusColor={getStatusColor(labResult.glucose_level, 'glucose')}
                   statusIcon={getStatusIcon(labResult.glucose_level, 'glucose')}
@@ -290,7 +297,7 @@ export default function UploadPreviewScreen() {
                   label="HbA1c"
                   value={labResult.hba1c}
                   unit="%"
-                  normalRange="< 5.7%"
+                  normalRange="< 6%"
                   status={getStatusText(labResult.hba1c, 'hba1c')}
                   statusColor={getStatusColor(labResult.hba1c, 'hba1c')}
                   statusIcon={getStatusIcon(labResult.hba1c, 'hba1c')}
@@ -326,7 +333,7 @@ export default function UploadPreviewScreen() {
                   label="Kolesterol LDL (Jahat)"
                   value={labResult.cholesterol_ldl}
                   unit="mg/dL"
-                  normalRange="< 100 mg/dL"
+                  normalRange="< 129 mg/dL"
                   status={getStatusText(labResult.cholesterol_ldl, 'ldl')}
                   statusColor={getStatusColor(labResult.cholesterol_ldl, 'ldl')}
                   statusIcon={getStatusIcon(labResult.cholesterol_ldl, 'ldl')}
@@ -340,7 +347,7 @@ export default function UploadPreviewScreen() {
                   label="Kolesterol HDL (Baik)"
                   value={labResult.cholesterol_hdl}
                   unit="mg/dL"
-                  normalRange="> 40 mg/dL"
+                  normalRange="40 - 60 mg/dL"
                   status={getStatusText(labResult.cholesterol_hdl, 'hdl')}
                   statusColor={getStatusColor(labResult.cholesterol_hdl, 'hdl')}
                   statusIcon={getStatusIcon(labResult.cholesterol_hdl, 'hdl')}

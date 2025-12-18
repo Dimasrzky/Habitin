@@ -29,23 +29,26 @@ export function calculateHealthRisk(data: HealthData): RiskResult {
   // 1. DIABETES RISK
   // ============================================
   const hasDiabetesData = data.glucose_level || data.glucose_2h || data.hba1c;
-  
+
   if (hasDiabetesData) {
     console.log('💉 Menganalisis marker diabetes...');
     conditions.push('diabetes');
 
-    // Glukosa Puasa
+    // Glukosa Puasa (Normal: 70-105 mg/dL)
     if (data.glucose_level !== null) {
-      if (data.glucose_level >= 126) {
-        score += 3;
-        recommendations.push('⚠️ Glukosa puasa sangat tinggi (≥126) - indikasi diabetes! Segera konsultasi dokter.');
-        console.log('🔴 Glukosa puasa tinggi:', data.glucose_level);
-      } else if (data.glucose_level >= 100) {
-        score += 2;
-        recommendations.push('⚠️ Glukosa puasa tinggi (100-125) - pre-diabetes. Perhatikan pola makan dan olahraga rutin.');
-        console.log('🟡 Glukosa puasa borderline:', data.glucose_level);
-      } else {
+      if (data.glucose_level >= 70 && data.glucose_level <= 105) {
+        score += 5;
+        recommendations.push('✅ Glukosa puasa normal (70-105 mg/dL). Pertahankan pola hidup sehat!');
         console.log('✅ Glukosa puasa normal:', data.glucose_level);
+      } else if (data.glucose_level < 70) {
+        score += 3;
+        recommendations.push('⚠️ Glukosa puasa rendah (<70 mg/dL) - risiko hipoglikemia. Konsumsi makanan secara teratur.');
+        console.log('🟡 Glukosa puasa rendah:', data.glucose_level);
+      } else {
+        // Di atas 105 mg/dL
+        score += 5;
+        recommendations.push('⚠️ Glukosa puasa tinggi (>105 mg/dL) - risiko diabetes. Segera konsultasi dokter dan jaga pola makan.');
+        console.log('🔴 Glukosa puasa tinggi:', data.glucose_level);
       }
     }
 
@@ -64,18 +67,17 @@ export function calculateHealthRisk(data: HealthData): RiskResult {
       }
     }
 
-    // HbA1c (Rata-rata gula darah 3 bulan terakhir)
+    // HbA1c (Normal: <6%)
     if (data.hba1c !== null) {
-      if (data.hba1c >= 6.5) {
-        score += 3;
-        recommendations.push('⚠️ HbA1c tinggi (≥6.5%) - indikasi diabetes. Kontrol gula darah secara ketat.');
-        console.log('🔴 HbA1c tinggi:', data.hba1c);
-      } else if (data.hba1c >= 5.7) {
-        score += 1;
-        recommendations.push('⚠️ HbA1c borderline (5.7-6.4%) - pre-diabetes. Jaga pola makan sehat.');
-        console.log('🟡 HbA1c borderline:', data.hba1c);
-      } else {
+      if (data.hba1c < 6) {
+        score += 5;
+        recommendations.push('✅ HbA1c normal (<6%) - kontrol gula darah baik. Pertahankan!');
         console.log('✅ HbA1c normal:', data.hba1c);
+      } else {
+        // HbA1c >= 6%
+        score += 5;
+        recommendations.push('⚠️ HbA1c tinggi (≥6%) - risiko diabetes. Kontrol gula darah secara ketat dan konsultasi dokter.');
+        console.log('🔴 HbA1c tinggi:', data.hba1c);
       }
     }
   }
@@ -83,71 +85,83 @@ export function calculateHealthRisk(data: HealthData): RiskResult {
   // ============================================
   // 2. CHOLESTEROL RISK
   // ============================================
-  const hasCholesterolData = 
-    data.cholesterol_total || data.cholesterol_ldl || 
+  const hasCholesterolData =
+    data.cholesterol_total || data.cholesterol_ldl ||
     data.cholesterol_hdl || data.triglycerides;
-  
+
   if (hasCholesterolData) {
     console.log('💉 Menganalisis marker kolesterol...');
     conditions.push('cholesterol');
 
-    // Total Cholesterol
+    // Total Cholesterol (Optimal: <200, Borderline High: 200-239, High: >239)
     if (data.cholesterol_total !== null) {
-      if (data.cholesterol_total >= 240) {
-        score += 2;
-        recommendations.push('⚠️ Kolesterol total sangat tinggi (≥240) - risiko penyakit jantung! Kurangi makanan berlemak.');
+      if (data.cholesterol_total > 239) {
+        score += 17;
+        recommendations.push('⚠️ Kolesterol total TINGGI (>239 mg/dL) - risiko penyakit jantung! Segera konsultasi dokter dan kurangi makanan berlemak.');
         console.log('🔴 Kolesterol total tinggi:', data.cholesterol_total);
-      } else if (data.cholesterol_total >= 200) {
-        score += 1;
-        recommendations.push('⚠️ Kolesterol total borderline (200-239) - mulai perhatikan pola makan.');
+      } else if (data.cholesterol_total >= 200 && data.cholesterol_total <= 239) {
+        score += 12;
+        recommendations.push('⚠️ Kolesterol total borderline high (200-239 mg/dL) - mulai perhatikan pola makan dan kurangi lemak jenuh.');
         console.log('🟡 Kolesterol total borderline:', data.cholesterol_total);
       } else {
-        console.log('✅ Kolesterol total normal:', data.cholesterol_total);
+        // Optimal: <200
+        score += 5;
+        recommendations.push('✅ Kolesterol total optimal (<200 mg/dL). Pertahankan pola makan sehat!');
+        console.log('✅ Kolesterol total optimal:', data.cholesterol_total);
       }
     }
 
-    // LDL (Kolesterol Jahat)
+    // LDL (Kolesterol Jahat) - Optimal: <129, Borderline High: 130-159, High: >159
     if (data.cholesterol_ldl !== null) {
-      if (data.cholesterol_ldl >= 160) {
-        score += 2;
-        recommendations.push('⚠️ LDL (kolesterol jahat) tinggi (≥160) - risiko penyakit jantung! Hindari gorengan dan lemak jenuh.');
+      if (data.cholesterol_ldl > 159) {
+        score += 17;
+        recommendations.push('⚠️ LDL (kolesterol jahat) TINGGI (>159 mg/dL) - risiko penyakit jantung! Hindari gorengan dan lemak jenuh, segera konsultasi dokter.');
         console.log('🔴 LDL tinggi:', data.cholesterol_ldl);
-      } else if (data.cholesterol_ldl >= 130) {
-        score += 1;
-        recommendations.push('⚠️ LDL borderline (130-159) - kurangi konsumsi lemak jenuh.');
+      } else if (data.cholesterol_ldl >= 130 && data.cholesterol_ldl <= 159) {
+        score += 12;
+        recommendations.push('⚠️ LDL borderline high (130-159 mg/dL) - kurangi konsumsi lemak jenuh dan tingkatkan aktivitas fisik.');
         console.log('🟡 LDL borderline:', data.cholesterol_ldl);
       } else {
-        console.log('✅ LDL normal:', data.cholesterol_ldl);
+        // Optimal: <129
+        score += 5;
+        recommendations.push('✅ LDL optimal (<129 mg/dL). Pertahankan gaya hidup sehat!');
+        console.log('✅ LDL optimal:', data.cholesterol_ldl);
       }
     }
 
-    // HDL (Kolesterol Baik)
+    // HDL (Kolesterol Baik) - Normal: 40-60 mg/dL
     if (data.cholesterol_hdl !== null) {
-      if (data.cholesterol_hdl < 40) {
-        score += 1;
-        recommendations.push('⚠️ HDL (kolesterol baik) terlalu rendah (<40) - tingkatkan dengan olahraga dan omega-3.');
-        console.log('🔴 HDL rendah:', data.cholesterol_hdl);
-      } else if (data.cholesterol_hdl >= 60) {
-        // HDL tinggi adalah BAIK - beri reward!
-        if (score > 0) score -= 1; // Kurangi risk score jika HDL bagus
-        console.log('✅ HDL sangat baik (≥60):', data.cholesterol_hdl);
-      } else {
+      if (data.cholesterol_hdl >= 40 && data.cholesterol_hdl <= 60) {
+        score += 5;
+        recommendations.push('✅ HDL (kolesterol baik) normal (40-60 mg/dL). Pertahankan!');
         console.log('✅ HDL normal:', data.cholesterol_hdl);
+      } else if (data.cholesterol_hdl < 40) {
+        score += 5;
+        recommendations.push('⚠️ HDL (kolesterol baik) rendah (<40 mg/dL) - tingkatkan dengan olahraga rutin dan konsumsi omega-3.');
+        console.log('🔴 HDL rendah:', data.cholesterol_hdl);
+      } else {
+        // HDL > 60 adalah BAIK
+        score += 5;
+        recommendations.push('✅ HDL tinggi (>60 mg/dL) - sangat baik! Kolesterol baik Anda tinggi, ini melindungi jantung.');
+        console.log('✅ HDL sangat baik (>60):', data.cholesterol_hdl);
       }
     }
 
-    // Triglycerides (Lemak Darah)
+    // Triglycerides (Optimal: <150, Borderline High: 150-199, High: >200)
     if (data.triglycerides !== null) {
-      if (data.triglycerides >= 200) {
-        score += 2;
-        recommendations.push('⚠️ Trigliserida tinggi (≥200) - kurangi gula dan karbohidrat sederhana.');
+      if (data.triglycerides > 200) {
+        score += 17;
+        recommendations.push('⚠️ Trigliserida TINGGI (>200 mg/dL) - risiko penyakit jantung! Kurangi gula dan karbohidrat sederhana, segera konsultasi dokter.');
         console.log('🔴 Trigliserida tinggi:', data.triglycerides);
-      } else if (data.triglycerides >= 150) {
-        score += 1;
-        recommendations.push('⚠️ Trigliserida borderline (150-199) - kurangi konsumsi gula dan alkohol.');
+      } else if (data.triglycerides >= 150 && data.triglycerides <= 199) {
+        score += 12;
+        recommendations.push('⚠️ Trigliserida borderline high (150-199 mg/dL) - kurangi konsumsi gula, alkohol, dan karbohidrat olahan.');
         console.log('🟡 Trigliserida borderline:', data.triglycerides);
       } else {
-        console.log('✅ Trigliserida normal:', data.triglycerides);
+        // Optimal: <150
+        score += 5;
+        recommendations.push('✅ Trigliserida optimal (<150 mg/dL). Pertahankan pola makan sehat!');
+        console.log('✅ Trigliserida optimal:', data.triglycerides);
       }
     }
   }
@@ -155,13 +169,33 @@ export function calculateHealthRisk(data: HealthData): RiskResult {
   // ============================================
   // DETERMINE RISK LEVEL
   // ============================================
+  // Dengan sistem scoring baru:
+  // - Optimal semua (score 5 per parameter)
+  // - Borderline High (score 12 per parameter)
+  // - High (score 17 per parameter)
   let level: 'rendah' | 'sedang' | 'tinggi';
-  
-  if (score === 0) {
+
+  // Hitung jumlah parameter yang terdeteksi
+  const detectedParams = [
+    data.glucose_level,
+    data.hba1c,
+    data.cholesterol_total,
+    data.cholesterol_ldl,
+    data.cholesterol_hdl,
+    data.triglycerides
+  ].filter(v => v !== null).length;
+
+  // Skor maksimal optimal = detectedParams * 5
+  const maxOptimalScore = detectedParams * 5;
+
+  if (score <= maxOptimalScore) {
+    // Semua parameter optimal/normal
     level = 'rendah';
-  } else if (score <= 3) {
+  } else if (score <= maxOptimalScore + (detectedParams * 7)) {
+    // Ada beberapa borderline atau sedikit high
     level = 'sedang';
   } else {
+    // Banyak high atau sangat berisiko
     level = 'tinggi';
   }
 
