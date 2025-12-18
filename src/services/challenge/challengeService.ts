@@ -8,12 +8,14 @@ import {
     MasterChallenge,
     UserActiveChallenge,
 } from '@/types/challenge.types';
+import { getUserStats, updateStreakAfterActivity } from './streakService';
 
 // ========================================
 // CONSTANTS
 // ========================================
 
 const MAX_ACTIVE_CHALLENGES = 2;
+const AVAILABLE_CHALLENGES_DISPLAY_LIMIT = 3; // Always show 3 available challenges
 
 // ========================================
 // HELPER: Set user context untuk RLS
@@ -36,39 +38,255 @@ const setUserContext = async (userId: string) => {
 
 export const getAvailableChallenges = async (
   healthFocus?: HealthFocus,
-  category?: ChallengeCategory
+  category?: ChallengeCategory,
+  userId?: string
 ): Promise<MasterChallenge[]> => {
   try {
+    console.log('[Available Challenges] Fetching with healthFocus:', healthFocus, 'category:', category, 'userId:', userId);
+
+    // Get user's active challenges to filter out
+    let activeChallengeIds = new Set<string>();
+    if (userId) {
+      const { data: userChallenges, error: activeError } = await supabase
+        .from('user_active_challenges')
+        .select('challenge_id')
+        .eq('user_id', userId)
+        .eq('status', 'active');
+
+      if (activeError) {
+        console.error('[Available Challenges] Error fetching active challenges:', activeError);
+        // Don't throw - continue with empty set
+      } else {
+        activeChallengeIds = new Set(
+          userChallenges?.map(uc => uc.challenge_id) || []
+        );
+        console.log('[Available Challenges] User has', activeChallengeIds.size, 'active challenges');
+      }
+    }
+
+    // Build base query
     let query = supabase
       .from('master_challenges')
       .select('*')
       .eq('is_active', true)
       .order('sort_order', { ascending: true });
 
-    // Filter by health focus
-    if (healthFocus) {
-      query = query.or(`health_focus.eq.${healthFocus},health_focus.eq.general`);
-    }
-
-    // Filter by category
+    // Filter by category if specified
     if (category) {
       query = query.eq('category', category);
     }
 
-    const { data, error } = await query;
+    // Fetch challenges based on health focus
+    let availableChallenges: MasterChallenge[] = [];
 
-    if (error) {
-      throw new ChallengeError(
-        'Failed to fetch challenges',
-        ChallengeErrorCode.DATABASE_ERROR,
-        error
+    if (healthFocus) {
+      // First, get challenges matching user's primary health focus + general
+      const { data: primaryChallenges } = await query.or(
+        `health_focus.eq.${healthFocus},health_focus.eq.general`
+      );
+
+      availableChallenges = (primaryChallenges || []).filter(
+        challenge => !activeChallengeIds.has(challenge.id)
+      );
+
+      // If we have less than 3 challenges, fetch from other health focuses
+      if (availableChallenges.length < AVAILABLE_CHALLENGES_DISPLAY_LIMIT) {
+        const needed = AVAILABLE_CHALLENGES_DISPLAY_LIMIT - availableChallenges.length;
+
+        // Get challenges from other health focuses (not general, not current focus)
+        const allOtherFocuses: HealthFocus[] = ['diabetes', 'cholesterol'];
+        const otherFocuses = allOtherFocuses.filter(f => f !== healthFocus);
+
+        for (const focus of otherFocuses) {
+          if (availableChallenges.length >= AVAILABLE_CHALLENGES_DISPLAY_LIMIT) break;
+
+          // Build query for other health focuses, maintaining category filter
+          let otherQuery = supabase
+            .from('master_challenges')
+            .select('*')
+            .eq('is_active', true)
+            .eq('health_focus', focus)
+            .order('sort_order', { ascending: true })
+            .limit(needed);
+
+          // Important: Apply category filter if specified
+          if (category) {
+            otherQuery = otherQuery.eq('category', category);
+          }
+
+          const { data: otherChallenges } = await otherQuery;
+
+          if (otherChallenges) {
+            const filtered = otherChallenges.filter(
+              challenge => !activeChallengeIds.has(challenge.id) &&
+                          !availableChallenges.some(c => c.id === challenge.id)
+            );
+            availableChallenges.push(...filtered);
+          }
+        }
+      }
+    } else {
+      // No health focus specified, get all challenges
+      const { data, error } = await query;
+
+      if (error) {
+        throw new ChallengeError(
+          'Failed to fetch challenges',
+          ChallengeErrorCode.DATABASE_ERROR,
+          error
+        );
+      }
+
+      availableChallenges = (data || []).filter(
+        challenge => !activeChallengeIds.has(challenge.id)
       );
     }
 
-    return data || [];
+    // Limit to 3 displayed challenges for a curated experience
+    const displayedChallenges = availableChallenges.slice(0, AVAILABLE_CHALLENGES_DISPLAY_LIMIT);
+
+    console.log('[Available Challenges] Returning', displayedChallenges.length, 'challenges');
+    return displayedChallenges;
   } catch (error) {
-    console.error('Error fetching available challenges:', error);
+    console.error('[Available Challenges] Error fetching available challenges:', error);
     throw error;
+  }
+};
+
+// ========================================
+// HELPER: Check and Update Current Day
+// ========================================
+
+const checkAndAdvanceDay = async (challenge: UserActiveChallenge): Promise<UserActiveChallenge> => {
+  const masterChallenge = challenge.challenge as MasterChallenge;
+  const currentDayKey = `day_${challenge.current_day}`;
+  const currentDayData = challenge.daily_progress[currentDayKey];
+
+  // Check if current day is complete
+  const isDayComplete = currentDayData?.is_complete || false;
+
+  console.log('=== Check Advance Day ===');
+  console.log('Challenge:', masterChallenge.title);
+  console.log('Current Day:', challenge.current_day);
+  console.log('Is Day Complete:', isDayComplete);
+  console.log('Completed At:', currentDayData?.completed_at);
+
+  // If day is complete, check if we should advance
+  if (isDayComplete) {
+    const completedAt = currentDayData.completed_at;
+    if (!completedAt) {
+      console.log('Day complete but no completed_at timestamp');
+      return challenge;
+    }
+
+    // Get dates in local timezone
+    const completedDate = new Date(completedAt);
+    const now = new Date();
+
+    // Extract date parts (YYYY-MM-DD) for comparison
+    const completedDateStr = completedDate.toISOString().split('T')[0];
+    const todayDateStr = now.toISOString().split('T')[0];
+
+    console.log('Completed Date:', completedDateStr);
+    console.log('Today Date:', todayDateStr);
+    console.log('Is Different Day:', completedDateStr !== todayDateStr);
+
+    // Check if it's a different calendar day (not same day)
+    const isDifferentDay = completedDateStr !== todayDateStr;
+
+    if (!isDifferentDay) {
+      console.log('Not advancing - still the same calendar day');
+      return challenge;
+    }
+
+    // If already at max days, don't advance
+    if (challenge.current_day >= masterChallenge.duration_days) {
+      console.log('Not advancing - already at max days');
+      return challenge;
+    }
+
+    // Advance to next day (streak maintained)
+    const newDay = challenge.current_day + 1;
+
+    console.log('ADVANCING to Day:', newDay);
+
+    const dailyProgress = { ...challenge.daily_progress };
+    const nextDayKey = `day_${newDay}`;
+
+    if (!dailyProgress[nextDayKey]) {
+      dailyProgress[nextDayKey] = {
+        date: todayDateStr,
+        completed_tasks: [],
+        completed_at: null,
+        is_complete: false,
+      };
+    } else {
+      dailyProgress[nextDayKey].date = todayDateStr;
+    }
+
+    const { data: updatedChallenge, error } = await supabase
+      .from('user_active_challenges')
+      .update({
+        current_day: newDay,
+        daily_progress: dailyProgress,
+        last_activity_at: now.toISOString(),
+      })
+      .eq('id', challenge.id)
+      .select(`
+        *,
+        challenge:master_challenges (*)
+      `)
+      .single();
+
+    if (error) {
+      console.error('Failed to advance day:', error);
+      return challenge;
+    }
+
+    console.log('Day advanced successfully to:', newDay);
+    return updatedChallenge;
+  } else {
+    // Day is NOT complete - check if we should reset streak
+    const lastActivityAt = challenge.last_activity_at || challenge.started_at;
+    const lastActivityDate = new Date(lastActivityAt);
+    const now = new Date();
+
+    const lastActivityDateStr = lastActivityDate.toISOString().split('T')[0];
+
+    const daysSinceActivity = Math.floor(
+      (now.getTime() - lastActivityDate.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    console.log('Day NOT complete.');
+    console.log('Last Activity Date:', lastActivityDateStr);
+    console.log('Days Since Activity:', daysSinceActivity);
+
+    // If more than 1 day since last activity and day not complete, reset streak
+    if (daysSinceActivity >= 1 && challenge.current_streak > 0) {
+      console.log('Resetting streak due to inactivity (missed a day)');
+
+      const { data: updatedChallenge, error } = await supabase
+        .from('user_active_challenges')
+        .update({
+          current_streak: 0,
+          last_activity_at: now.toISOString(),
+        })
+        .eq('id', challenge.id)
+        .select(`
+          *,
+          challenge:master_challenges (*)
+        `)
+        .single();
+
+      if (error) {
+        console.error('Failed to reset streak:', error);
+        return challenge;
+      }
+
+      return updatedChallenge;
+    }
+
+    return challenge;
   }
 };
 
@@ -80,6 +298,7 @@ export const getActiveChallenges = async (
   userId: string
 ): Promise<UserActiveChallenge[]> => {
   try {
+    console.log('[Active Challenges] Fetching for user:', userId);
     await setUserContext(userId);
 
     const { data, error } = await supabase
@@ -93,6 +312,7 @@ export const getActiveChallenges = async (
       .order('started_at', { ascending: false });
 
     if (error) {
+      console.error('[Active Challenges] Database error:', error);
       throw new ChallengeError(
         'Failed to fetch active challenges',
         ChallengeErrorCode.DATABASE_ERROR,
@@ -100,9 +320,18 @@ export const getActiveChallenges = async (
       );
     }
 
-    return data || [];
+    console.log('[Active Challenges] Found:', data?.length || 0, 'challenges');
+
+    // Check and advance day for each challenge if needed
+    const challenges = data || [];
+    const updatedChallenges = await Promise.all(
+      challenges.map(challenge => checkAndAdvanceDay(challenge))
+    );
+
+    console.log('[Active Challenges] Returning:', updatedChallenges.length, 'challenges');
+    return updatedChallenges;
   } catch (error) {
-    console.error('Error fetching active challenges:', error);
+    console.error('[Active Challenges] Error fetching active challenges:', error);
     throw error;
   }
 };
@@ -137,6 +366,12 @@ export const getChallengeDetail = async (
         ChallengeErrorCode.DATABASE_ERROR,
         error
       );
+    }
+
+    // Check and advance day if needed
+    if (data && data.status === 'active') {
+      const updatedChallenge = await checkAndAdvanceDay(data);
+      return updatedChallenge;
     }
 
     return data;
@@ -409,17 +644,27 @@ const updateUserStatsForChallengeProgress = async (
   points: number
 ): Promise<void> => {
   try {
-    const { error } = await supabase.rpc('increment_user_stats', {
-      p_user_id: userId,
-      p_points: Math.floor(points),
-      p_is_daily_quest: false,
-    });
+    // Get current stats
+    const stats = await getUserStats(userId);
+
+    // Update points
+    const { error } = await supabase
+      .from('user_challenge_stats')
+      .update({
+        total_points: stats.total_points + Math.floor(points),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('user_id', userId);
 
     if (error) {
       console.error('Failed to update user stats:', error);
     }
+
+    // Update streak
+    await updateStreakAfterActivity(userId);
   } catch (error) {
     console.error('Error updating user stats:', error);
+    // Don't throw - stats update failure shouldn't block challenge progress
   }
 };
 

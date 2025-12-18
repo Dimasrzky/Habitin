@@ -263,10 +263,20 @@ export default function ChallengeHubScreen() {
                     </View>
                   </View>
                   {/* Progress Bar */}
-                  <View className="mt-3 h-2 bg-[#F3F4F6] rounded-full overflow-hidden">
+                  <View style={{
+                    marginTop: 12,
+                    height: 8,
+                    backgroundColor: '#F3F4F6',
+                    borderRadius: 4,
+                    overflow: 'hidden',
+                  }}>
                     <View
-                      className="h-full bg-gradient-to-r from-[#10B981] to-[#34D399] rounded-full"
-                      style={{ width: `${totalCount > 0 ? (completedCount / totalCount) * 100 : 0}%` }}
+                      style={{
+                        height: '100%',
+                        backgroundColor: '#10B981',
+                        borderRadius: 4,
+                        width: `${totalCount > 0 ? (completedCount / totalCount) * 100 : 0}%`,
+                      }}
                     />
                   </View>
                 </View>

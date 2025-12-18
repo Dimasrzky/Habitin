@@ -138,14 +138,20 @@ const challengeStoreCreator: StateCreator<ChallengeStore> = (set, get) => ({
 
   loadDailyQuests: async () => {
     const { userId, healthPriority } = get();
-    if (!userId || !healthPriority) return;
+    if (!userId || !healthPriority) {
+      console.log('[Store] loadDailyQuests: No userId or healthPriority');
+      return;
+    }
 
+    console.log('[Store] loadDailyQuests: Starting...');
     set({ dailyQuestsLoading: true, dailyQuestsError: null });
 
     try {
       const quests = await getTodayQuests(userId, healthPriority);
+      console.log('[Store] loadDailyQuests: Loaded', quests.length, 'quests');
       set({ dailyQuests: quests, dailyQuestsLoading: false });
     } catch (e) {
+      console.error('[Store] loadDailyQuests: Error', e);
       set({
         dailyQuestsLoading: false,
         dailyQuestsError: e instanceof Error ? e.message : 'Failed to load quests',
@@ -157,30 +163,60 @@ const challengeStoreCreator: StateCreator<ChallengeStore> = (set, get) => ({
     const { userId } = get();
     if (!userId) throw new Error('User not initialized');
 
-    set(state => ({
-      dailyQuests: state.dailyQuests.map(q =>
-        q.id === questId ? { ...q, is_completed: true } : q
-      ),
-    }));
+    // Store previous state for rollback on error
+    const previousQuests = get().dailyQuests;
 
-    await completeDailyQuest(userId, questId);
-    await get().refreshStats();
-    await get().loadDailyQuests();
+    try {
+      // Optimistic update
+      set(state => ({
+        dailyQuests: state.dailyQuests.map(q =>
+          q.id === questId ? { ...q, is_completed: true } : q
+        ),
+      }));
+
+      // Complete quest in backend
+      await completeDailyQuest(userId, questId);
+
+      // Refresh stats to update points
+      await get().refreshStats();
+
+      // Reload quests to get fresh data from server
+      await get().loadDailyQuests();
+    } catch (error) {
+      console.error('Error completing daily quest:', error);
+      // Rollback optimistic update on error
+      set({ dailyQuests: previousQuests });
+      throw error;
+    }
   },
 
   loadAvailableChallenges: async () => {
-    const { healthPriority, selectedCategory } = get();
-    if (!healthPriority) return;
+    const { userId, healthPriority, selectedCategory } = get();
+    if (!healthPriority) {
+      console.log('[Store] loadAvailableChallenges: No healthPriority');
+      return;
+    }
 
-    set({ availableChallengesLoading: true });
+    console.log('[Store] loadAvailableChallenges: Starting with category', selectedCategory);
+    set({ availableChallengesLoading: true, availableChallengesError: null });
 
-    const category = selectedCategory === 'all' ? undefined : selectedCategory;
-    const challenges = await getAvailableChallenges(healthPriority, category);
+    try {
+      const category = selectedCategory === 'all' ? undefined : selectedCategory;
+      const challenges = await getAvailableChallenges(healthPriority, category, userId || undefined);
 
-    set({
-      availableChallenges: challenges,
-      availableChallengesLoading: false,
-    });
+      console.log('[Store] loadAvailableChallenges: Loaded', challenges.length, 'challenges');
+      set({
+        availableChallenges: challenges,
+        availableChallengesLoading: false,
+      });
+    } catch (e) {
+      console.error('[Store] loadAvailableChallenges: Error', e);
+      set({
+        availableChallengesLoading: false,
+        availableChallengesError: e instanceof Error ? e.message : 'Failed to load challenges',
+      });
+      // Don't clear existing data on error - preserve what we have
+    }
   },
 
   setCategory: (category) => {
@@ -190,51 +226,97 @@ const challengeStoreCreator: StateCreator<ChallengeStore> = (set, get) => ({
 
   loadActiveChallenges: async () => {
     const { userId } = get();
-    if (!userId) return;
+    if (!userId) {
+      console.log('[Store] loadActiveChallenges: No userId');
+      return;
+    }
 
-    set({ activeChallengesLoading: true });
-    const challenges = await getActiveChallenges(userId);
+    console.log('[Store] loadActiveChallenges: Starting...');
+    set({ activeChallengesLoading: true, activeChallengesError: null });
 
-    set({
-      activeChallenges: challenges,
-      activeChallengesLoading: false,
-    });
+    try {
+      const challenges = await getActiveChallenges(userId);
+
+      console.log('[Store] loadActiveChallenges: Loaded', challenges.length, 'challenges');
+      set({
+        activeChallenges: challenges,
+        activeChallengesLoading: false,
+      });
+    } catch (e) {
+      console.error('[Store] loadActiveChallenges: Error', e);
+      set({
+        activeChallengesLoading: false,
+        activeChallengesError: e instanceof Error ? e.message : 'Failed to load challenges',
+      });
+      // Don't clear existing data on error - preserve what we have
+    }
   },
 
   startChallengeAction: async (masterChallengeId) => {
     const { userId } = get();
     if (!userId) throw new Error('User not initialized');
 
-    const newChallenge = await startChallenge(userId, masterChallengeId);
-    set(state => ({
-      activeChallenges: [...state.activeChallenges, newChallenge],
-    }));
+    try {
+      const newChallenge = await startChallenge(userId, masterChallengeId);
+      set(state => ({
+        activeChallenges: [...state.activeChallenges, newChallenge],
+      }));
+
+      // Reload available challenges to remove the started challenge from the list
+      await get().loadAvailableChallenges();
+    } catch (error) {
+      console.error('Error starting challenge:', error);
+      throw error;
+    }
   },
 
   completeTaskAction: async (activeChallengeId, taskId) => {
     const { userId } = get();
     if (!userId) throw new Error('User not initialized');
 
-    const updated = await completeTaskInChallenge(userId, activeChallengeId, taskId);
+    // Store previous state for rollback on error
+    const previousChallenges = get().activeChallenges;
 
-    set(state => ({
-      activeChallenges: state.activeChallenges.map(c =>
-        c.id === activeChallengeId ? updated : c
-      ),
-    }));
+    try {
+      const updated = await completeTaskInChallenge(userId, activeChallengeId, taskId);
 
-    await get().refreshStats();
+      set(state => ({
+        activeChallenges: state.activeChallenges.map(c =>
+          c.id === activeChallengeId ? updated : c
+        ),
+      }));
+
+      await get().refreshStats();
+    } catch (error) {
+      console.error('Error completing task:', error);
+      // Rollback on error
+      set({ activeChallenges: previousChallenges });
+      throw error;
+    }
   },
 
   abandonChallengeAction: async (activeChallengeId) => {
     const { userId } = get();
     if (!userId) throw new Error('User not initialized');
 
-    await abandonChallenge(userId, activeChallengeId);
+    // Store previous state for rollback on error
+    const previousChallenges = get().activeChallenges;
 
-    set(state => ({
-      activeChallenges: state.activeChallenges.filter(c => c.id !== activeChallengeId),
-    }));
+    try {
+      await abandonChallenge(userId, activeChallengeId);
+
+      set(state => ({
+        activeChallenges: state.activeChallenges.filter(c => c.id !== activeChallengeId),
+      }));
+
+      // Reload available challenges so abandoned challenge can appear again
+      await get().loadAvailableChallenges();
+    } catch (error) {
+      console.error('Error abandoning challenge:', error);
+      // Rollback on error
+      set({ activeChallenges: previousChallenges });
+      throw error;
+    }
   },
 
   loadUserStats: async () => {
@@ -242,8 +324,15 @@ const challengeStoreCreator: StateCreator<ChallengeStore> = (set, get) => ({
     if (!userId) return;
 
     set({ statsLoading: true });
-    const stats = await getUserStats(userId);
-    set({ userStats: stats, statsLoading: false });
+
+    try {
+      const stats = await getUserStats(userId);
+      set({ userStats: stats, statsLoading: false });
+    } catch (e) {
+      console.error('Error loading user stats:', e);
+      set({ statsLoading: false });
+      // Don't clear existing stats on error
+    }
   },
 
   refreshStats: async () => {

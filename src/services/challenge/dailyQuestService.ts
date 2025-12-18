@@ -8,6 +8,7 @@ import {
     HealthFocus,
 } from '@/types/challenge.types';
 import { format, startOfDay } from 'date-fns';
+import { updateStatsAfterDailyQuest } from './streakService';
 
 // ========================================
 // CONSTANTS
@@ -24,93 +25,66 @@ const setUserContext = async (userId: string) => {
     setting: 'app.current_user_id',
     value: userId,
   });
-  
+
   if (error) {
     console.warn('Failed to set user context:', error);
   }
 };
 
 // ========================================
-// GET: Generate Daily Quests for User
+// HELPER: Generate seed from date and userId
 // ========================================
 
-export const generateDailyQuests = async (
-  userId: string,
-  healthFocus: HealthFocus
-): Promise<DailyQuestWithStatus[]> => {
-  try {
-    // 1. Fetch quest pool based on health focus
-    const { data: questPool, error: fetchError } = await supabase
-      .from('daily_quests')
-      .select('*')
-      .or(`health_focus.eq.${healthFocus},health_focus.eq.general`)
-      .eq('is_active', true);
-
-    if (fetchError) {
-      throw new ChallengeError(
-        'Failed to fetch quest pool',
-        ChallengeErrorCode.DATABASE_ERROR,
-        fetchError
-      );
-    }
-
-    if (!questPool || questPool.length === 0) {
-      return [];
-    }
-
-    // 2. Weighted random selection
-    const selectedQuests = weightedRandomSelection(
-      questPool,
-      DAILY_QUESTS_COUNT
-    );
-
-    // 3. Get today's completions
-    const today = format(startOfDay(new Date()), 'yyyy-MM-dd');
-    
-    await setUserContext(userId);
-    
-    const { data: completions } = await supabase
-      .from('user_daily_quest_completions')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('completion_date', today);
-
-    // 4. Map completions to quests
-    const completionMap = new Map(
-      completions?.map(c => [c.quest_id, c]) || []
-    );
-
-    const questsWithStatus: DailyQuestWithStatus[] = selectedQuests.map(quest => ({
-      ...quest,
-      is_completed: completionMap.has(quest.id),
-      completion: completionMap.get(quest.id),
-    }));
-
-    return questsWithStatus;
-  } catch (error) {
-    console.error('Error generating daily quests:', error);
-    throw error;
+const generateSeedFromDate = (userId: string, date: string): number => {
+  // Create a deterministic seed based on userId and date
+  const combined = `${userId}-${date}`;
+  let hash = 0;
+  for (let i = 0; i < combined.length; i++) {
+    const char = combined.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
   }
+  return Math.abs(hash);
 };
 
 // ========================================
-// HELPER: Weighted Random Selection
+// HELPER: Seeded Random (deterministic)
 // ========================================
 
-const weightedRandomSelection = (
+class SeededRandom {
+  private seed: number;
+
+  constructor(seed: number) {
+    this.seed = seed % 2147483647;
+    if (this.seed <= 0) this.seed += 2147483646;
+  }
+
+  next(): number {
+    this.seed = (this.seed * 16807) % 2147483647;
+    return (this.seed - 1) / 2147483646;
+  }
+}
+
+// ========================================
+// HELPER: Deterministic Weighted Selection
+// ========================================
+
+const deterministicWeightedSelection = (
   pool: DailyQuest[],
-  count: number
+  count: number,
+  seed: number
 ): DailyQuest[] => {
   const selected: DailyQuest[] = [];
   const available = [...pool];
-
-  // Calculate total weight
-  const totalWeight = available.reduce((sum, quest) => sum + quest.weight, 0);
+  const rng = new SeededRandom(seed);
 
   for (let i = 0; i < Math.min(count, pool.length); i++) {
     if (available.length === 0) break;
 
-    let random = Math.random() * totalWeight;
+    // Calculate total weight of remaining quests
+    const totalWeight = available.reduce((sum, quest) => sum + quest.weight, 0);
+
+    let random = rng.next() * totalWeight;
     let selectedIndex = 0;
 
     for (let j = 0; j < available.length; j++) {
@@ -126,6 +100,87 @@ const weightedRandomSelection = (
   }
 
   return selected;
+};
+
+// ========================================
+// GET: Generate Daily Quests for User
+// ========================================
+
+export const generateDailyQuests = async (
+  userId: string,
+  healthFocus: HealthFocus
+): Promise<DailyQuestWithStatus[]> => {
+  try {
+    const today = format(startOfDay(new Date()), 'yyyy-MM-dd');
+    console.log('[Daily Quest] Generating quests for user:', userId, 'health focus:', healthFocus, 'date:', today);
+
+    // 1. Fetch quest pool based on health focus
+    const { data: questPool, error: fetchError } = await supabase
+      .from('daily_quests')
+      .select('*')
+      .or(`health_focus.eq.${healthFocus},health_focus.eq.general`)
+      .eq('is_active', true);
+
+    if (fetchError) {
+      console.error('[Daily Quest] Failed to fetch quest pool:', fetchError);
+      throw new ChallengeError(
+        'Failed to fetch quest pool',
+        ChallengeErrorCode.DATABASE_ERROR,
+        fetchError
+      );
+    }
+
+    if (!questPool || questPool.length === 0) {
+      console.warn('[Daily Quest] No quests available in pool');
+      return [];
+    }
+
+    console.log('[Daily Quest] Quest pool size:', questPool.length);
+
+    // 2. Deterministic selection based on userId + date
+    // This ensures the same quests are generated for the same user on the same day
+    const seed = generateSeedFromDate(userId, today);
+    const selectedQuests = deterministicWeightedSelection(
+      questPool,
+      DAILY_QUESTS_COUNT,
+      seed
+    );
+
+    console.log('[Daily Quest] Selected quests:', selectedQuests.length);
+
+    // 3. Get today's completions
+    await setUserContext(userId);
+
+    const { data: completions, error: completionError } = await supabase
+      .from('user_daily_quest_completions')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('completion_date', today);
+
+    if (completionError) {
+      console.error('[Daily Quest] Failed to fetch completions:', completionError);
+      // Don't throw - just assume no completions
+    }
+
+    console.log('[Daily Quest] Completions found:', completions?.length || 0);
+
+    // 4. Map completions to quests
+    const completionMap = new Map(
+      completions?.map(c => [c.quest_id, c]) || []
+    );
+
+    const questsWithStatus: DailyQuestWithStatus[] = selectedQuests.map((quest: DailyQuest) => ({
+      ...quest,
+      is_completed: completionMap.has(quest.id),
+      completion: completionMap.get(quest.id),
+    }));
+
+    console.log('[Daily Quest] Returning quests with status:', questsWithStatus.length);
+    return questsWithStatus;
+  } catch (error) {
+    console.error('[Daily Quest] Error generating daily quests:', error);
+    throw error;
+  }
 };
 
 // ========================================
@@ -222,17 +277,10 @@ const updateUserStatsForQuest = async (
   points: number
 ): Promise<void> => {
   try {
-    const { error } = await supabase.rpc('increment_user_stats', {
-      p_user_id: userId,
-      p_points: points,
-      p_is_daily_quest: true,
-    });
-
-    if (error) {
-      console.error('Failed to update user stats:', error);
-    }
+    await updateStatsAfterDailyQuest(userId, points);
   } catch (error) {
     console.error('Error updating user stats:', error);
+    // Don't throw - stats update failure shouldn't block quest completion
   }
 };
 

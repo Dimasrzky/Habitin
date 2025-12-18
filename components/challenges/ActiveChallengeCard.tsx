@@ -26,15 +26,9 @@ export const ActiveChallengeCard: React.FC<ActiveChallengeCardProps> = ({
       ]}
     >
       <View style={styles.card}>
-        {/* Icon & Streak Badge */}
-        <View style={styles.topRow}>
-          <View style={styles.iconContainer}>
-            <Text style={styles.iconEmoji}>{masterChallenge.icon_emoji}</Text>
-          </View>
-          <View style={styles.streakBadge}>
-            <Text style={styles.streakEmoji}>🔥</Text>
-            <Text style={styles.streakText}>{challenge.current_streak}</Text>
-          </View>
+        {/* Icon */}
+        <View style={styles.iconContainer}>
+          <Text style={styles.iconEmoji}>{masterChallenge.icon_emoji}</Text>
         </View>
 
         {/* Challenge Title */}
@@ -85,12 +79,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 8,
   },
-  topRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
   iconContainer: {
     width: 48,
     height: 48,
@@ -98,26 +86,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#D1FAE5',
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 12,
   },
   iconEmoji: {
     fontSize: 26,
-  },
-  streakBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF9E6',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 10,
-    gap: 2,
-  },
-  streakEmoji: {
-    fontSize: 14,
-  },
-  streakText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#D97706',
   },
   title: {
     fontSize: 15,

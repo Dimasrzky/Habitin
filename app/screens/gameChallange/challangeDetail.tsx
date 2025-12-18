@@ -113,13 +113,18 @@ const TaskCheckboxItem: React.FC<TaskCheckboxItemProps> = ({
 export default function ChallengeDetailScreen() {
     const router = useRouter();
     const params = useLocalSearchParams<{ challengeId: string }>();
-    const { activeChallenges, completeTaskAction } = useChallengeStore();
+    const { activeChallenges, completeTaskAction, loadActiveChallenges } = useChallengeStore();
 
     const [challenge, setChallenge] = useState<UserActiveChallenge | null>(null);
     const [showRulesExpanded, setShowRulesExpanded] = useState(false);
     const [showRewardModal, setShowRewardModal] = useState(false);
     const [isCompleting, setIsCompleting] = useState(false);
     const [lastDayComplete, setLastDayComplete] = useState(false);
+
+    // Force reload challenges when screen mounts to check for day advancement
+    useEffect(() => {
+        loadActiveChallenges();
+    }, []);
 
     // Fetch real challenge data from store
     useEffect(() => {
@@ -360,15 +365,9 @@ export default function ChallengeDetailScreen() {
                         </Text>
 
                         <View className="bg-[#ECF4E8] rounded-2xl p-4 w-full mb-4">
-                            <View className="flex-row items-center justify-center mb-2">
+                            <View className="flex-row items-center justify-center">
                                 <Ionicons name="trophy" size={24} color="#FFD93D" />
                                 <Text className="text-lg font-bold text-black ml-2">+{dailyTasksPoints} Poin</Text>
-                            </View>
-                            <View className="flex-row items-center justify-center">
-                                <Text className="text-2xl mr-2">🔥</Text>
-                                <Text className="text-sm text-[#6B7280]">
-                                    Streak: {challenge.current_streak} hari
-                                </Text>
                             </View>
                         </View>
 
@@ -449,16 +448,6 @@ export default function ChallengeDetailScreen() {
                                 </Text>
                             </View>
                         </View>
-
-                        {/* Streak */}
-                        {challenge.status === 'active' && (
-                            <View className="flex-row items-center bg-white/30 px-4 py-2 rounded-full">
-                                <Text className="text-2xl mr-2">🔥</Text>
-                                <Text className="text-lg font-bold text-white">
-                                    Streak: {challenge.current_streak} hari
-                                </Text>
-                            </View>
-                        )}
                     </LinearGradient>
                 </View>
 

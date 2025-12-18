@@ -12,6 +12,7 @@ interface ChallengeData {
   id: string;
   title: string;
   progress: number;
+  currentDay: number;
   target: number;
   status: string;
 }
@@ -69,6 +70,7 @@ export const useDashboard = () => {
           id: challenge.id,
           title: masterChallenge.title,
           progress: Math.round(progress),
+          currentDay: challenge.current_day,
           target: masterChallenge.duration_days,
           status: challenge.status,
         };

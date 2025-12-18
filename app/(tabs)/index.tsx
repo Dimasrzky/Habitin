@@ -826,7 +826,7 @@ export default function HomeScreen() {
               </View>
             </View>
             <Text style={{ fontSize: 12, color: '#6B7280' }}>
-              Progress: {dashboardData.activeChallenge.progress} dari{' '}
+              Hari ke-{dashboardData.activeChallenge.currentDay} dari{' '}
               {dashboardData.activeChallenge.target}
             </Text>
           </Card>

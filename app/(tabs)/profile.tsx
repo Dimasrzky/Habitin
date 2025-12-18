@@ -3,12 +3,14 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from "react";
-import { Alert, Animated, Pressable, ScrollView, StatusBar, Text, View } from "react-native";
+import { Alert, Animated, Image, Pressable, ScrollView, StatusBar, Text, View, ActivityIndicator } from "react-native";
+import * as ImagePicker from 'expo-image-picker';
 import { auth } from '../../src/config/firebase.config';
 import { supabase } from '../../src/config/supabase.config';
 import { useUser } from '../../src/hooks/useUser';
 import { resetOnboardingStatus } from '../../src/services/onboarding/onboardingService';
 import { resetLabUploadStatus } from '../../src/utils/labUploadHelper';
+import { UserService } from '../../src/services/database/user.service';
 
 // TypeScript Interfaces
 interface UserProfile {
@@ -121,11 +123,13 @@ export default function ProfileScreen() {
     const [healthDataExpanded, setHealthDataExpanded] = useState(false);
     const [developerExpanded, setDeveloperExpanded] = useState(false);
     const [userData] = useState(MOCK_USER);
-    const {user} = useUser();
+    const {user, loading: userLoading, error: userError, refetch} = useUser();
+    const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
     const currentUser = auth.currentUser;
     const userName = user?.full_name || currentUser?.displayName || 'User';
     const userEmail = user?.email || currentUser?.email || 'email';
+    const userAvatar = user?.avatar_url;
 
     const [healthData, setHealthData] = useState<HealthData | null>(null);
 
@@ -472,6 +476,63 @@ export default function ProfileScreen() {
         router.push("/screens/Profile/AvatarStore" as any);
     };
 
+    const handlePickImage = async () => {
+        try {
+            // Request permission
+            const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+            if (permissionResult.granted === false) {
+                Alert.alert('Izin Diperlukan', 'Aplikasi memerlukan izin untuk mengakses galeri foto.');
+                return;
+            }
+
+            // Pick image
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ['images'],
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.8,
+            });
+
+            if (!result.canceled && result.assets[0]) {
+                await uploadAvatar(result.assets[0].uri);
+            }
+        } catch (error) {
+            console.error('Error picking image:', error);
+            Alert.alert('Error', 'Gagal memilih foto. Silakan coba lagi.');
+        }
+    };
+
+    const uploadAvatar = async (imageUri: string) => {
+        const userId = auth.currentUser?.uid;
+
+        if (!userId) {
+            Alert.alert('Error', 'User tidak ditemukan. Silakan login kembali.');
+            return;
+        }
+
+        try {
+            setUploadingAvatar(true);
+
+            // Upload avatar using UserService
+            const { error } = await UserService.updateAvatar(userId, imageUri);
+
+            if (error) {
+                throw new Error(error);
+            }
+
+            // Refresh user data
+            await refetch();
+
+            Alert.alert('Berhasil!', 'Foto profil berhasil diperbarui.');
+        } catch (error: any) {
+            console.error('Error uploading avatar:', error);
+            Alert.alert('Error', error.message || 'Gagal mengupload foto profil.');
+        } finally {
+            setUploadingAvatar(false);
+        }
+    };
+
     const handleSettingsPress = (route: string) => {
         router.push(route as any);
     };
@@ -545,18 +606,42 @@ export default function ProfileScreen() {
                 <Card>
                     <View style={{ alignItems: "center" }}>
                         <View style={{ position: "relative", marginBottom: 12 }}>
-                            <View
-                                style={{
-                                    width: 80,
-                                    height: 80,
-                                    borderRadius: 40,
-                                    backgroundColor: "#ECF4E8",
-                                    justifyContent: "center",
-                                    alignItems: "center",
-                                }}
-                            >
-                                <Ionicons name="person" size={40} color="#ABE7B2" />
-                            </View>
+                            {uploadingAvatar ? (
+                                <View
+                                    style={{
+                                        width: 80,
+                                        height: 80,
+                                        borderRadius: 40,
+                                        backgroundColor: "#ECF4E8",
+                                        justifyContent: "center",
+                                        alignItems: "center",
+                                    }}
+                                >
+                                    <ActivityIndicator size="large" color="#ABE7B2" />
+                                </View>
+                            ) : userAvatar ? (
+                                <Image
+                                    source={{ uri: userAvatar }}
+                                    style={{
+                                        width: 80,
+                                        height: 80,
+                                        borderRadius: 40,
+                                    }}
+                                />
+                            ) : (
+                                <View
+                                    style={{
+                                        width: 80,
+                                        height: 80,
+                                        borderRadius: 40,
+                                        backgroundColor: "#ECF4E8",
+                                        justifyContent: "center",
+                                        alignItems: "center",
+                                    }}
+                                >
+                                    <Ionicons name="person" size={40} color="#ABE7B2" />
+                                </View>
+                            )}
                             <Pressable
                                 style={({ pressed }) => ({
                                     position: "absolute",
@@ -572,7 +657,8 @@ export default function ProfileScreen() {
                                     borderColor: "#FFFFFF",
                                     opacity: pressed ? 0.7 : 1,
                                 })}
-                                onPress={handleAvatarStore}
+                                onPress={handlePickImage}
+                                disabled={uploadingAvatar}
                             >
                                 <Ionicons name="camera" size={14} color="#1F2937" />
                             </Pressable>

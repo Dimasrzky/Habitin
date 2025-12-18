@@ -1,4 +1,5 @@
 import { supabase } from '../../config/supabase.config';
+import { ImageService } from '../storage/image.service';
 
 interface UserRow {
   id: string;
@@ -73,6 +74,26 @@ export class UserService {
       return { data: (data as Partial<UserRow>[]) || [], error: null };
     } catch (error: any) {
       return { data: [], error: error.message };
+    }
+  }
+
+  // Update user avatar
+  static async updateAvatar(userId: string, imageUri: string) {
+    try {
+      // Upload image to storage
+      const { url, error: uploadError } = await ImageService.uploadAvatar(userId, imageUri);
+
+      if (uploadError || !url) {
+        throw new Error(uploadError || 'Failed to upload image');
+      }
+
+      // Update user record with new avatar URL
+      const { data, error } = await this.updateUser(userId, { avatar_url: url });
+
+      if (error) throw new Error(error);
+      return { data, error: null };
+    } catch (error: any) {
+      return { data: null, error: error.message };
     }
   }
 }

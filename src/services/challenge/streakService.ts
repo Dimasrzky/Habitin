@@ -57,6 +57,7 @@ export const getUserStats = async (userId: string): Promise<UserChallengeStats> 
 
 const initializeUserStats = async (userId: string): Promise<UserChallengeStats> => {
   try {
+    // First, try to insert new stats
     const { data, error } = await supabase
       .from('user_challenge_stats')
       .insert({
@@ -73,11 +74,24 @@ const initializeUserStats = async (userId: string): Promise<UserChallengeStats> 
       .single();
 
     if (error) {
-      throw new ChallengeError(
-        'Failed to initialize user stats',
-        ChallengeErrorCode.DATABASE_ERROR,
-        error
-      );
+      // If insert fails (maybe already exists due to race condition), try to fetch
+      console.warn('Failed to initialize user stats, attempting to fetch existing:', error);
+
+      const { data: existingData, error: fetchError } = await supabase
+        .from('user_challenge_stats')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (fetchError || !existingData) {
+        throw new ChallengeError(
+          'Failed to initialize user stats',
+          ChallengeErrorCode.DATABASE_ERROR,
+          fetchError || error
+        );
+      }
+
+      return existingData;
     }
 
     return data;
