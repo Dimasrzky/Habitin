@@ -1,8 +1,8 @@
 // app/(tabs)/profile.tsx
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useRouter } from 'expo-router';
-import React, { useEffect, useRef, useState } from "react";
+import { useRouter, useFocusEffect } from 'expo-router';
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { Alert, Animated, Image, Pressable, ScrollView, StatusBar, Text, View, ActivityIndicator } from "react-native";
 import * as ImagePicker from 'expo-image-picker';
 import { auth } from '../../src/config/firebase.config';
@@ -11,6 +11,7 @@ import { useUser } from '../../src/hooks/useUser';
 import { resetOnboardingStatus } from '../../src/services/onboarding/onboardingService';
 import { resetLabUploadStatus } from '../../src/utils/labUploadHelper';
 import { UserService } from '../../src/services/database/user.service';
+import { AvatarOption } from '../../components/AvatarPicker';
 
 // TypeScript Interfaces
 interface UserProfile {
@@ -125,6 +126,7 @@ export default function ProfileScreen() {
     const [userData] = useState(MOCK_USER);
     const {user, loading: userLoading, error: userError, refetch} = useUser();
     const [uploadingAvatar, setUploadingAvatar] = useState(false);
+    const [localAvatar, setLocalAvatar] = useState<AvatarOption | null>(null);
 
     const currentUser = auth.currentUser;
     const userName = user?.full_name || currentUser?.displayName || 'User';
@@ -151,6 +153,20 @@ export default function ProfileScreen() {
         }
 
         return age;
+    };
+
+    const loadUserData = async () => {
+        try {
+            const userDataString = await AsyncStorage.getItem('userData');
+            if (userDataString) {
+                const userData = JSON.parse(userDataString);
+                if (userData.avatar) {
+                    setLocalAvatar(userData.avatar);
+                }
+            }
+        } catch (error) {
+            console.error('Error loading user data:', error);
+        }
     };
 
     const fetchHealthData = async () => {
@@ -195,12 +211,20 @@ export default function ProfileScreen() {
             });
         } catch (err) {
             console.error("Unexpected error:", err);
-        } 
+        }
     };
 
     useEffect(() => {
         fetchHealthData();
-    },);
+        loadUserData();
+    }, []);
+
+    // Reload avatar when screen is focused (after coming back from EditProfile)
+    useFocusEffect(
+        useCallback(() => {
+            loadUserData();
+        }, [])
+    );
 
     // Animate health data dropdown
     useEffect(() => {
@@ -619,7 +643,33 @@ export default function ProfileScreen() {
                                 >
                                     <ActivityIndicator size="large" color="#ABE7B2" />
                                 </View>
+                            ) : localAvatar ? (
+                                // Display local avatar (emoji or uploaded image)
+                                localAvatar.type === 'emoji' ? (
+                                    <View
+                                        style={{
+                                            width: 80,
+                                            height: 80,
+                                            borderRadius: 40,
+                                            backgroundColor: "#ECF4E8",
+                                            justifyContent: "center",
+                                            alignItems: "center",
+                                        }}
+                                    >
+                                        <Text style={{ fontSize: 40 }}>{localAvatar.value}</Text>
+                                    </View>
+                                ) : (
+                                    <Image
+                                        source={{ uri: localAvatar.value }}
+                                        style={{
+                                            width: 80,
+                                            height: 80,
+                                            borderRadius: 40,
+                                        }}
+                                    />
+                                )
                             ) : userAvatar ? (
+                                // Fallback to Firebase avatar
                                 <Image
                                     source={{ uri: userAvatar }}
                                     style={{
@@ -629,6 +679,7 @@ export default function ProfileScreen() {
                                     }}
                                 />
                             ) : (
+                                // Default avatar icon
                                 <View
                                     style={{
                                         width: 80,
@@ -657,10 +708,10 @@ export default function ProfileScreen() {
                                     borderColor: "#FFFFFF",
                                     opacity: pressed ? 0.7 : 1,
                                 })}
-                                onPress={handlePickImage}
+                                onPress={handleEditProfile}
                                 disabled={uploadingAvatar}
                             >
-                                <Ionicons name="camera" size={14} color="#1F2937" />
+                                <Ionicons name="create-outline" size={14} color="#1F2937" />
                             </Pressable>
                         </View>
 

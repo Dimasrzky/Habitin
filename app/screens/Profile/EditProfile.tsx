@@ -1,10 +1,11 @@
 // app/screens/Profile/EditProfile.tsx
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -15,12 +16,72 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import AvatarPicker, { AvatarOption } from '../../../components/AvatarPicker';
+import { auth } from '../../../src/config/firebase.config';
+import { UserService } from '../../../src/services/database/user.service';
 
 export default function EditProfile() {
   const router = useRouter();
   const [name, setName] = useState('Budi Santoso');
   const [email, setEmail] = useState('budi.santoso@email.com');
   const [bio, setBio] = useState('Saya senang hidup sehat!');
+  const [avatar, setAvatar] = useState<AvatarOption>({ type: 'emoji', value: '😊' });
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+
+  // Load user data from Supabase and AsyncStorage
+  const loadUserData = useCallback(async () => {
+    try {
+      const currentUser = auth.currentUser;
+
+      if (currentUser) {
+        // Load from Supabase first
+        console.log('📥 Loading user data from Supabase...');
+        const result = await UserService.getUserById(currentUser.uid);
+
+        if (result.data) {
+          const userData = result.data;
+          setName(userData.full_name || '');
+          setEmail(userData.email || currentUser.email || '');
+
+          // Set avatar if user has avatar_url in database
+          if (userData.avatar_url) {
+            setAvatar({ type: 'image', value: userData.avatar_url });
+          }
+
+          console.log('✅ User data loaded from Supabase');
+        } else {
+          // Fallback to email from Firebase Auth
+          setEmail(currentUser.email || '');
+        }
+      }
+
+      // Also load from AsyncStorage for bio and other local data
+      const userDataString = await AsyncStorage.getItem('userData');
+      if (userDataString) {
+        const userData = JSON.parse(userDataString);
+        if (userData.bio) setBio(userData.bio);
+
+        // Only use AsyncStorage avatar if no Supabase avatar
+        if (userData.avatar && !avatar.value) {
+          setAvatar(userData.avatar);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading user data:', error);
+    }
+  }, []);
+
+  // Load data on mount
+  useEffect(() => {
+    loadUserData();
+  }, [loadUserData]);
+
+  // Reload data when screen is focused (after coming back from another screen)
+  useFocusEffect(
+    useCallback(() => {
+      loadUserData();
+    }, [loadUserData])
+  );
 
   const handleSave = async () => {
     if (!name || !email) {
@@ -28,23 +89,80 @@ export default function EditProfile() {
       return;
     }
 
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      Alert.alert('Error', 'User tidak terautentikasi');
+      return;
+    }
+
     try {
-      // Simulasi save data
+      // Ensure user exists in Supabase (sync from Firebase)
+      const userEmail = currentUser.email || 'unknown@email.com';
+      const userResult = await UserService.ensureUserExists(
+        currentUser.uid,
+        userEmail,
+        name
+      );
+
+      if (userResult.error) {
+        console.error('❌ Error ensuring user exists:', userResult.error);
+        Alert.alert('Error', 'Gagal menyinkronkan data user: ' + userResult.error);
+        return;
+      }
+
+      console.log('✅ User exists in database');
+
+      // Check if avatar is a NEW image (local file URI, not http URL)
+      const isNewAvatar = avatar.type === 'image' && avatar.value && !avatar.value.startsWith('http');
+
+      if (isNewAvatar) {
+        console.log('📤 Uploading new avatar to Supabase...');
+        console.log('Avatar URI:', avatar.value);
+
+        const uploadResult = await UserService.updateAvatar(currentUser.uid, avatar.value);
+
+        if (uploadResult.error) {
+          console.error('❌ Error uploading avatar:', uploadResult.error);
+          Alert.alert('Error', 'Gagal upload avatar: ' + uploadResult.error);
+          return; // Stop if avatar upload fails
+        }
+
+        console.log('✅ Avatar uploaded successfully');
+        console.log('✅ Avatar URL saved to database:', uploadResult.data?.avatar_url);
+      }
+
+      // Update user profile (name) in Supabase
+      console.log('💾 Updating user full_name in Supabase...');
+      const result = await UserService.updateUser(currentUser.uid, {
+        full_name: name,
+      });
+
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      console.log('✅ Profile updated successfully');
+
+      // Also save to AsyncStorage for local cache
       const userData = {
         name,
         email,
         bio,
+        avatar,
       };
-      
       await AsyncStorage.setItem('userData', JSON.stringify(userData));
-      
+
       Alert.alert('Berhasil', 'Profile berhasil diperbarui', [
         { text: 'OK', onPress: () => router.back() }
       ]);
-    } catch (error) {
-      console.error('Error saving profile:', error);
-      Alert.alert('Error', 'Gagal menyimpan profile');
+    } catch (error: any) {
+      console.error('❌ Error saving profile:', error);
+      Alert.alert('Error', error.message || 'Gagal menyimpan profile');
     }
+  };
+
+  const handleSelectAvatar = (selectedAvatar: AvatarOption) => {
+    setAvatar(selectedAvatar);
   };
 
   return (
@@ -66,10 +184,20 @@ export default function EditProfile() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Avatar Section */}
         <View style={styles.avatarSection}>
-          <View style={styles.avatarContainer}>
-            <Ionicons name="person" size={50} color="#ABE7B2" />
-          </View>
-          <TouchableOpacity style={styles.changeAvatarButton}>
+          <TouchableOpacity
+            style={styles.avatarContainer}
+            onPress={() => setShowAvatarPicker(true)}
+          >
+            {avatar.type === 'emoji' ? (
+              <Text style={styles.avatarEmoji}>{avatar.value}</Text>
+            ) : (
+              <Image source={{ uri: avatar.value }} style={styles.avatarImage} />
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.changeAvatarButton}
+            onPress={() => setShowAvatarPicker(true)}
+          >
             <Text style={styles.changeAvatarText}>Ubah Foto Profile</Text>
           </TouchableOpacity>
         </View>
@@ -133,6 +261,14 @@ export default function EditProfile() {
           <Text style={styles.saveButtonText}>Simpan Perubahan</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Avatar Picker Modal */}
+      <AvatarPicker
+        visible={showAvatarPicker}
+        onClose={() => setShowAvatarPicker(false)}
+        onSelectAvatar={handleSelectAvatar}
+        currentAvatar={avatar}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -178,6 +314,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
+    overflow: 'hidden',
+  },
+  avatarEmoji: {
+    fontSize: 50,
+  },
+  avatarImage: {
+    width: 100,
+    height: 100,
   },
   changeAvatarButton: {
     paddingVertical: 8,

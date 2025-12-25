@@ -23,6 +23,41 @@ interface UserUpdate {
 }
 
 export class UserService {
+  // Create or get user (sync Firebase user to Supabase)
+  static async ensureUserExists(userId: string, email: string, fullName?: string) {
+    try {
+      // Check if user exists
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (existingUser) {
+        return { data: existingUser as UserRow, error: null };
+      }
+
+      // Create new user if doesn't exist
+      const { data, error } = await supabase
+        .from('users')
+        .insert({
+          id: userId,
+          email: email,
+          full_name: fullName || email.split('@')[0],
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return { data: data as UserRow, error: null };
+    } catch (error: any) {
+      console.error('Error ensuring user exists:', error);
+      return { data: null, error: error.message };
+    }
+  }
+
   // Get user by ID
   static async getUserById(userId: string) {
     try {

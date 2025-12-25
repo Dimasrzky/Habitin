@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import { useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
+    ActivityIndicator,
     Alert,
     FlatList,
     Image,
@@ -12,14 +14,23 @@ import {
     View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { auth } from '../../src/config/firebase.config';
+import { CommunityService } from '../../src/services/database/community.service';
+import { CommunityPostWithUser, ReactionType } from '../../src/types/community.types';
 
 // =====================================================
 // TYPESCRIPT INTERFACES & TYPES
 // =====================================================
 
-type PostType = 'progress' | 'tips' | 'photo';
-type ReactionType = 'like' | 'support' | 'celebrate';
+type PostType = 'progress' | 'tips' | 'photo' | 'story';
 
+interface FilterOption {
+    id: string;
+    label: string;
+    value: PostType | 'all';
+}
+
+// Transform CommunityPostWithUser to match UI expected format
 interface CommunityPost {
     id: string;
     userId: string;
@@ -32,10 +43,10 @@ interface CommunityPost {
     metrics?: {
         steps?: number;
         calories?: number;
-        distance?: number; // km
-        duration?: number; // minutes
+        distance?: number;
+        duration?: number;
     };
-    image?: string; // URL or require() for local
+    image?: string;
     reactions: {
         likes: number;
         supports: number;
@@ -44,145 +55,14 @@ interface CommunityPost {
     userReaction?: ReactionType;
 }
 
-interface FilterOption {
-    id: string;
-    label: string;
-    value: PostType | 'all';
-}
-
-// =====================================================
-// MOCK DATA
-// =====================================================
-
-const MOCK_POSTS: CommunityPost[] = [
-    {
-        id: '1',
-        userId: 'user_001',
-        userName: 'Sarah Wijaya',
-        userLevel: 12,
-        postType: 'progress',
-        content: 'Yeay! Akhirnya menyelesaikan 7-Day Walking Challenge! Ternyata jalan kaki rutin bikin badan lebih segar dan tidur jadi lebih nyenyak. Next target: 10K steps per day! 💪',
-        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 jam lalu
-        metrics: {
-            steps: 12500,
-            calories: 450,
-            distance: 8.2,
-            duration: 95,
-        },
-        reactions: {
-            likes: 24,
-            supports: 18,
-            celebrates: 12,
-        },
-        userReaction: 'like',
-    },
-    {
-        id: '2',
-        userId: 'user_002',
-        userName: 'Budi Santoso',
-        userLevel: 8,
-        postType: 'tips',
-        content: '5 Cara Menjaga Gula Darah Tetap Stabil:\n\n1. Makan teratur 3x sehari dengan porsi seimbang\n2. Pilih karbohidrat kompleks (nasi merah, oat)\n3. Perbanyak serat dari sayur dan buah\n4. Minum air putih minimal 8 gelas/hari\n5. Olahraga ringan 30 menit setiap hari\n\nYuk konsisten jaga kesehatan! 🌟',
-        timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000), // 5 jam lalu
-        reactions: {
-            likes: 45,
-            supports: 32,
-            celebrates: 8,
-        },
-    },
-    {
-        id: '3',
-        userId: 'user_003',
-        userName: 'Dina Putri',
-        userLevel: 15,
-        postType: 'photo',
-        content: 'Meal prep minggu ini! Menu sehat untuk kontrol kolesterol. Protein dari ayam kampung, sayur warna-warni, dan karbohidrat dari ubi 🥗✨',
-        timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000), // 8 jam lalu
-        image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800',
-        reactions: {
-            likes: 67,
-            supports: 23,
-            celebrates: 15,
-        },
-        userReaction: 'celebrate',
-    },
-    {
-        id: '4',
-        userId: 'user_004',
-        userName: 'Andi Pratama',
-        userLevel: 10,
-        postType: 'progress',
-        content: 'Morning run hari ini! Rute baru di taman kota, udaranya segar banget. Target 5K tercapai dengan pace yang lebih baik dari minggu lalu 🏃‍♂️',
-        timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000), // 12 jam lalu
-        metrics: {
-            steps: 7800,
-            calories: 320,
-            distance: 5.0,
-            duration: 35,
-        },
-        reactions: {
-            likes: 31,
-            supports: 19,
-            celebrates: 22,
-        },
-    },
-    {
-        id: '5',
-        userId: 'user_005',
-        userName: 'Maya Kusuma',
-        userLevel: 18,
-        postType: 'tips',
-        content: 'Kenapa Tidur Cukup Penting untuk Diabetes Prevention?\n\nTernyata kurang tidur bisa:\n- Meningkatkan resistensi insulin\n- Bikin kita lebih sering ngemil\n- Menurunkan metabolisme tubuh\n- Meningkatkan hormon stress\n\nUsahakan tidur 7-8 jam setiap malam ya! Good sleep = good health 😴💚',
-        timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 hari lalu
-        reactions: {
-            likes: 89,
-            supports: 45,
-            celebrates: 12,
-        },
-        userReaction: 'support',
-    },
-    {
-        id: '6',
-        userId: 'user_006',
-        userName: 'Rian Hidayat',
-        userLevel: 14,
-        postType: 'photo',
-        content: 'Workout hari ke-30! Dari yang awalnya cuma bisa 10 push-up, sekarang udah bisa 30! Konsistensi adalah kunci 💪🔥',
-        timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 hari lalu
-        image: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=800',
-        reactions: {
-            likes: 52,
-            supports: 38,
-            celebrates: 29,
-        },
-    },
-    {
-        id: '7',
-        userId: 'user_007',
-        userName: 'Lisa Anggraini',
-        userLevel: 9,
-        postType: 'progress',
-        content: 'Weekly achievement unlocked! Total 65K steps minggu ini, naik 20% dari minggu lalu. Keep moving, keep healthy! 🚶‍♀️✨',
-        timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 hari lalu
-        metrics: {
-            steps: 65000,
-            calories: 2100,
-            distance: 42.5,
-            duration: 480,
-        },
-        reactions: {
-            likes: 76,
-            supports: 42,
-            celebrates: 35,
-        },
-    },
-];
+// Note: MOCK_POSTS removed - now using dynamic data from database
 
 const FILTER_OPTIONS: FilterOption[] = [
     { id: '1', label: 'Semua', value: 'all' },
-    { id: '2', label: 'Progress', value: 'progress' },
-    { id: '3', label: 'Tips & Trick', value: 'tips' },
-    { id: '4', label: 'Foto', value: 'photo' },
+    { id: '2', label: 'Cerita', value: 'story' },
+    { id: '3', label: 'Progress', value: 'progress' },
+    { id: '4', label: 'Tips & Trick', value: 'tips' },
+    { id: '5', label: 'Foto', value: 'photo' },
 ];
 
 // =====================================================
@@ -190,11 +70,81 @@ const FILTER_OPTIONS: FilterOption[] = [
 // =====================================================
 
 export default function CommunityScreen() {
+    const router = useRouter();
+
     // State Management
     const [selectedFilter, setSelectedFilter] = useState<PostType | 'all'>('all');
-    const [posts, setPosts] = useState<CommunityPost[]>(MOCK_POSTS);
+    const [posts, setPosts] = useState<CommunityPost[]>([]);
     const [refreshing, setRefreshing] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
+
+    // =====================================================
+    // DATA FETCHING
+    // =====================================================
+
+    // Transform API data to UI format
+    const transformPostData = (apiPost: CommunityPostWithUser): CommunityPost => {
+        return {
+            id: apiPost.id,
+            userId: apiPost.user_id,
+            userName: apiPost.user?.full_name || 'Anonymous',
+            userAvatar: apiPost.user?.avatar_url || undefined,
+            userLevel: 1, // TODO: Get from user profile
+            postType: apiPost.post_type as PostType,
+            content: apiPost.content,
+            timestamp: new Date(apiPost.created_at),
+            metrics: apiPost.metrics || undefined,
+            image: apiPost.image_url || undefined,
+            reactions: {
+                likes: apiPost.reactions_count.likes,
+                supports: apiPost.reactions_count.supports,
+                celebrates: apiPost.reactions_count.celebrates,
+            },
+            userReaction: apiPost.user_reaction || undefined,
+        };
+    };
+
+    // Fetch posts from database
+    const fetchPosts = useCallback(async () => {
+        const currentUser = auth.currentUser;
+        if (!currentUser) {
+            setLoading(false);
+            return;
+        }
+
+        try {
+            console.log('🔄 Fetching community posts...');
+
+            let result;
+            if (selectedFilter === 'all') {
+                result = await CommunityService.getAllPosts(currentUser.uid);
+            } else {
+                result = await CommunityService.getPostsByType(
+                    currentUser.uid,
+                    selectedFilter
+                );
+            }
+
+            if (result.error) {
+                throw new Error(result.error);
+            }
+
+            const transformedPosts = result.data.map(transformPostData);
+            setPosts(transformedPosts);
+            console.log('✅ Posts loaded:', transformedPosts.length);
+        } catch (error: any) {
+            console.error('❌ Error fetching posts:', error);
+            Alert.alert('Error', 'Gagal memuat postingan');
+        } finally {
+            setLoading(false);
+        }
+    }, [selectedFilter]);
+
+    // Initial load
+    useEffect(() => {
+        fetchPosts();
+    }, [fetchPosts]);
 
     // =====================================================
     // HELPER FUNCTIONS
@@ -222,21 +172,24 @@ export default function CommunityScreen() {
     };
 
     // Handle pull to refresh
-    const onRefresh = () => {
+    const onRefresh = useCallback(async () => {
         setRefreshing(true);
-        // Simulate API call
-        setTimeout(() => {
-            setRefreshing(false);
-        }, 1500);
-    };
+        await fetchPosts();
+        setRefreshing(false);
+    }, [fetchPosts]);
 
-    // Filter posts based on selected filter
-    const filteredPosts = selectedFilter === 'all'
-        ? posts
-        : posts.filter(post => post.postType === selectedFilter);
+    // Filter posts (already filtered by API, but keep for consistency)
+    const filteredPosts = posts;
 
-    // Handle reaction toggle
-    const handleReaction = (postId: string, reactionType: ReactionType) => {
+    // Handle reaction toggle with API
+    const handleReaction = async (postId: string, reactionType: ReactionType) => {
+        const currentUser = auth.currentUser;
+        if (!currentUser) {
+            Alert.alert('Error', 'User tidak terautentikasi');
+            return;
+        }
+
+        // Optimistic update
         setPosts(prevPosts =>
             prevPosts.map(post => {
                 if (post.id !== postId) return post;
@@ -244,12 +197,10 @@ export default function CommunityScreen() {
                 const reactions = { ...post.reactions };
                 const currentReaction = post.userReaction;
 
-                // Remove previous reaction if exists
                 if (currentReaction) {
                     reactions[`${currentReaction}s` as keyof typeof reactions]--;
                 }
 
-                // If clicking the same reaction, remove it
                 if (currentReaction === reactionType) {
                     return {
                         ...post,
@@ -258,7 +209,6 @@ export default function CommunityScreen() {
                     };
                 }
 
-                // Add new reaction
                 reactions[`${reactionType}s` as keyof typeof reactions]++;
                 return {
                     ...post,
@@ -267,6 +217,23 @@ export default function CommunityScreen() {
                 };
             })
         );
+
+        // Update in database
+        try {
+            const result = await CommunityService.toggleReaction(
+                postId,
+                currentUser.uid,
+                reactionType
+            );
+
+            if (result.error) {
+                // Revert on error
+                await fetchPosts();
+                throw new Error(result.error);
+            }
+        } catch (error: any) {
+            console.error('Error toggling reaction:', error);
+        }
     };
 
     // Handle share post
@@ -293,20 +260,71 @@ export default function CommunityScreen() {
         });
     };
 
-    // Handle add post
+    // Handle add post - navigate to create post screen
     const handleAddPost = () => {
-        Alert.alert('Buat Postingan', 'Fitur buat postingan akan segera hadir!');
+        router.push('/screens/community/CreatePost' as any);
     };
 
     // Handle post menu
-    const handlePostMenu = (postId: string) => {
+    const handlePostMenu = (postId: string, postUserId: string) => {
+        const currentUser = auth.currentUser;
+        const isOwner = currentUser?.uid === postUserId;
+
+        const menuOptions: any[] = [
+            { text: 'Laporkan', onPress: () => console.log('Report:', postId) },
+        ];
+
+        if (isOwner) {
+            menuOptions.unshift({
+                text: 'Hapus',
+                onPress: () => handleDeletePost(postId),
+                style: 'destructive',
+            });
+        } else {
+            menuOptions.push({
+                text: 'Sembunyikan',
+                onPress: () => console.log('Hide:', postId),
+            });
+        }
+
+        menuOptions.push({ text: 'Batal', style: 'cancel' });
+
+        Alert.alert('Opsi', 'Pilih aksi untuk postingan ini', menuOptions);
+    };
+
+    // Handle delete post
+    const handleDeletePost = async (postId: string) => {
+        const currentUser = auth.currentUser;
+        if (!currentUser) return;
+
         Alert.alert(
-            'Opsi',
-            'Pilih aksi untuk postingan ini',
+            'Hapus Postingan',
+            'Apakah Anda yakin ingin menghapus postingan ini?',
             [
-                { text: 'Laporkan', onPress: () => console.log('Report:', postId) },
-                { text: 'Sembunyikan', onPress: () => console.log('Hide:', postId) },
                 { text: 'Batal', style: 'cancel' },
+                {
+                    text: 'Hapus',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            const result = await CommunityService.deletePost(
+                                postId,
+                                currentUser.uid
+                            );
+
+                            if (result.error) {
+                                throw new Error(result.error);
+                            }
+
+                            // Remove from local state
+                            setPosts(prev => prev.filter(p => p.id !== postId));
+                            Alert.alert('Berhasil', 'Postingan telah dihapus');
+                        } catch (error: any) {
+                            console.error('Error deleting post:', error);
+                            Alert.alert('Error', 'Gagal menghapus postingan');
+                        }
+                    },
+                },
             ]
         );
     };
@@ -316,34 +334,39 @@ export default function CommunityScreen() {
     // =====================================================
 
     const renderFilterPills = () => (
-        <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            className="px-4 py-4"
-            contentContainerStyle={{ gap: 8 }}
-        >
-            {FILTER_OPTIONS.map(filter => {
-                const isActive = selectedFilter === filter.value;
-                return (
-                    <Pressable
-                        key={filter.id}
-                        onPress={() => setSelectedFilter(filter.value)}
-                        className={`px-4 py-4 rounded-full border ${isActive
-                            ? 'bg-[#ABE7B2] border-[#ABE7B2]'
-                            : 'bg-white border-[#E5E7EB]'
-                            }`}
-                        style={{ opacity: 1 }}
-                    >
-                        <Text
-                            className={`text-sm font-medium ${isActive ? 'text-black' : 'text-[#6B7280]'
+        <View className="bg-white border-b border-[#F3F4F6]">
+            <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                className="px-4 py-2.5"
+                contentContainerStyle={{ gap: 6, paddingRight: 16 }}
+            >
+                {FILTER_OPTIONS.map(filter => {
+                    const isActive = selectedFilter === filter.value;
+                    return (
+                        <Pressable
+                            key={filter.id}
+                            onPress={() => setSelectedFilter(filter.value)}
+                            className={`px-4 py-3 rounded-lg ${isActive
+                                ? 'bg-[#ABE7B2]'
+                                : 'bg-[#F9FAFB]'
                                 }`}
+                            style={({ pressed }) => ({
+                                opacity: pressed ? 0.7 : 1,
+                                transform: [{ scale: pressed ? 0.97 : 1 }]
+                            })}
                         >
-                            {filter.label}
-                        </Text>
-                    </Pressable>
-                );
-            })}
-        </ScrollView>
+                            <Text
+                                className={`text-x font-semibold ${isActive ? 'text-black' : 'text-[#6B7280]'
+                                    }`}
+                            >
+                                {filter.label}
+                            </Text>
+                        </Pressable>
+                    );
+                })}
+            </ScrollView>
+        </View>
     );
 
     // =====================================================
@@ -363,10 +386,24 @@ export default function CommunityScreen() {
                 <View className="flex-row items-center justify-between p-4 pb-3">
                     <View className="flex-row items-center flex-1">
                         {/* Avatar */}
-                        <View className="w-10 h-10 rounded-full bg-[#ECF4E8] items-center justify-center mr-3">
-                            <Text className="text-base font-bold text-[#ABE7B2]">
-                                {post.userName.charAt(0)}
-                            </Text>
+                        <View className="mr-3">
+                            {post.userAvatar ? (
+                                <Image
+                                    source={{ uri: post.userAvatar }}
+                                    className="w-10 h-10 rounded-full"
+                                    style={{
+                                        backgroundColor: '#ECF4E8',
+                                        borderWidth: 2,
+                                        borderColor: '#ABE7B2'
+                                    }}
+                                />
+                            ) : (
+                                <View className="w-10 h-10 rounded-full bg-[#ECF4E8] items-center justify-center border-2 border-[#ABE7B2]">
+                                    <Text className="text-base font-bold text-[#ABE7B2]">
+                                        {post.userName.charAt(0).toUpperCase()}
+                                    </Text>
+                                </View>
+                            )}
                         </View>
 
                         {/* User info */}
@@ -390,7 +427,7 @@ export default function CommunityScreen() {
 
                     {/* Menu button */}
                     <Pressable
-                        onPress={() => handlePostMenu(post.id)}
+                        onPress={() => handlePostMenu(post.id, post.userId)}
                         className="p-1"
                         style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
                     >
@@ -487,6 +524,34 @@ export default function CommunityScreen() {
                             <Text className="text-sm text-black leading-5 mb-3">
                                 {post.content}
                             </Text>
+                            {post.image && (
+                                <Pressable
+                                    onPress={() => Alert.alert('Image Viewer', 'Full screen image view coming soon!')}
+                                    className="mb-3"
+                                >
+                                    <Image
+                                        source={{ uri: post.image }}
+                                        className="w-full h-48 rounded-xl"
+                                        resizeMode="cover"
+                                    />
+                                </Pressable>
+                            )}
+                        </>
+                    )}
+
+                    {/* Story Post Type */}
+                    {post.postType === 'story' && (
+                        <>
+                            <Text className="text-sm text-black leading-5 mb-3">
+                                {displayContent}
+                            </Text>
+                            {shouldTruncate && (
+                                <Pressable onPress={() => toggleExpandPost(post.id)}>
+                                    <Text className="text-sm text-[#ABE7B2] font-medium mb-3">
+                                        {isExpanded ? 'Sembunyikan' : 'Baca Selengkapnya'}
+                                    </Text>
+                                </Pressable>
+                            )}
                             {post.image && (
                                 <Pressable
                                     onPress={() => Alert.alert('Image Viewer', 'Full screen image view coming soon!')}
@@ -620,7 +685,7 @@ export default function CommunityScreen() {
                         className="w-10 h-10 items-center justify-center"
                         style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
                     >
-                        <Ionicons name="add-circle-outline" size={28} color="#ABE7B2" />
+                        <Ionicons name="add-circle-outline" size={28} color="#50e361ff" />
                     </Pressable>
                 </View>
             </View>
@@ -629,22 +694,29 @@ export default function CommunityScreen() {
             {renderFilterPills()}
 
             {/* COMMUNITY FEED */}
-            <FlatList
-                data={filteredPosts}
-                renderItem={renderPostCard}
-                keyExtractor={item => item.id}
-                contentContainerStyle={{ paddingTop: 8, paddingBottom: 24 }}
-                showsVerticalScrollIndicator={false}
-                refreshControl={
-                    <RefreshControl
-                        refreshing={refreshing}
-                        onRefresh={onRefresh}
-                        tintColor="#ABE7B2"
-                        colors={['#ABE7B2']}
-                    />
-                }
-                ListEmptyComponent={renderEmptyState()}
-            />
+            {loading ? (
+                <View className="flex-1 items-center justify-center">
+                    <ActivityIndicator size="large" color="#ABE7B2" />
+                    <Text className="text-sm text-[#6B7280] mt-3">Memuat postingan...</Text>
+                </View>
+            ) : (
+                <FlatList
+                    data={filteredPosts}
+                    renderItem={renderPostCard}
+                    keyExtractor={item => item.id}
+                    contentContainerStyle={{ paddingTop: 8, paddingBottom: 24 }}
+                    showsVerticalScrollIndicator={false}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={onRefresh}
+                            tintColor="#ABE7B2"
+                            colors={['#ABE7B2']}
+                        />
+                    }
+                    ListEmptyComponent={renderEmptyState()}
+                />
+            )}
         </SafeAreaView>
     );
 }

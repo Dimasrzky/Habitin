@@ -478,6 +478,9 @@ export default function HomeScreen() {
     checkAndShowModal();
   }, [userLoading, dashboardLoading, dashboardData]);
 
+  // Note: Manual refresh via pull-to-refresh is preferred to avoid infinite loops
+  // User can swipe down to refresh challenge data after completing tasks
+
   // ===== Handlers =====
 
   const handleUploadNow = async () => {
@@ -513,17 +516,23 @@ export default function HomeScreen() {
     // Navigation logic
     switch (label) {
       case 'Custom Reminder':
-        router.push('/screens/customReminder' as any  );
+        router.push('/screens/customReminder' as any);
         break;
       case 'Tracker Rutin':
-        // TODO: Navigate to tracker
-        alert(`Fitur "${label}" belum diimplementasikan`);
+        router.push('/screens/trackerRutin' as any);
         break;
       case 'Artikel Kesehatan':
-        // TODO: Navigate to articles
-        router.push('/screens/artikelKesehatan' as any  );
+        router.push('/screens/artikelKesehatan' as any);
         break;
-      // ... other cases
+      case 'Chatbot':
+        router.push('/screens/chatbot' as any);
+        break;
+      case 'Arsip Lab':
+        router.push('/screens/arsipLab' as any);
+        break;
+      case 'Lab Terdekat':
+        router.push('/screens/labTerdekat' as any);
+        break;
       default:
         alert(`Fitur "${label}" belum diimplementasikan`);
     }
@@ -791,77 +800,170 @@ export default function HomeScreen() {
 
         {/* ==================== ACTIVE CHALLENGE ==================== */}
         {dashboardData?.activeChallenge && (
-          <Card>
-            <View style={{ marginBottom: 12 }}>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: 8,
-                }}
-              >
-                <Text style={{ fontSize: 14, fontWeight: '600', color: '#000000' }}>
-                  {dashboardData.activeChallenge.title}
-                </Text>
-                <Text style={{ fontSize: 12, fontWeight: '500', color: '#6B7280' }}>
-                  {dashboardData.activeChallenge.progress}%
-                </Text>
+          <Pressable
+            onPress={() => router.push('/screens/gameChallange/challangeDetail?challengeId=' + dashboardData.activeChallenge?.id as any)}
+            style={({ pressed }) => ({ opacity: pressed ? 0.95 : 1 })}
+          >
+            <Card>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                  <View
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 20,
+                      backgroundColor: '#ECF4E8',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      marginRight: 12,
+                    }}
+                  >
+                    <Ionicons name="trophy" size={20} color="#ABE7B2" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#000000', marginBottom: 2 }}>
+                      Tantangan Aktif
+                    </Text>
+                    <Text style={{ fontSize: 12, color: '#6B7280' }} numberOfLines={1}>
+                      {dashboardData.activeChallenge.title}
+                    </Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
               </View>
-              <View
-                style={{
-                  backgroundColor: '#F3F4F6',
-                  borderRadius: 10,
-                  height: 8,
-                  overflow: 'hidden',
-                }}
-              >
+
+              <View style={{ marginBottom: 12 }}>
                 <View
                   style={{
-                    width: `${dashboardData.activeChallenge.progress}%`,
-                    backgroundColor: '#ABE7B2',
-                    height: 8,
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: 6,
                   }}
-                />
+                >
+                  <Text style={{ fontSize: 12, color: '#6B7280' }}>
+                    Progress
+                  </Text>
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: '#ABE7B2' }}>
+                    {dashboardData.activeChallenge.progress}%
+                  </Text>
+                </View>
+                <View
+                  style={{
+                    backgroundColor: '#F3F4F6',
+                    borderRadius: 10,
+                    height: 8,
+                    overflow: 'hidden',
+                  }}
+                >
+                  <View
+                    style={{
+                      width: `${dashboardData.activeChallenge.progress}%`,
+                      backgroundColor: '#ABE7B2',
+                      height: 8,
+                    }}
+                  />
+                </View>
               </View>
-            </View>
-            <Text style={{ fontSize: 12, color: '#6B7280' }}>
-              Hari ke-{dashboardData.activeChallenge.currentDay} dari{' '}
-              {dashboardData.activeChallenge.target}
-            </Text>
-          </Card>
+
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ fontSize: 12, color: '#6B7280' }}>
+                  Hari ke-{dashboardData.activeChallenge.currentDay} dari {dashboardData.activeChallenge.target}
+                </Text>
+                <Text style={{ fontSize: 12, fontWeight: '500', color: '#ABE7B2' }}>
+                  Tap untuk detail →
+                </Text>
+              </View>
+            </Card>
+          </Pressable>
         )}
 
         {/* ==================== CHALLENGE STATS ==================== */}
         {dashboardData?.challengeStats && (
-          <Card>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
-              <View style={{ alignItems: 'center' }}>
-                <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#ABE7B2' }}>
-                  {dashboardData.challengeStats.active}
+          <Pressable
+            onPress={() => router.push('/(tabs)/tantangan' as any)}
+            style={({ pressed }) => ({ opacity: pressed ? 0.95 : 1 })}
+          >
+            <Card>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <Text style={{ fontSize: 16, fontWeight: '600', color: '#000000' }}>
+                  Statistik Tantangan
                 </Text>
-                <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 4 }}>
-                  Aktif
+                <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
+              </View>
+
+              <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
+                <View style={{ alignItems: 'center' }}>
+                  <View
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: 24,
+                      backgroundColor: '#ECF4E8',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      marginBottom: 8,
+                    }}
+                  >
+                    <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#ABE7B2' }}>
+                      {dashboardData.challengeStats.active}
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: 12, color: '#6B7280' }}>
+                    Aktif
+                  </Text>
+                </View>
+
+                <View style={{ alignItems: 'center' }}>
+                  <View
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: 24,
+                      backgroundColor: '#E3F2FD',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      marginBottom: 8,
+                    }}
+                  >
+                    <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#93BFC7' }}>
+                      {dashboardData.challengeStats.completed}
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: 12, color: '#6B7280' }}>
+                    Selesai
+                  </Text>
+                </View>
+
+                <View style={{ alignItems: 'center' }}>
+                  <View
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: 24,
+                      backgroundColor: '#F3F4F6',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      marginBottom: 8,
+                    }}
+                  >
+                    <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#374151' }}>
+                      {dashboardData.challengeStats.total}
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: 12, color: '#6B7280' }}>
+                    Total
+                  </Text>
+                </View>
+              </View>
+
+              <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#F3F4F6' }}>
+                <Text style={{ fontSize: 12, color: '#ABE7B2', textAlign: 'center', fontWeight: '500' }}>
+                  Tap untuk lihat semua tantangan →
                 </Text>
               </View>
-              <View style={{ alignItems: 'center' }}>
-                <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#93BFC7' }}>
-                  {dashboardData.challengeStats.completed}
-                </Text>
-                <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 4 }}>
-                  Selesai
-                </Text>
-              </View>
-              <View style={{ alignItems: 'center' }}>
-                <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#374151' }}>
-                  {dashboardData.challengeStats.total}
-                </Text>
-                <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 4 }}>
-                  Total
-                </Text>
-              </View>
-            </View>
-          </Card>
+            </Card>
+          </Pressable>
         )}
 
         {/* ==================== DAILY MISSION ==================== */}

@@ -1,5 +1,3 @@
-import { decode } from 'base64-arraybuffer';
-import { readAsStringAsync } from 'expo-file-system/legacy';
 import { auth } from '../../config/firebase.config';
 import { supabaseStorage } from '../../config/supabase.storage';
 
@@ -28,14 +26,21 @@ export const uploadLabImage = async (
       throw new Error('User ID mismatch - security violation');
     }
 
-    // Read file as base64
-    const base64 = await readAsStringAsync(fileUri, {
-      encoding: 'base64',
-    });
-    console.log('✅ File read as base64, length:', base64.length);
+    // Read file as blob using fetch API
+    const response = await fetch(fileUri);
+    const blob = await response.blob();
+    console.log('✅ File read as blob, size:', blob.size);
 
-    // Decode to ArrayBuffer for upload
-    const arrayBuffer = decode(base64);
+    // Convert blob to ArrayBuffer for React Native compatibility
+    const arrayBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        resolve(reader.result as ArrayBuffer);
+      };
+      reader.onerror = reject;
+      reader.readAsArrayBuffer(blob);
+    });
+    console.log('✅ Converted to ArrayBuffer');
 
     // Generate unique filename
     const fileExt = fileUri.split('.').pop()?.toLowerCase() || 'jpg';
@@ -83,29 +88,31 @@ export const convertToBase64 = async (fileUri: string): Promise<string> => {
     console.log('🔄 Converting file to base64...');
     console.log('📄 File URI:', fileUri);
 
-    // Read file as base64
-    const base64 = await readAsStringAsync(fileUri, {
-      encoding: 'base64',
+    // Read file as blob using fetch API
+    const response = await fetch(fileUri);
+    const blob = await response.blob();
+
+    // Convert blob to base64
+    const base64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        // Remove data URI prefix (e.g., "data:image/jpeg;base64,")
+        const base64Data = result.split(',')[1];
+        resolve(base64Data);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
     });
 
     console.log('✅ Base64 conversion complete, length:', base64.length);
 
-    // ✅ CRITICAL: Remove data URI prefix if present
-    // expo-file-system/legacy should return clean base64, but let's be safe
-    let cleanBase64 = base64;
-    
-    if (base64.startsWith('data:')) {
-      console.log('⚠️ Found data URI prefix, removing...');
-      cleanBase64 = base64.split(',')[1];
-      console.log('✅ Cleaned base64, new length:', cleanBase64.length);
-    }
-
     // Verify base64 is valid (should not start with 'data:' or 'file://')
-    if (cleanBase64.startsWith('data:') || cleanBase64.startsWith('file://')) {
+    if (base64.startsWith('data:') || base64.startsWith('file://')) {
       throw new Error('Invalid base64 format: still contains prefix');
     }
 
-    return cleanBase64;
+    return base64;
   } catch (error: any) {
     console.error('❌ Error converting to base64:', error);
     throw new Error(`Failed to convert image: ${error.message}`);

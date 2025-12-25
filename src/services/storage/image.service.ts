@@ -1,4 +1,3 @@
-import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../../config/supabase.config';
 
@@ -21,24 +20,29 @@ export class ImageService {
   // Upload image ke Supabase Storage
   static async uploadAvatar(userId: string, uri: string) {
     try {
-      // Baca file sebagai base64
-      const base64 = await FileSystem.readAsStringAsync(uri, {
-        encoding: 'base64',
+      // Fetch image and convert to ArrayBuffer (React Native compatible)
+      const response = await fetch(uri);
+      const blob = await response.blob();
+
+      // Convert blob to ArrayBuffer for React Native compatibility
+      const arrayBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          resolve(reader.result as ArrayBuffer);
+        };
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(blob);
       });
 
       // Generate unique filename
-      const fileExt = uri.split('.').pop() || 'jpg';
+      const fileExt = uri.split('.').pop()?.toLowerCase() || 'jpg';
       const fileName = `${userId}-${Date.now()}.${fileExt}`;
       const filePath = `avatars/${fileName}`;
 
-      // Convert base64 to Blob untuk upload
-      const arrayBuffer = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-      const blob = new Blob([arrayBuffer], { type: `image/${fileExt}` });
-
-      // Upload ke Supabase Storage
+      // Upload ke Supabase Storage using ArrayBuffer
       const { error: uploadError } = await supabase.storage
         .from('user-uploads')
-        .upload(filePath, blob, {
+        .upload(filePath, arrayBuffer, {
           contentType: `image/${fileExt}`,
           upsert: true,
         });
