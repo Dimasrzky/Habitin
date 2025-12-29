@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { auth } from '../../src/config/firebase.config';
 import { CommunityService } from '../../src/services/database/community.service';
 import { CommunityPostWithUser, ReactionType } from '../../src/types/community.types';
+import { EVENTS, eventManager } from '../../src/utils/eventEmitter';
 
 // =====================================================
 // TYPESCRIPT INTERFACES & TYPES
@@ -76,7 +77,6 @@ export default function CommunityScreen() {
     const [selectedFilter, setSelectedFilter] = useState<PostType | 'all'>('all');
     const [posts, setPosts] = useState<CommunityPost[]>([]);
     const [refreshing, setRefreshing] = useState(false);
-    const [loading, setLoading] = useState(true);
     const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
 
     // =====================================================
@@ -84,13 +84,13 @@ export default function CommunityScreen() {
     // =====================================================
 
     // Transform API data to UI format
-    const transformPostData = (apiPost: CommunityPostWithUser): CommunityPost => {
+     const transformPostData = useCallback((apiPost: CommunityPostWithUser): CommunityPost => {
         return {
             id: apiPost.id,
             userId: apiPost.user_id,
             userName: apiPost.user?.full_name || 'Anonymous',
             userAvatar: apiPost.user?.avatar_url || undefined,
-            userLevel: 1, // TODO: Get from user profile
+            userLevel: 1,
             postType: apiPost.post_type as PostType,
             content: apiPost.content,
             timestamp: new Date(apiPost.created_at),
@@ -103,15 +103,10 @@ export default function CommunityScreen() {
             },
             userReaction: apiPost.user_reaction || undefined,
         };
-    };
-
-    // Fetch posts from database
+    }, []);
     const fetchPosts = useCallback(async () => {
         const currentUser = auth.currentUser;
-        if (!currentUser) {
-            setLoading(false);
-            return;
-        }
+        if (!currentUser) return;
 
         try {
             console.log('🔄 Fetching community posts...');
@@ -136,15 +131,22 @@ export default function CommunityScreen() {
         } catch (error: any) {
             console.error('❌ Error fetching posts:', error);
             Alert.alert('Error', 'Gagal memuat postingan');
-        } finally {
-            setLoading(false);
         }
-    }, [selectedFilter]);
+    }, [selectedFilter]); // 🔥 HANYA depend pada selectedFilter
 
-    // Initial load
+    // 🎯 Refresh ONCE on screen focus
+    useFocusEffect(
+        useCallback(() => {
+            console.log('🔄 Community screen focused - refreshing once');
+            fetchPosts();
+        }, [fetchPosts])
+    );
+
+    // Refresh saat filter berubah
     useEffect(() => {
+        console.log('🔄 Filter changed - fetching posts');
         fetchPosts();
-    }, [fetchPosts]);
+    }, [selectedFilter]);
 
     // =====================================================
     // HELPER FUNCTIONS
@@ -174,7 +176,7 @@ export default function CommunityScreen() {
     // Handle pull to refresh
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
-        await fetchPosts();
+        await fetchPosts(); // Langsung call fetchPosts
         setRefreshing(false);
     }, [fetchPosts]);
 
@@ -226,13 +228,13 @@ export default function CommunityScreen() {
                 reactionType
             );
 
-            if (result.error) {
-                // Revert on error
-                await fetchPosts();
+            if (result?.error) {
+                await fetchPosts(); // Revert on error
                 throw new Error(result.error);
             }
         } catch (error: any) {
             console.error('Error toggling reaction:', error);
+            await fetchPosts(); // Revert optimistic update
         }
     };
 
@@ -318,6 +320,10 @@ export default function CommunityScreen() {
 
                             // Remove from local state
                             setPosts(prev => prev.filter(p => p.id !== postId));
+                            
+                            // 🔔 EMIT EVENT
+                            eventManager.emit(EVENTS.POST_DELETED, { postId });
+                            
                             Alert.alert('Berhasil', 'Postingan telah dihapus');
                         } catch (error: any) {
                             console.error('Error deleting post:', error);
@@ -694,11 +700,8 @@ export default function CommunityScreen() {
             {renderFilterPills()}
 
             {/* COMMUNITY FEED */}
-            {loading ? (
-                <View className="flex-1 items-center justify-center">
-                    <ActivityIndicator size="large" color="#ABE7B2" />
-                    <Text className="text-sm text-[#6B7280] mt-3">Memuat postingan...</Text>
-                </View>
+            {!posts.length && !refreshing ? (
+                renderEmptyState()
             ) : (
                 <FlatList
                     data={filteredPosts}
@@ -714,7 +717,14 @@ export default function CommunityScreen() {
                             colors={['#ABE7B2']}
                         />
                     }
-                    ListEmptyComponent={renderEmptyState()}
+                    ListEmptyComponent={
+                        refreshing ? (
+                            <View className="flex-1 items-center justify-center py-16">
+                                <ActivityIndicator size="large" color="#ABE7B2" />
+                                <Text className="text-sm text-[#6B7280] mt-3">Memuat postingan...</Text>
+                            </View>
+                        ) : null
+                    }
                 />
             )}
         </SafeAreaView>

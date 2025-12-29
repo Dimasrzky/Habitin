@@ -1,9 +1,10 @@
 // app/screens/Profile/EditProfile.tsx
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter, useFocusEffect } from 'expo-router';
-import React, { useState, useEffect, useCallback } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
+  ActivityIndicator, // Tambahkan import ini
   Alert,
   Image,
   KeyboardAvoidingView,
@@ -27,6 +28,7 @@ export default function EditProfile() {
   const [bio, setBio] = useState('Saya senang hidup sehat!');
   const [avatar, setAvatar] = useState<AvatarOption>({ type: 'emoji', value: '😊' });
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+  const [isSaving, setIsSaving] = useState(false); // 🔥 ADD: Loading state
 
   // Load user data from Supabase and AsyncStorage
   const loadUserData = useCallback(async () => {
@@ -34,7 +36,6 @@ export default function EditProfile() {
       const currentUser = auth.currentUser;
 
       if (currentUser) {
-        // Load from Supabase first
         console.log('📥 Loading user data from Supabase...');
         const result = await UserService.getUserById(currentUser.uid);
 
@@ -43,40 +44,32 @@ export default function EditProfile() {
           setName(userData.full_name || '');
           setEmail(userData.email || currentUser.email || '');
 
-          // Set avatar if user has avatar_url in database
           if (userData.avatar_url) {
             setAvatar({ type: 'image', value: userData.avatar_url });
+          } else {
+            setAvatar({ type: 'emoji', value: '😊' });
           }
 
           console.log('✅ User data loaded from Supabase');
         } else {
-          // Fallback to email from Firebase Auth
           setEmail(currentUser.email || '');
         }
       }
 
-      // Also load from AsyncStorage for bio and other local data
       const userDataString = await AsyncStorage.getItem('userData');
       if (userDataString) {
         const userData = JSON.parse(userDataString);
         if (userData.bio) setBio(userData.bio);
-
-        // Only use AsyncStorage avatar if no Supabase avatar
-        if (userData.avatar && !avatar.value) {
-          setAvatar(userData.avatar);
-        }
       }
     } catch (error) {
       console.error('Error loading user data:', error);
     }
   }, []);
 
-  // Load data on mount
   useEffect(() => {
     loadUserData();
   }, [loadUserData]);
 
-  // Reload data when screen is focused (after coming back from another screen)
   useFocusEffect(
     useCallback(() => {
       loadUserData();
@@ -95,8 +88,10 @@ export default function EditProfile() {
       return;
     }
 
+    // 🔥 START LOADING
+    setIsSaving(true);
+
     try {
-      // Ensure user exists in Supabase (sync from Firebase)
       const userEmail = currentUser.email || 'unknown@email.com';
       const userResult = await UserService.ensureUserExists(
         currentUser.uid,
@@ -112,7 +107,6 @@ export default function EditProfile() {
 
       console.log('✅ User exists in database');
 
-      // Check if avatar is a NEW image (local file URI, not http URL)
       const isNewAvatar = avatar.type === 'image' && avatar.value && !avatar.value.startsWith('http');
 
       if (isNewAvatar) {
@@ -124,14 +118,13 @@ export default function EditProfile() {
         if (uploadResult.error) {
           console.error('❌ Error uploading avatar:', uploadResult.error);
           Alert.alert('Error', 'Gagal upload avatar: ' + uploadResult.error);
-          return; // Stop if avatar upload fails
+          return;
         }
 
         console.log('✅ Avatar uploaded successfully');
         console.log('✅ Avatar URL saved to database:', uploadResult.data?.avatar_url);
       }
 
-      // Update user profile (name) in Supabase
       console.log('💾 Updating user full_name in Supabase...');
       const result = await UserService.updateUser(currentUser.uid, {
         full_name: name,
@@ -143,7 +136,6 @@ export default function EditProfile() {
 
       console.log('✅ Profile updated successfully');
 
-      // Also save to AsyncStorage for local cache
       const userData = {
         name,
         email,
@@ -158,6 +150,9 @@ export default function EditProfile() {
     } catch (error: any) {
       console.error('❌ Error saving profile:', error);
       Alert.alert('Error', error.message || 'Gagal menyimpan profile');
+    } finally {
+      // 🔥 STOP LOADING (always executed)
+      setIsSaving(false);
     }
   };
 
@@ -187,6 +182,7 @@ export default function EditProfile() {
           <TouchableOpacity
             style={styles.avatarContainer}
             onPress={() => setShowAvatarPicker(true)}
+            disabled={isSaving} // 🔥 Disable saat loading
           >
             {avatar.type === 'emoji' ? (
               <Text style={styles.avatarEmoji}>{avatar.value}</Text>
@@ -197,8 +193,14 @@ export default function EditProfile() {
           <TouchableOpacity
             style={styles.changeAvatarButton}
             onPress={() => setShowAvatarPicker(true)}
+            disabled={isSaving} // 🔥 Disable saat loading
           >
-            <Text style={styles.changeAvatarText}>Ubah Foto Profile</Text>
+            <Text style={[
+              styles.changeAvatarText,
+              isSaving && { opacity: 0.5 } // 🔥 Visual feedback
+            ]}>
+              Ubah Foto Profile
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -215,6 +217,7 @@ export default function EditProfile() {
                 onChangeText={setName}
                 placeholder="Masukkan nama lengkap"
                 placeholderTextColor="#9CA3AF"
+                editable={!isSaving} // 🔥 Disable saat loading
               />
             </View>
           </View>
@@ -232,6 +235,7 @@ export default function EditProfile() {
                 placeholderTextColor="#9CA3AF"
                 keyboardType="email-address"
                 autoCapitalize="none"
+                editable={!isSaving} // 🔥 Disable saat loading
               />
             </View>
           </View>
@@ -249,6 +253,7 @@ export default function EditProfile() {
                 multiline
                 numberOfLines={4}
                 textAlignVertical="top"
+                editable={!isSaving} // 🔥 Disable saat loading
               />
             </View>
           </View>
@@ -257,8 +262,24 @@ export default function EditProfile() {
 
       {/* Save Button */}
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-          <Text style={styles.saveButtonText}>Simpan Perubahan</Text>
+        <TouchableOpacity 
+          style={[
+            styles.saveButton,
+            isSaving && styles.saveButtonDisabled // 🔥 Style saat loading
+          ]}
+          onPress={handleSave}
+          disabled={isSaving} // 🔥 Disable saat loading
+        >
+          {isSaving ? (
+            // 🔥 SHOW LOADING INDICATOR
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#1F2937" />
+              <Text style={styles.saveButtonText}>Menyimpan...</Text>
+            </View>
+          ) : (
+            // 🔥 SHOW NORMAL TEXT
+            <Text style={styles.saveButtonText}>Simpan Perubahan</Text>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -381,9 +402,17 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
   },
+  saveButtonDisabled: {
+    opacity: 0.6, // 🔥 Visual feedback saat loading
+  },
   saveButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1F2937',
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
 });

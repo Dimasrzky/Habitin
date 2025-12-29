@@ -1,199 +1,78 @@
+// src/utils/eventManager.ts
+
 type EventCallback = (data?: any) => void;
 
-interface EventMap {
-  [eventName: string]: EventCallback[];
-}
-
-class SimpleEventEmitter {
-  private events: EventMap = {};
+class EventManager {
+  private events: Map<string, Set<EventCallback>> = new Map();
 
   /**
-   * Subscribe to an event
-   * @param eventName - Name of the event
-   * @param callback - Function to call when event is emitted
+   * Subscribe ke event tertentu
    */
-  on(eventName: string, callback: EventCallback): void {
-    if (!this.events[eventName]) {
-      this.events[eventName] = [];
+  on(eventName: string, callback: EventCallback): () => void {
+    if (!this.events.has(eventName)) {
+      this.events.set(eventName, new Set());
     }
 
-    // Add callback to listeners array
-    this.events[eventName].push(callback);
+    this.events.get(eventName)!.add(callback);
+
+    // Return unsubscribe function
+    return () => {  
+      this.events.get(eventName)?.delete(callback);
+    };
   }
 
   /**
-   * Unsubscribe from an event
-   * @param eventName - Name of the event
-   * @param callback - Function to remove
-   */
-  off(eventName: string, callback: EventCallback): void {
-    if (!this.events[eventName]) {
-      console.warn(`⚠️ No listeners found for event: ${eventName}`);
-      return;
-    }
-
-    // Clean up if no listeners left
-    if (this.events[eventName].length === 0) {
-      delete this.events[eventName];
-    }
-  }
-
-  /**
-   * Emit an event
-   * @param eventName - Name of the event
-   * @param data - Data to pass to listeners
+   * Emit event ke semua subscribers
    */
   emit(eventName: string, data?: any): void {
-    if (!this.events[eventName]) {
-      return;
-    }
-
-    // Call all listeners
-    this.events[eventName].forEach((callback, index) => {
-      try {
-        callback(data);
-      } catch (error) {
-        console.error(`  ❌ Error in listener ${index + 1} for ${eventName}:`, error);
-      }
-    });
-  }
-
-  /**
-   * Remove all listeners for an event (or all events)
-   * @param eventName - Optional: specific event name to clear
-   */
-  removeAllListeners(eventName?: string): void {
-    if (eventName) {
-      const count = this.events[eventName]?.length || 0;
-      delete this.events[eventName];
-      console.log(`🧹 Removed all listeners for ${eventName} (count: ${count})`);
-    } else {
-      const totalCount = Object.values(this.events).reduce(
-        (sum, listeners) => sum + listeners.length,
-        0
-      );
-      this.events = {};
-      console.log(`🧹 Removed all event listeners (total: ${totalCount})`);
+    const callbacks = this.events.get(eventName);
+    if (callbacks) {
+      callbacks.forEach((callback) => {
+        try {
+          callback(data);
+        } catch (error) {
+          console.error(`Error in event listener for ${eventName}:`, error);
+        }
+      });
     }
   }
 
   /**
-   * Get listener count for an event
-   * @param eventName - Name of the event
-   * @returns Number of listeners
+   * Unsubscribe semua listeners untuk event tertentu
    */
-  listenerCount(eventName: string): number {
-    return this.events[eventName]?.length || 0;
+  off(eventName: string): void {
+    this.events.delete(eventName);
   }
 
   /**
-   * Get all registered event names
-   * @returns Array of event names
+   * Clear semua events
    */
-  eventNames(): string[] {
-    return Object.keys(this.events);
-  }
-
-  /**
-   * Check if event has listeners
-   * @param eventName - Name of the event
-   * @returns True if event has listeners
-   */
-  hasListeners(eventName: string): boolean {
-    return (this.events[eventName]?.length || 0) > 0;
-  }
-
-  /**
-   * Subscribe to an event (one-time only)
-   * @param eventName - Name of the event
-   * @param callback - Function to call when event is emitted (only once)
-   */
-  once(eventName: string, callback: EventCallback): void {
-    const onceWrapper: EventCallback = (data) => {
-      callback(data);
-      this.off(eventName, onceWrapper);
-    };
-
-    this.on(eventName, onceWrapper);
+  clear(): void {
+    this.events.clear();
   }
 }
 
-// ==================== SINGLETON INSTANCE ====================
+// Singleton instance
+export const eventManager = new EventManager();
 
-/**
- * Global instance for reminder events
- * Use this throughout your app
- */
-export const reminderEvents = new SimpleEventEmitter();
-
-// ==================== EVENT CONSTANTS ====================
-
-/**
- * Standard event names for reminder operations
- * Use these constants instead of string literals
- */
-export const REMINDER_EVENTS = {
-  CREATED: 'reminder:created',
-  UPDATED: 'reminder:updated',
-  DELETED: 'reminder:deleted',
-  TOGGLED: 'reminder:toggled',
-  REFRESH: 'reminder:refresh',
+// Event names constants untuk type safety
+export const EVENTS = {
+  // User events
+  USER_PROFILE_UPDATED: 'user:profile:updated',
+  USER_AVATAR_UPDATED: 'user:avatar:updated',
+  
+  // Community events
+  POST_CREATED: 'community:post:created',
+  POST_UPDATED: 'community:post:updated',
+  POST_DELETED: 'community:post:deleted',
+  COMMENT_ADDED: 'community:comment:added',
+  
+  // Challenge events
+  CHALLENGE_PROGRESS_UPDATED: 'challenge:progress:updated',
+  CHALLENGE_COMPLETED: 'challenge:completed',
+  CHALLENGE_STARTED: 'challenge:started',
+  
+  // Health data events
+  HEALTH_DATA_UPDATED: 'health:data:updated',
+  LAB_RESULT_ADDED: 'health:lab:added',
 } as const;
-
-// ==================== TYPESCRIPT TYPES ====================
-
-/**
- * Type for event names (for type safety)
- */
-export type ReminderEventType = typeof REMINDER_EVENTS[keyof typeof REMINDER_EVENTS];
-
-/**
- * Type for event data payloads
- */
-export interface ReminderEventData {
-  [REMINDER_EVENTS.CREATED]: {
-    id: string;
-    title: string;
-    reminder_time: string;
-  };
-  [REMINDER_EVENTS.UPDATED]: {
-    id: string;
-    updates: any;
-  };
-  [REMINDER_EVENTS.DELETED]: string; // Just the ID
-  [REMINDER_EVENTS.TOGGLED]: {
-    id: string;
-    active: boolean;
-  };
-  [REMINDER_EVENTS.REFRESH]: void;
-}
-
-// ==================== HELPER FUNCTIONS ====================
-
-/**
- * Typed event emitter wrapper for reminder events
- */
-export const emitReminderEvent = <K extends ReminderEventType>(
-  event: K,
-  data: ReminderEventData[K]
-): void => {
-  reminderEvents.emit(event, data);
-};
-
-/**
- * Typed event listener wrapper for reminder events
- */
-export const onReminderEvent = <K extends ReminderEventType>(
-  event: K,
-  callback: (data: ReminderEventData[K]) => void
-): void => {
-  reminderEvents.on(event, callback);
-};
-
-// ==================== EXPORT FOR TESTING ====================
-
-/**
- * Export the class for creating additional instances if needed
- */
-export { SimpleEventEmitter };
-

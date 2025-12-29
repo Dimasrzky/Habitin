@@ -17,6 +17,13 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, supabaseServi
   },
 }: undefined);
 
+export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+  },
+});
+
 // ✅ SYNC FIREBASE AUTH TO SUPABASE
 export const syncAuthToSupabase = async () => {
   try {

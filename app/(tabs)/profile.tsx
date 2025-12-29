@@ -1,17 +1,17 @@
 // app/(tabs)/profile.tsx
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useRouter, useFocusEffect } from 'expo-router';
-import React, { useEffect, useRef, useState, useCallback } from "react";
-import { Alert, Animated, Image, Pressable, ScrollView, StatusBar, Text, View, ActivityIndicator } from "react-native";
 import * as ImagePicker from 'expo-image-picker';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useRef, useState } from "react";
+import { ActivityIndicator, Alert, Animated, Image, Pressable, RefreshControl, ScrollView, StatusBar, Text, View } from "react-native";
+import { AvatarOption } from '../../components/AvatarPicker';
 import { auth } from '../../src/config/firebase.config';
 import { supabase } from '../../src/config/supabase.config';
 import { useUser } from '../../src/hooks/useUser';
+import { UserService } from '../../src/services/database/user.service';
 import { resetOnboardingStatus } from '../../src/services/onboarding/onboardingService';
 import { resetLabUploadStatus } from '../../src/utils/labUploadHelper';
-import { UserService } from '../../src/services/database/user.service';
-import { AvatarOption } from '../../components/AvatarPicker';
 
 // TypeScript Interfaces
 interface UserProfile {
@@ -127,36 +127,61 @@ export default function ProfileScreen() {
     const {user, loading: userLoading, error: userError, refetch} = useUser();
     const [uploadingAvatar, setUploadingAvatar] = useState(false);
     const [localAvatar, setLocalAvatar] = useState<AvatarOption | null>(null);
-
-    const currentUser = auth.currentUser;
-    const userName = user?.full_name || currentUser?.displayName || 'User';
-    const userEmail = user?.email || currentUser?.email || 'email';
-    const userAvatar = user?.avatar_url;
-
     const [healthData, setHealthData] = useState<HealthData | null>(null);
 
     // Animation refs
     const healthDataAnimation = useRef(new Animated.Value(0)).current;
     const healthDataRotation = useRef(new Animated.Value(0)).current;
 
+    const currentUser = auth.currentUser;
+    const userName = user?.full_name || currentUser?.displayName || 'User';
+    const userEmail = user?.email || currentUser?.email || 'email';
+    const userAvatar = user?.avatar_url;
+
     const calculateAge = (dob: string) => {
         const birthDate = new Date(dob);
         const today = new Date();
-
         let age = today.getFullYear() - birthDate.getFullYear();
         const monthDiff = today.getMonth() - birthDate.getMonth();
         const dayDiff = today.getDate() - birthDate.getDate();
-
-        // Jika belum ulang tahun di tahun berjalan → umur -1
         if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
             age--;
         }
-
         return age;
     };
 
-    const loadUserData = async () => {
+    const fetchAllData = useCallback(async () => {
         try {
+            const firebaseUser = auth.currentUser;
+            if (!firebaseUser) return;
+
+            console.log('📥 Loading profile data...');
+
+            // 1. Load health data
+            const { data: healthData, error: healthError } = await supabase
+                .from('onboarding_data')
+                .select('*')
+                .eq('user_id', firebaseUser.uid)
+                .single();
+
+            if (!healthError && healthData) {
+                const age = calculateAge(healthData.date_of_birth);
+                setHealthData({
+                    fullName: healthData.full_name,
+                    age: age,
+                    gender: healthData.gender,
+                    height: healthData.height_cm,
+                    weight: healthData.weight_kg,
+                    bmi: healthData.bmi,
+                    bloodType: healthData.blood_type,
+                    physicalActivity: healthData.exercise_frequency,
+                    dietPattern: healthData.diet_pattern,
+                    familyHistory: healthData.family_history,
+                    familyCondition: healthData.family_condition,
+                });
+            }
+
+            // 2. Load avatar from AsyncStorage
             const userDataString = await AsyncStorage.getItem('userData');
             if (userDataString) {
                 const userData = JSON.parse(userDataString);
@@ -164,70 +189,26 @@ export default function ProfileScreen() {
                     setLocalAvatar(userData.avatar);
                 }
             }
-        } catch (error) {
-            console.error('Error loading user data:', error);
-        }
-    };
 
-    const fetchHealthData = async () => {
-        try {
-            const firebaseId = auth.currentUser?.uid;
-
-            if (!firebaseId) {
-                console.warn("Firebase User ID tidak ditemukan");
-                return;
-            }
-
-            const { data, error } = await supabase
-                .from('onboarding_data')
+            // 3. Load user data from Supabase
+            const { data: userData, error: userError } = await supabase
+                .from('users')
                 .select('*')
-                .eq('user_id', firebaseId)
+                .eq('id', firebaseUser.uid)
                 .single();
 
-            if (error) {
-                console.error("Supabase Error:", error);
-                return;
+            if (!userError && userData) {
+                // Update useUser hook state jika perlu
+                // (Atau bisa call refetch() di sini kalau memang perlu)
             }
 
-            if (!data) {
-                console.warn("Data health tidak ditemukan di Supabase");
-                return;
-            }
-
-            const age = calculateAge(data.date_of_birth);
-
-            setHealthData({
-                fullName: data.full_name,
-                age: age,
-                gender: data.gender,
-                height: data.height_cm,
-                weight: data.weight_kg,
-                bmi: data.bmi,
-                bloodType: data.blood_type,
-                physicalActivity: data.exercise_frequency,
-                dietPattern: data.diet_pattern,
-                familyHistory: data.family_history,
-                familyCondition: data.family_condition,
-            });
-        } catch (err) {
-            console.error("Unexpected error:", err);
+            console.log('✅ Profile data loaded');
+        } catch (error) {
+            console.error('Error loading data:', error);
         }
-    };
-
-    useEffect(() => {
-        fetchHealthData();
-        loadUserData();
     }, []);
-
-    // Reload avatar when screen is focused (after coming back from EditProfile)
-    useFocusEffect(
-        useCallback(() => {
-            loadUserData();
-        }, [])
-    );
-
-    // Animate health data dropdown
-    useEffect(() => {
+    
+    React.useEffect(() => {
         Animated.parallel([
             Animated.timing(healthDataAnimation, {
                 toValue: healthDataExpanded ? 1 : 0,
@@ -241,6 +222,22 @@ export default function ProfileScreen() {
             }),
         ]).start();
     }, [healthDataExpanded, healthDataAnimation, healthDataRotation]);
+
+    // 🎯 ONLY refresh on focus, ONCE per focus
+    useFocusEffect(
+        useCallback(() => {
+            console.log('🔄 Screen focused - refreshing once');
+            fetchAllData();
+        }, [fetchAllData])
+    );
+
+    // Manual refresh for pull-to-refresh
+    const [manualRefreshing, setManualRefreshing] = useState(false);
+    const handleManualRefresh = async () => {
+        setManualRefreshing(true);
+        await fetchAllData();
+        setManualRefreshing(false);
+    };
 
     const bmiStatus = healthData ? getBMIStatus(healthData.bmi) : null
 
@@ -625,6 +622,14 @@ export default function ProfileScreen() {
             <ScrollView
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 32 }}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={manualRefreshing}
+                        onRefresh={handleManualRefresh}
+                        tintColor="#ABE7B2"
+                        colors={['#ABE7B2']}
+                    />
+                }
             >
                 {/* Profile Info Card */}
                 <Card>
@@ -1203,5 +1208,5 @@ export default function ProfileScreen() {
                 </Pressable>
             </ScrollView>
         </View>
-    )
+    );
 }

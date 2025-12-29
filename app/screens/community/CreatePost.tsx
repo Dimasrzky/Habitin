@@ -19,7 +19,6 @@ import {
 } from 'react-native';
 import { auth } from '../../../src/config/firebase.config';
 import { CommunityService } from '../../../src/services/database/community.service';
-import { UserService } from '../../../src/services/database/user.service';
 import { PostType } from '../../../src/types/community.types';
 
 interface PostTypeOption {
@@ -67,7 +66,15 @@ export default function CreatePostScreen() {
     distance: '',
     duration: '',
   });
-  const [uploading, setUploading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false); // 🔥 FIX: Tambahkan state ini
+
+  // 🔥 FIX: Helper function untuk cek metrics
+  const hasMetrics = () => {
+    return metrics.steps.trim() !== '' || 
+           metrics.calories.trim() !== '' || 
+           metrics.distance.trim() !== '' || 
+           metrics.duration.trim() !== '';
+  };
 
   const handlePickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -81,7 +88,7 @@ export default function CreatePostScreen() {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'], // 🔥 FIX: Ganti dari MediaTypeOptions
       allowsEditing: true,
       aspect: [4, 3],
       quality: 0.8,
@@ -96,9 +103,15 @@ export default function CreatePostScreen() {
     setImage(null);
   };
 
-  const handlePost = async () => {
+  const handleSubmit = async () => {
+    // Validation
     if (!content.trim()) {
-      Alert.alert('Error', 'Konten tidak boleh kosong');
+      Alert.alert('Error', 'Konten postingan tidak boleh kosong');
+      return;
+    }
+
+    if (postType === 'progress' && !hasMetrics()) {
+      Alert.alert('Error', 'Postingan progress harus memiliki minimal satu metrik');
       return;
     }
 
@@ -109,87 +122,62 @@ export default function CreatePostScreen() {
     }
 
     try {
-      setUploading(true);
+      setIsSubmitting(true);
 
-      // Ensure user exists in Supabase (sync from Firebase)
-      const userEmail = currentUser.email || 'unknown@email.com';
-      const userName = currentUser.displayName || undefined;
-      const userResult = await UserService.ensureUserExists(
-        currentUser.uid,
-        userEmail,
-        userName
-      );
-
-      if (userResult.error) {
-        throw new Error('Gagal menyinkronkan data user: ' + userResult.error);
-      }
-
-      let imageUrl: string | null = null;
-
-      // Upload image if exists
-      if (image) {
-        const fileName = `post_${Date.now()}.jpg`;
-        const uploadResult = await CommunityService.uploadImage(
-          currentUser.uid,
-          image,
-          fileName
-        );
-
-        if (uploadResult.error) {
-          throw new Error(uploadResult.error);
-        }
-
-        imageUrl = uploadResult.data;
-      }
-
-      // Prepare metrics data (only for progress type)
-      let metricsData = null;
-      if (postType === 'progress') {
-        const hasMetrics =
-          metrics.steps ||
-          metrics.calories ||
-          metrics.distance ||
-          metrics.duration;
-
-        if (hasMetrics) {
-          metricsData = {
-            steps: metrics.steps ? parseInt(metrics.steps) : undefined,
-            calories: metrics.calories ? parseInt(metrics.calories) : undefined,
-            distance: metrics.distance ? parseFloat(metrics.distance) : undefined,
-            duration: metrics.duration ? parseInt(metrics.duration) : undefined,
-          };
-        }
-      }
-
-      // Create post
-      const postData = {
-        user_id: currentUser.uid,
-        post_type: postType,
-        content: content.trim(),
-        image_url: imageUrl,
-        metrics: metricsData,
-      };
-
-      console.log('📝 Creating post with data:', JSON.stringify(postData, null, 2));
       console.log('📝 Post type:', postType, '| Type:', typeof postType, '| Length:', postType.length);
 
-      const result = await CommunityService.createPost(postData);
+      // Prepare metrics (only for progress type)
+      const metricsData = postType === 'progress' && hasMetrics() ? {
+        steps: metrics.steps ? parseInt(metrics.steps) : undefined,
+        calories: metrics.calories ? parseInt(metrics.calories) : undefined,
+        distance: metrics.distance ? parseFloat(metrics.distance) : undefined,
+        duration: metrics.duration ? parseInt(metrics.duration) : undefined,
+      } : undefined;
+
+      console.log('📊 Metrics data:', metricsData);
+
+      // Upload image if exists (TODO: Implement image upload)
+      let uploadedImageUrl: string | undefined = undefined;
+      if (image) {
+        console.log('📤 Uploading image... (not implemented yet)');
+        // TODO: Implement image upload to Supabase Storage
+        // uploadedImageUrl = await uploadImageToSupabase(image);
+      }
+
+      console.log('🚀 Calling CommunityService.createPost with:', {
+        userId: currentUser.uid,
+        content: content.trim(),
+        postType: postType,
+        imageUrl: uploadedImageUrl,
+        metrics: metricsData,
+      });
+
+      // Create post
+      const result = await CommunityService.createPost(
+        currentUser.uid,
+        content.trim(),
+        postType,
+        uploadedImageUrl,
+        metricsData
+      );
 
       if (result.error) {
         throw new Error(result.error);
       }
 
-      Alert.alert('Berhasil', 'Postingan Anda telah dibagikan!', [
+      Alert.alert('Berhasil!', 'Postingan berhasil dibuat', [
         {
           text: 'OK',
-          onPress: () => router.back(),
+          onPress: () => {
+            router.back();
+          },
         },
       ]);
     } catch (error: any) {
-      console.error('Error creating post:', error);
+      console.error('❌ Error creating post:', error);
       Alert.alert('Error', error.message || 'Gagal membuat postingan');
     } finally {
-      setUploading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -276,20 +264,20 @@ export default function CreatePostScreen() {
         </Pressable>
         <Text style={styles.headerTitle}>Buat Postingan</Text>
         <Pressable
-          onPress={handlePost}
-          disabled={uploading || !content.trim()}
+          onPress={handleSubmit}
+          disabled={isSubmitting || !content.trim()} // 🔥 FIX: Ganti uploading ke isSubmitting
           style={({ pressed }) => [
             styles.postButton,
-            { opacity: pressed || uploading || !content.trim() ? 0.7 : 1 },
+            { opacity: pressed || isSubmitting || !content.trim() ? 0.7 : 1 },
           ]}
         >
-          {uploading ? (
+          {isSubmitting ? ( // 🔥 FIX: Ganti uploading ke isSubmitting
             <ActivityIndicator size="small" color="#ABE7B2" />
           ) : (
             <Text
               style={[
                 styles.postButtonText,
-                (!content.trim() || uploading) && styles.postButtonTextDisabled,
+                (!content.trim() || isSubmitting) && styles.postButtonTextDisabled,
               ]}
             >
               Posting

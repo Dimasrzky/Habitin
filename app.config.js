@@ -33,6 +33,7 @@ module.exports = {
         "android.permission.VIBRATE",
         "android.permission.SCHEDULE_EXACT_ALARM"
       ],
+      softwareKeyboardLayoutMode: "pan"
     },
     notification: {
       icon: "./assets/images/Launcher_logos.jpeg",
