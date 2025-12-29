@@ -12,6 +12,7 @@ import { useUser } from '../../src/hooks/useUser';
 import { UserService } from '../../src/services/database/user.service';
 import { resetOnboardingStatus } from '../../src/services/onboarding/onboardingService';
 import { resetLabUploadStatus } from '../../src/utils/labUploadHelper';
+import { useChallengeStore } from '../../src/stores/useChallengeStore';
 
 // TypeScript Interfaces
 interface UserProfile {
@@ -129,6 +130,10 @@ export default function ProfileScreen() {
     const [localAvatar, setLocalAvatar] = useState<AvatarOption | null>(null);
     const [healthData, setHealthData] = useState<HealthData | null>(null);
 
+    // Get real challenge stats
+    const userStats = useChallengeStore((state) => state.userStats);
+    const loadUserStats = useChallengeStore((state) => state.loadUserStats);
+
     // Animation refs
     const healthDataAnimation = useRef(new Animated.Value(0)).current;
     const healthDataRotation = useRef(new Animated.Value(0)).current;
@@ -202,11 +207,14 @@ export default function ProfileScreen() {
                 // (Atau bisa call refetch() di sini kalau memang perlu)
             }
 
+            // 4. Load challenge stats for points and badges
+            await loadUserStats();
+
             console.log('✅ Profile data loaded');
         } catch (error) {
             console.error('Error loading data:', error);
         }
-    }, []);
+    }, [loadUserStats]);
     
     React.useEffect(() => {
         Animated.parallel([
@@ -785,7 +793,7 @@ export default function ProfileScreen() {
                                 <Ionicons name="diamond" size={24} color="#FFD580" />
                             </View>
                             <Text style={{ fontSize: 20, fontWeight: "700", color: "#000000" }}>
-                                {userData.points}
+                                {userStats?.total_points || 0}
                             </Text>
                             <Text style={{ fontSize: 12, color: "#6B7280" }}>Poin</Text>
                         </View>
@@ -807,7 +815,7 @@ export default function ProfileScreen() {
                                 <Ionicons name="trophy" size={24} color="#93BFC7" />
                             </View>
                             <Text style={{ fontSize: 20, fontWeight: "700", color: "#000000" }}>
-                                {userData.badges}
+                                {userStats?.badges_earned?.length || 0}
                             </Text>
                             <Text style={{ fontSize: 12, color: "#6B7280" }}>Badge</Text>
                         </View>

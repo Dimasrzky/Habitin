@@ -372,14 +372,16 @@ const DiseaseRiskItem: React.FC<DiseaseRiskItemProps> = ({ icon, diseaseName, ri
 // ==================== MAIN COMPONENT ====================
 export default function HomeScreen() {
   // ===== State Management =====
-  const [dailyMissionChecked, setDailyMissionChecked] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [isHealthDetailExpanded, setIsHealthDetailExpanded] = useState(false);
+  const [currentTipIndex, setCurrentTipIndex] = useState(0);
 
   // ===== Animation =====
   const dropdownAnimation = useRef(new Animated.Value(0)).current;
   const rotateAnimation = useRef(new Animated.Value(0)).current;
+  const tipSlideAnimation = useRef(new Animated.Value(0)).current;
+  const tipOpacityAnimation = useRef(new Animated.Value(1)).current;
 
   // ===== Refs untuk tracking modal =====
   const hasCheckedModal = useRef(false);
@@ -399,7 +401,7 @@ export default function HomeScreen() {
     day: 'numeric',
   });
 
-  const dailyTip = DAILY_TIPS[new Date().getDate() % DAILY_TIPS.length];
+  const dailyTip = DAILY_TIPS[currentTipIndex];
 
   // ✅ FIX: Computed value - langsung cek dari dashboardData (bukan state)
   const hasUploadedLab = dashboardData?.latestLabResult !== null;
@@ -481,7 +483,66 @@ export default function HomeScreen() {
   // Note: Manual refresh via pull-to-refresh is preferred to avoid infinite loops
   // User can swipe down to refresh challenge data after completing tasks
 
+  // Animate tip transition
+  const animateTipTransition = (direction: 'next' | 'prev') => {
+    // Start animation: fade out and slide
+    Animated.parallel([
+      Animated.timing(tipOpacityAnimation, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(tipSlideAnimation, {
+        toValue: direction === 'next' ? -20 : 20,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      // Change the tip index
+      setCurrentTipIndex((prevIndex) => {
+        if (direction === 'next') {
+          return (prevIndex + 1) % DAILY_TIPS.length;
+        } else {
+          return (prevIndex - 1 + DAILY_TIPS.length) % DAILY_TIPS.length;
+        }
+      });
+
+      // Reset position and fade in
+      tipSlideAnimation.setValue(direction === 'next' ? 20 : -20);
+      Animated.parallel([
+        Animated.timing(tipOpacityAnimation, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(tipSlideAnimation, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    });
+  };
+
+  // Auto-slide for DAILY_TIPS (every 5 seconds)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      animateTipTransition('next');
+    }, 5000);
+
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ===== Handlers =====
+
+  const handlePrevTip = () => {
+    animateTipTransition('prev');
+  };
+
+  const handleNextTip = () => {
+    animateTipTransition('next');
+  };
 
   const handleUploadNow = async () => {
     try {
@@ -773,14 +834,20 @@ export default function HomeScreen() {
 
         {/* ==================== DAILY TIPS ==================== */}
         <Card>
-          <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 }}>
             <Ionicons
               name="bulb-outline"
               size={24}
               color="#ABE7B2"
               style={{ marginRight: 12, marginTop: 2 }}
             />
-            <View style={{ flex: 1 }}>
+            <Animated.View
+              style={{
+                flex: 1,
+                opacity: tipOpacityAnimation,
+                transform: [{ translateX: tipSlideAnimation }],
+              }}
+            >
               <Text
                 style={{
                   fontSize: 14,
@@ -794,7 +861,57 @@ export default function HomeScreen() {
               <Text style={{ fontSize: 14, color: '#374151', lineHeight: 20 }}>
                 {dailyTip}
               </Text>
+            </Animated.View>
+          </View>
+
+          {/* Navigation Controls */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+            {/* Previous Button */}
+            <TouchableOpacity
+              onPress={handlePrevTip}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                backgroundColor: '#F3F4F6',
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="chevron-back" size={18} color="#374151" />
+            </TouchableOpacity>
+
+            {/* Pagination Dots */}
+            <View style={{ flexDirection: 'row', gap: 6 }}>
+              {DAILY_TIPS.map((_, index) => (
+                <View
+                  key={index}
+                  style={{
+                    width: index === currentTipIndex ? 20 : 6,
+                    height: 6,
+                    borderRadius: 3,
+                    backgroundColor: index === currentTipIndex ? '#ABE7B2' : '#D1D5DB',
+                  }}
+                />
+              ))}
             </View>
+
+            {/* Next Button */}
+            <TouchableOpacity
+              onPress={handleNextTip}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                backgroundColor: '#F3F4F6',
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="chevron-forward" size={18} color="#374151" />
+            </TouchableOpacity>
           </View>
         </Card>
 
@@ -965,42 +1082,6 @@ export default function HomeScreen() {
             </Card>
           </Pressable>
         )}
-
-        {/* ==================== DAILY MISSION ==================== */}
-        <Card>
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-              <Pressable
-                onPress={() => setDailyMissionChecked(!dailyMissionChecked)}
-                style={{
-                  width: 24,
-                  height: 24,
-                  borderWidth: 2,
-                  borderColor: dailyMissionChecked ? '#ABE7B2' : '#D1D5DB',
-                  backgroundColor: dailyMissionChecked ? '#ABE7B2' : 'transparent',
-                  borderRadius: 6,
-                  marginRight: 12,
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                }}
-              >
-                {dailyMissionChecked && (
-                  <Ionicons name="checkmark" size={16} color="#1F2937" />
-                )}
-              </Pressable>
-              <Text style={{ fontSize: 14, color: '#000000', fontWeight: '500' }}>
-                Catat asupan gula hari ini
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
-          </View>
-        </Card>
       </ScrollView>
 
       {/* ==================== UPLOAD LAB MODAL ==================== */}

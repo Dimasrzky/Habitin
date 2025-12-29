@@ -14,6 +14,7 @@ import {
     View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import ImageViewer from '../../components/ImageViewer';
 import { auth } from '../../src/config/firebase.config';
 import { CommunityService } from '../../src/services/database/community.service';
 import { CommunityPostWithUser, ReactionType } from '../../src/types/community.types';
@@ -78,6 +79,8 @@ export default function CommunityScreen() {
     const [posts, setPosts] = useState<CommunityPost[]>([]);
     const [refreshing, setRefreshing] = useState(false);
     const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
+    const [imageViewerVisible, setImageViewerVisible] = useState(false);
+    const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
     // =====================================================
     // DATA FETCHING
@@ -260,6 +263,19 @@ export default function CommunityScreen() {
             }
             return newSet;
         });
+    };
+
+    // Handle image view
+    const handleImagePress = (imageUrl: string) => {
+        setSelectedImage(imageUrl);
+        setImageViewerVisible(true);
+    };
+
+    const handleCloseImageViewer = () => {
+        setImageViewerVisible(false);
+        setTimeout(() => {
+            setSelectedImage(null);
+        }, 300);
     };
 
     // Handle add post - navigate to create post screen
@@ -532,14 +548,18 @@ export default function CommunityScreen() {
                             </Text>
                             {post.image && (
                                 <Pressable
-                                    onPress={() => Alert.alert('Image Viewer', 'Full screen image view coming soon!')}
+                                    onPress={() => handleImagePress(post.image!)}
                                     className="mb-3"
+                                    style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
                                 >
                                     <Image
                                         source={{ uri: post.image }}
                                         className="w-full h-48 rounded-xl"
                                         resizeMode="cover"
                                     />
+                                    <View className="absolute bottom-3 right-3 bg-black/50 rounded-full p-2">
+                                        <Ionicons name="expand-outline" size={16} color="#FFFFFF" />
+                                    </View>
                                 </Pressable>
                             )}
                         </>
@@ -560,14 +580,18 @@ export default function CommunityScreen() {
                             )}
                             {post.image && (
                                 <Pressable
-                                    onPress={() => Alert.alert('Image Viewer', 'Full screen image view coming soon!')}
+                                    onPress={() => handleImagePress(post.image!)}
                                     className="mb-3"
+                                    style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
                                 >
                                     <Image
                                         source={{ uri: post.image }}
                                         className="w-full h-48 rounded-xl"
                                         resizeMode="cover"
                                     />
+                                    <View className="absolute bottom-3 right-3 bg-black/50 rounded-full p-2">
+                                        <Ionicons name="expand-outline" size={16} color="#FFFFFF" />
+                                    </View>
                                 </Pressable>
                             )}
                         </>
@@ -725,6 +749,15 @@ export default function CommunityScreen() {
                             </View>
                         ) : null
                     }
+                />
+            )}
+
+            {/* Image Viewer Modal */}
+            {selectedImage && (
+                <ImageViewer
+                    visible={imageViewerVisible}
+                    imageUrl={selectedImage}
+                    onClose={handleCloseImageViewer}
                 />
             )}
         </SafeAreaView>

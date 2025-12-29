@@ -38,10 +38,17 @@ class EventManager {
   }
 
   /**
-   * Unsubscribe semua listeners untuk event tertentu
+   * Unsubscribe listener tertentu dari event
+   * Jika callback tidak diberikan, hapus semua listeners untuk event tersebut
    */
-  off(eventName: string): void {
-    this.events.delete(eventName);
+  off(eventName: string, callback?: EventCallback): void {
+    if (!callback) {
+      // Hapus semua listeners untuk event ini
+      this.events.delete(eventName);
+    } else {
+      // Hapus callback tertentu
+      this.events.get(eventName)?.delete(callback);
+    }
   }
 
   /**
@@ -76,3 +83,13 @@ export const EVENTS = {
   HEALTH_DATA_UPDATED: 'health:data:updated',
   LAB_RESULT_ADDED: 'health:lab:added',
 } as const;
+
+// Reminder-specific events and event emitter instance
+export const REMINDER_EVENTS = {
+  CREATED: 'reminder:created',
+  UPDATED: 'reminder:updated',
+  DELETED: 'reminder:deleted',
+  TOGGLED: 'reminder:toggled',
+} as const;
+
+export const reminderEvents = new EventManager();

@@ -238,7 +238,7 @@ export class CommunityService {
   }
 
   /**
-   * Create a new post
+   * Create a new post with image upload handling
    */
   static async createPost(
     userId: string,
@@ -249,37 +249,91 @@ export class CommunityService {
   ): Promise<{ data: any | null; error: string | null }> {
     try {
       console.log('➕ Creating new post...');
-      console.log('Post data:', { userId, content, postType, imageUrl, metrics });
+      console.log('📦 Post data:', { 
+        userId, 
+        content: content.substring(0, 50) + '...', 
+        postType, 
+        hasImage: !!imageUrl,
+        hasMetrics: !!metrics 
+      });
 
-      // 🔥 FIX: Pastikan data flat, bukan nested
-      const postData = {
+      // Validasi input
+      if (!userId || !userId.trim()) {
+        return { data: null, error: 'User ID tidak valid' };
+      }
+
+      if (!content || !content.trim()) {
+        return { data: null, error: 'Konten tidak boleh kosong' };
+      }
+
+      if (!postType || !postType.trim()) {
+        return { data: null, error: 'Tipe post tidak valid' };
+      }
+
+      // Prepare post data - FLAT STRUCTURE
+      const postData: any = {
         user_id: userId,
-        content: content,
-        post_type: postType,
-        image_url: imageUrl || null,
-        metrics: metrics || null,
+        content: content.trim(),
+        post_type: postType.trim().toLowerCase(), // Pastikan lowercase
         created_at: new Date().toISOString(),
       };
 
-      console.log('📦 Prepared post data:', postData);
+      // Tambahkan image_url jika ada
+      if (imageUrl) {
+        postData.image_url = imageUrl;
+      }
 
+      // Tambahkan metrics jika ada (khusus untuk progress)
+      if (metrics && Object.keys(metrics).length > 0) {
+        // Filter metrics yang ada nilainya
+        const validMetrics: any = {};
+        if (metrics.steps !== undefined && metrics.steps !== null) {
+          validMetrics.steps = metrics.steps;
+        }
+        if (metrics.calories !== undefined && metrics.calories !== null) {
+          validMetrics.calories = metrics.calories;
+        }
+        if (metrics.distance !== undefined && metrics.distance !== null) {
+          validMetrics.distance = metrics.distance;
+        }
+        if (metrics.duration !== undefined && metrics.duration !== null) {
+          validMetrics.duration = metrics.duration;
+        }
+
+        if (Object.keys(validMetrics).length > 0) {
+          postData.metrics = validMetrics;
+        }
+      }
+
+      console.log('📤 Inserting to database:', JSON.stringify(postData, null, 2));
+
+      // Insert ke database
       const { data, error } = await supabase
         .from('community_posts')
-        .insert(postData) // Single object, not array
+        .insert(postData)
         .select()
         .single();
 
       if (error) {
-        console.error('❌ Error creating post:', error);
-        return { data: null, error: error.message };
+        console.error('❌ Database insert error:', error);
+        console.error('Error details:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+        });
+        return { data: null, error: `Database error: ${error.message}` };
       }
 
-      console.log('✅ Post created successfully:', data);
+      console.log('✅ Post created successfully:', data.id);
+
+      // Emit event untuk update UI
+      eventManager.emit(EVENTS.POST_CREATED, { post: data });
 
       return { data, error: null };
     } catch (error: any) {
       console.error('❌ Error in createPost:', error);
-      return { data: null, error: error.message };
+      return { data: null, error: error.message || 'Terjadi kesalahan saat membuat post' };
     }
   }
 

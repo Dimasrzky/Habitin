@@ -10,7 +10,7 @@ module.exports = {
     userInterfaceStyle: 'light',
     scheme: "habitin",
     splash: {
-      image: './assets/images/splash-icon.png',
+      image: './assets/images/Launcher_logos.jpeg',
       resizeMode: 'contain',
       backgroundColor: '#ffffff',
     },
