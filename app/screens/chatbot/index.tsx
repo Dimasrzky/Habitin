@@ -1,10 +1,16 @@
 // app/screens/chatbot/index.tsx
+import { auth } from '@/config/firebase.config'; // Sesuaikan path
+import { ChatService } from '@/services/gemini/chatService';
+import { GeminiService } from '@/services/gemini/geminiService';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   Animated,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -27,19 +33,10 @@ interface Message {
   timestamp: Date;
 }
 
-interface QuickChatCard {
-  id: string;
-  title: string;
-  description: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  color: string;
-  gradient: string[];
-  question: string;
-}
-
 // =====================================================
 // QUICK CHAT CARDS DATA
 // =====================================================
+const BOT_AVATAR = require('../../../assets/images/Foto Chatbot.png');
 
 const QUICK_CHAT_BUBBLES = [
   { id: '4', icon: '💼', text: 'Buat hariku jadi lebih produktif', question: 'Tips meningkatkan produktivitas harian' },
@@ -50,71 +47,56 @@ const QUICK_CHAT_BUBBLES = [
 ];
 
 
-// =====================================================
-// BOT RESPONSE LOGIC
-// =====================================================
-
-const getBotResponse = (userMessage: string): string => {
-  const lowerMessage = userMessage.toLowerCase();
-
-  if (lowerMessage.includes('diabetes')) {
-    return '🩺 **Diabetes: Panduan Lengkap**\n\nDiabetes adalah kondisi kronis di mana kadar gula darah terlalu tinggi.\n\n**Tipe Diabetes:**\n• Tipe 1: Tubuh tidak memproduksi insulin\n• Tipe 2: Tubuh tidak menggunakan insulin dengan baik\n\n**Cara Mencegah:**\n✅ Jaga berat badan ideal\n✅ Olahraga teratur 150 menit/minggu\n✅ Konsumsi makanan rendah gula\n✅ Hindari makanan olahan\n✅ Cek gula darah rutin\n\n💡 Konsultasikan dengan dokter untuk pemeriksaan lebih lanjut!';
-  }
-
-  if (lowerMessage.includes('jantung') || lowerMessage.includes('heart')) {
-    return '❤️ **Tips Menjaga Kesehatan Jantung**\n\n**Gaya Hidup Sehat:**\n1️⃣ Olahraga aerobik 30 menit/hari\n2️⃣ Konsumsi makanan rendah lemak jenuh\n3️⃣ Perbanyak omega-3 dari ikan\n4️⃣ Kelola stres dengan meditasi\n5️⃣ Hindari merokok & alkohol\n6️⃣ Tidur cukup 7-8 jam/hari\n\n**Makanan Baik untuk Jantung:**\n🥗 Sayuran hijau\n🐟 Ikan salmon & tuna\n🥜 Kacang-kacangan\n🫒 Minyak zaitun\n🍎 Buah berry\n\n⚠️ Cek tekanan darah rutin minimal 6 bulan sekali!';
-  }
-
-  if (lowerMessage.includes('kolesterol')) {
-    return '📊 **Cara Menurunkan Kolesterol**\n\n**Perubahan Pola Makan:**\n🥬 Perbanyak serat larut (oat, apel, wortel)\n🚫 Hindari lemak trans & jenuh\n🫒 Gunakan minyak sehat (zaitun, kanola)\n🐟 Konsumsi ikan omega-3 2x/minggu\n🥜 Tambahkan kacang almond\n\n**Lifestyle:**\n🏃 Olahraga 150 menit/minggu\n⚖️ Jaga berat badan ideal\n🚭 Berhenti merokok\n😴 Tidur teratur\n\n**Target Kolesterol:**\n• Total: < 200 mg/dL\n• LDL (jahat): < 100 mg/dL\n• HDL (baik): > 60 mg/dL\n\n💊 Konsultasi dokter jika perlu obat penurun kolesterol.';
-  }
-
-  if (lowerMessage.includes('diet') || lowerMessage.includes('makanan')) {
-    return '🍎 **Panduan Makanan Diet Sehat**\n\n**Sayuran (50% piring):**\n🥬 Bayam, brokoli, kangkung\n🥕 Wortel, tomat, paprika\n🥒 Timun, selada, kubis\n\n**Protein (25% piring):**\n🍗 Ayam tanpa kulit\n🐟 Ikan (salmon, tuna, kakap)\n🥚 Telur rebus\n🫘 Tahu, tempe, edamame\n\n**Karbohidrat (25% piring):**\n🍚 Nasi merah, quinoa\n🍠 Ubi, kentang rebus\n🌾 Oat, gandum utuh\n\n**Snack Sehat:**\n🥜 Kacang almond, walnut\n🍎 Buah segar (apel, pisang, berry)\n🥤 Yogurt plain\n\n💧 Minum air putih minimal 8 gelas/hari!\n\n⏰ **Jadwal Makan:**\n• Sarapan: 07.00-08.00\n• Makan Siang: 12.00-13.00\n• Makan Malam: 18.00-19.00';
-  }
-
-  if (lowerMessage.includes('olahraga') || lowerMessage.includes('exercise')) {
-    return '🏃 **Panduan Olahraga yang Tepat**\n\n**Frekuensi Ideal:**\n📅 Minimal 150 menit/minggu\n📅 Atau 30 menit x 5 hari/minggu\n\n**Jenis Olahraga:**\n\n**Cardio (3-5x/minggu):**\n🏃 Jogging, lari\n🚴 Bersepeda\n🏊 Renang\n🚶 Jalan cepat\n\n**Strength Training (2-3x/minggu):**\n💪 Angkat beban\n🧘 Bodyweight exercises\n🤸 Push-up, squat, plank\n\n**Flexibility (Setiap hari):**\n🧘‍♀️ Yoga\n🤸 Stretching\n\n**Tips:**\n✅ Mulai dengan intensitas ringan\n✅ Tingkatkan bertahap\n✅ Istirahat 1-2 hari/minggu\n✅ Pemanasan 5-10 menit\n✅ Pendinginan 5-10 menit\n\n⚠️ Konsultasi dokter sebelum memulai program olahraga berat!';
-  }
-
-  if (lowerMessage.includes('tidur') || lowerMessage.includes('sleep')) {
-    return '😴 **Panduan Tidur Berkualitas**\n\n**Durasi Ideal:**\n• Dewasa: 7-9 jam/malam\n• Remaja: 8-10 jam/malam\n• Lansia: 7-8 jam/malam\n\n**Tips Tidur Nyenyak:**\n\n🌙 **Sebelum Tidur:**\n✅ Matikan gadget 1 jam sebelumnya\n✅ Redupkan lampu kamar\n✅ Suhu ruangan sejuk (18-22°C)\n✅ Hindari kafein 6 jam sebelumnya\n✅ Mandi air hangat\n\n📅 **Rutinitas:**\n✅ Tidur & bangun di jam yang sama\n✅ Hindari tidur siang > 30 menit\n✅ Olahraga teratur (tidak dekat jam tidur)\n✅ Hindari makan berat 2-3 jam sebelum tidur\n\n🧘 **Relaksasi:**\n• Meditasi 10 menit\n• Pernapasan dalam\n• Baca buku ringan\n\n⚠️ Jika insomnia berlanjut > 2 minggu, konsultasi dokter!';
-  }
-
-  if (lowerMessage.includes('halo') || lowerMessage.includes('hai') || lowerMessage.includes('hi') || lowerMessage.includes('hello')) {
-    return '👋 **Halo! Selamat datang di Asisten Kesehatan Habitin!**\n\nSaya siap membantu Anda dengan:\n\n🩺 Informasi kesehatan\n💊 Tips pencegahan penyakit\n🥗 Panduan nutrisi & diet\n🏃 Program olahraga\n😴 Kualitas tidur\n\nSilakan pilih topik di bawah atau tanyakan langsung kepada saya! 😊';
-  }
-
-  if (lowerMessage.includes('terima kasih') || lowerMessage.includes('thanks') || lowerMessage.includes('thank you')) {
-    return '🙏 **Sama-sama!**\n\nSenang bisa membantu Anda! 😊\n\nJangan ragu untuk bertanya lagi kapan saja. Kesehatan Anda adalah prioritas kami!\n\n💚 **Stay healthy with Habitin!**';
-  }
-
-  return '💬 Terima kasih atas pertanyaannya!\n\nUntuk informasi kesehatan yang lebih spesifik dan personal, saya sarankan untuk berkonsultasi langsung dengan dokter profesional.\n\n📍 **Anda bisa:**\n• Kunjungi klinik/rumah sakit terdekat\n• Konsultasi online dengan dokter\n• Hubungi hotline kesehatan: 119\n\nAda pertanyaan lain yang bisa saya bantu? 😊';
-};
-
-// =====================================================
-// MAIN COMPONENT
-// =====================================================
-
 export default function ChatbotScreen() {
   const router = useRouter();
   const scrollViewRef = useRef<ScrollView>(null);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '0',
-      text: '👋 Halo! Saya **Asisten Kesehatan Habitin**.\n\nSaya siap membantu Anda dengan informasi kesehatan yang terpercaya.\n\n✨ Pilih topik di bawah atau ketik pertanyaan Anda sendiri!',
-      sender: 'bot',
-      timestamp: new Date(),
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [showQuickChats, setShowQuickChats] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Animation
   const typingDot1 = useRef(new Animated.Value(0)).current;
   const typingDot2 = useRef(new Animated.Value(0)).current;
   const typingDot3 = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    loadChatHistory();
+  }, []);
+
+  const loadChatHistory = async () => {
+    try {
+      const userId = auth.currentUser?.uid;
+      if (!userId) {
+        setIsLoading(false);
+        return;
+      }
+
+      const history = await ChatService.getChatHistory(userId, 50);
+      
+      if (history.length === 0) {
+        setMessages([{
+          id: '0',
+          text: '👋 Halo! Aku **Aiva**\nAsisten Kesehatan mu\n\nSaya siap membantu Anda dengan informasi kesehatan yang personal berdasarkan kondisi Anda.\n\n✨ Pilih topik di bawah atau ketik pertanyaan Anda sendiri!',
+          sender: 'bot',
+          timestamp: new Date(),
+        }]);
+      } else {
+        const formattedMessages = history.map(msg => ({
+          id: msg.id,
+          text: msg.message,
+          sender: msg.sender,
+          timestamp: msg.created_at,
+        }));
+        setMessages(formattedMessages);
+      }
+    } catch (error) { // ← UBAH dari (error: any) menjadi (error)
+      console.error('Error loading chat history:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Auto scroll to bottom when new message arrives
   useEffect(() => {
@@ -190,7 +172,26 @@ export default function ChatbotScreen() {
 
     if (!messageText) return;
 
-    // Add user message
+    const userId = auth.currentUser?.uid;
+
+    console.log('User ID:', userId);
+    console.log('User ID type:', typeof userId);
+
+    if (!userId) {
+      Alert.alert('Error', 'Anda harus login terlebih dahulu');
+      return;
+    }
+
+    // Validasi Gemini API
+    if (!GeminiService.isConfigured()) {
+      Alert.alert(
+        'Konfigurasi Tidak Lengkap',
+        'API Key Gemini belum dikonfigurasi. Silakan hubungi administrator.'
+      );
+      return;
+    }
+
+    // Add user message ke UI
     const userMessage: Message = {
       id: Date.now().toString(),
       text: messageText,
@@ -201,27 +202,72 @@ export default function ChatbotScreen() {
     setMessages((prev) => [...prev, userMessage]);
     setInputText('');
     setShowQuickChats(false);
-
-    // Show typing indicator
     setIsTyping(true);
 
-    // Simulate bot thinking time
-    setTimeout(() => {
-      const botResponse = getBotResponse(messageText);
-      const botMessage: Message = {
+    try {
+      // Kirim ke service dan dapatkan response
+      const { botMessage } = await ChatService.sendMessage(userId, messageText);
+
+      // Add bot message ke UI
+      const botMessageUI: Message = {
+        id: botMessage.id,
+        text: botMessage.message,
+        sender: 'bot',
+        timestamp: botMessage.created_at,
+      };
+
+      setMessages((prev) => [...prev, botMessageUI]);
+
+    } catch (error: any) {
+      console.error('Error sending message:', error);
+      
+      // Tampilkan error message
+      const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: botResponse,
+        text: '⚠️ Maaf, terjadi kesalahan saat memproses pesan Anda. Silakan coba lagi.',
         sender: 'bot',
         timestamp: new Date(),
       };
 
-      setMessages((prev) => [...prev, botMessage]);
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
   const handleQuickChat = (question: string) => {
     handleSend(question);
+  };
+
+  const handleClearChat = () => {
+    Alert.alert(
+      'Hapus Riwayat Chat',
+      'Apakah Anda yakin ingin menghapus semua riwayat chat?',
+      [
+        { text: 'Batal', style: 'cancel' },
+        {
+          text: 'Hapus',
+          style: 'destructive',
+          onPress: async () => {
+            const userId = auth.currentUser?.uid;
+            if (!userId) return;
+
+            try {
+              await ChatService.clearChatHistory(userId);
+              setMessages([{
+                id: '0',
+                text: '👋 Riwayat chat telah dihapus. Silakan mulai percakapan baru!',
+                sender: 'bot',
+                timestamp: new Date(),
+              }]);
+              setShowQuickChats(true);
+            } catch (error) {
+              Alert.alert('Error', 'Gagal menghapus riwayat chat');
+            }
+          },
+        },
+      ]
+    );
   };
 
   // Format message text (support bold with **)
@@ -238,6 +284,15 @@ export default function ChatbotScreen() {
       return <Text key={index}>{part}</Text>;
     });
   };
+
+  if (isLoading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#10B981" />
+        <Text style={{ marginTop: 12, color: '#6B7280' }}>Memuat riwayat chat...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -257,17 +312,31 @@ export default function ChatbotScreen() {
           </Pressable>
           <View style={styles.headerInfo}>
             <View style={styles.botAvatar}>
-              <Ionicons name="sparkles" size={24} color="#10B981" />
+              <Image 
+              source={BOT_AVATAR} 
+              style={styles.botAvatarImage}
+              resizeMode="cover"
+            />
             </View>
+
             <View style={styles.headerText}>
-              <Text style={styles.headerTitle}>Asisten Kesehatan</Text>
+              <Text style={styles.headerTitle}>Aiva</Text>
               <View style={styles.onlineIndicator}>
                 <View style={styles.onlineDot} />
                 <Text style={styles.headerSubtitle}>Online</Text>
               </View>
             </View>
           </View>
-          <View style={{ width: 24 }} />
+
+          <Pressable
+            onPress={handleClearChat}
+            style={({ pressed }) => [
+              styles.clearButton,
+              { opacity: pressed ? 0.7 : 1 },
+            ]}
+          >
+            <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
+          </Pressable>
         </View>
       </LinearGradient>
 
@@ -297,7 +366,11 @@ export default function ChatbotScreen() {
             >
               {message.sender === 'bot' && (
                 <View style={styles.botAvatarSmall}>
-                  <Ionicons name="sparkles" size={14} color="#10B981" />
+                  <Image 
+                    source={BOT_AVATAR} 
+                    style={styles.botAvatarSmallImage}
+                    resizeMode="cover"
+                  />
                 </View>
               )}
               <View
@@ -339,7 +412,11 @@ export default function ChatbotScreen() {
           {isTyping && (
             <View style={[styles.messageContainer, styles.botMessageContainer]}>
               <View style={styles.botAvatarSmall}>
-                <Ionicons name="sparkles" size={14} color="#10B981" />
+                <Image 
+                  source={BOT_AVATAR} 
+                  style={styles.botAvatarSmallImage}
+                  resizeMode="cover"
+                />
               </View>
               <View style={[styles.messageBubble, styles.botMessageBubble]}>
                 <View style={styles.typingIndicator}>
@@ -447,6 +524,9 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 4,
   },
+  clearButton: { 
+    padding: 4,
+  },
   headerInfo: {
     flex: 1,
     flexDirection: 'row',
@@ -466,6 +546,32 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    overflow: 'hidden',
+  },
+  botAvatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 22,
+  },
+  botAvatarSmall: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+    overflow: 'hidden', // ← TAMBAHKAN INI
+  },
+  botAvatarSmallImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 14,
   },
   headerText: {
     flex: 1,
@@ -511,20 +617,6 @@ const styles = StyleSheet.create({
   },
   botMessageContainer: {
     justifyContent: 'flex-start',
-  },
-  botAvatarSmall: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
   },
   messageBubble: {
     maxWidth: '75%',

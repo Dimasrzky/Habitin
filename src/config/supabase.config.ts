@@ -8,14 +8,14 @@ const supabaseUrl = ENV_CONFIG.supabase.url;
 const supabaseAnonKey = ENV_CONFIG.supabase.anonKey;
 const supabaseServiceRoleKey = ENV_CONFIG.supabase.serviceRoleKey;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, supabaseServiceRoleKey ? {
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage: AsyncStorage,
     autoRefreshToken: true,
-    persistSession: false,
+    persistSession: true,
     detectSessionInUrl: false,
   },
-}: undefined);
+});
 
 export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
   auth: {
