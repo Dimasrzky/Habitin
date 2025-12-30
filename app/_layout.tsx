@@ -1,4 +1,46 @@
-// app/_layout.tsx
+/**
+ * ============================================
+ * HABITIN - Health Application
+ * Aplikasi Pencegahan Dini Diabetes & Kolesterol
+ * untuk Remaja Indonesia (13-22+ tahun)
+ * ============================================
+ * 
+ * KELOMPOK: BoyKotlin
+ * Mata Kuliah: Pengembangan Aplikasi Bergerak
+ * Prodi Informatika - Fakultas Teknologi Industri - Universitas Islam Indonesia
+ * Semester: Ganjil 2025/2026
+ * 
+ * ANGGOTA TIM:
+ * ┌────────────────────────────────────────────────────────────────────┐
+ * │ 1. Muhamad Dimas Rizky Darmawan              - [NIM: 23523252]     │
+ * │ 2. Tio Ananda Sinaga                         - [NIM: 23523201]     │
+ * │ 3. Alfi Akbar Rahmada                        - [NIM: 23523149]     │
+ * └────────────────────────────────────────────────────────────────────┘
+ * 
+ * Dosen Pembimbing:
+ * Arrie Kurniawardhani, S.Si., M.Kom.
+ * 
+ * Tech Stack:
+ * - React Native + Expo SDK 51
+ * - Firebase Authentication
+ * - Supabase (PostgreSQL + Storage)
+ * - TypeScript
+ * 
+ * Tanggal Pengumpulan: [01/01/2026]
+ * ============================================
+ */
+
+/**
+ * ============================================
+ * KREDENSIAL LOGIN UNTUK TESTING
+ * ============================================
+ * 
+ * USER TESTING ACCOUNT:
+ * Email    : dimdev454@gmail.com
+ * Password : Admin123
+ * 
+ * ============================================
+ */
 
 import { AuthProvider } from '@/context/AuthContext'; // ✅ Import AuthProvider
 import { OnboardingProvider } from '@/context/OnboardingContext';
