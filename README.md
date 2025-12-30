@@ -1,6 +1,6 @@
 # Habitin 2025 🏥💚
 
-Aplikasi Mobile Pencegahan Dini Diabetes, Kolesterol, dan Obesitas untuk Remaja Indonesia
+Aplikasi Mobile Pencegahan Dini Diabetes dan Kolesterol untuk Remaja Indonesia
 
 ---
 
