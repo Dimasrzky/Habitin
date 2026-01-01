@@ -40,7 +40,7 @@ module.exports = {
       color: "#ABE7B2",
       androidMode: "default",
       androidCollapsedTitle: "Habitin Reminder",
-      sounds: ["./assets/sound/Notification-habitin.wav"]
+      sounds: ["./assets/sound/notification_habitin.wav"]
     },
     plugins: [
       'expo-router',
@@ -49,7 +49,7 @@ module.exports = {
         {
           icon: "./assets/images/Launcher_logos.jpeg",
           color: "#ABE7B2",
-          sounds: ["./assets/sound/Notification-habitin.wav"]
+          sounds: ["./assets/sound/notification_habitin.wav"]
         }
       ]
     ],

@@ -1,5 +1,6 @@
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -16,16 +17,45 @@ export const notificationService = {
     if (Device.isDevice) {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
-      
+
       if (existingStatus !== 'granted') {
         const { status } = await Notifications.requestPermissionsAsync();
         finalStatus = status;
       }
-      
+
       if (finalStatus !== 'granted') {
         throw new Error('Permission not granted for notifications');
       }
-      
+
+      // ✅ Setup notification channel untuk Android
+      if (Platform.OS === 'android') {
+        try {
+          await Notifications.setNotificationChannelAsync('habitin-reminders', {
+            name: 'Habitin Reminders',
+            importance: Notifications.AndroidImportance.MAX,
+            sound: 'notification_habitin.wav',
+            vibrationPattern: [0, 250, 250, 250],
+            lightColor: '#ABE7B2',
+            enableVibrate: true,
+            enableLights: true,
+            showBadge: true,
+          });
+          console.log('✅ Notification channel created with custom sound');
+        } catch (error) {
+          console.warn('⚠️ Failed to set custom sound, using default:', error);
+          // Fallback: create channel without custom sound
+          await Notifications.setNotificationChannelAsync('habitin-reminders', {
+            name: 'Habitin Reminders',
+            importance: Notifications.AndroidImportance.MAX,
+            vibrationPattern: [0, 250, 250, 250],
+            lightColor: '#ABE7B2',
+            enableVibrate: true,
+            enableLights: true,
+            showBadge: true,
+          });
+        }
+      }
+
       return true;
     } else {
       console.warn('Must use physical device for notifications');
@@ -75,17 +105,41 @@ export const notificationService = {
       console.warn('⚠️ Trigger time is in the past! Scheduling immediately.');
     }
 
-    const notificationId = await Notifications.scheduleNotificationAsync({
-      content: {
-        title,
-        body,
-        sound: 'default',
-        data: { reminderId },
-      },
-      trigger,
-    });
+    try {
+      const notificationId = await Notifications.scheduleNotificationAsync({
+        content: {
+          title,
+          body,
+          sound: 'notification_habitin.wav',
+          data: { reminderId },
+        },
+        trigger,
+        ...(Platform.OS === 'android' && {
+          channelId: 'habitin-reminders'
+        }),
+      });
 
-    return notificationId;
+      console.log('✅ Notification scheduled:', notificationId);
+      return notificationId;
+    } catch (error) {
+      console.error('❌ Failed to schedule with custom sound, trying default:', error);
+
+      // Fallback: schedule without custom sound
+      const notificationId = await Notifications.scheduleNotificationAsync({
+        content: {
+          title,
+          body,
+          sound: true,
+          data: { reminderId },
+        },
+        trigger,
+        ...(Platform.OS === 'android' && {
+          channelId: 'habitin-reminders'
+        }),
+      });
+
+      return notificationId;
+    }
   },
 
   async cancelNotification(notificationId: string) {
