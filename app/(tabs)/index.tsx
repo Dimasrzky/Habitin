@@ -751,26 +751,38 @@ export default function HomeScreen() {
                     Rincian Hasil Analisis
                   </Text>
 
-                  {/* Diabetes Risk */}
+                  {/* Diabetes Risk - Cek dari lab result ATAU dari self-check percentage */}
                   {(dashboardData.latestLabResult.glucose_level !== null ||
                     dashboardData.latestLabResult.glucose_2h !== null ||
-                    dashboardData.latestLabResult.hba1c !== null) && (
+                    dashboardData.latestLabResult.hba1c !== null ||
+                    dashboardData.latestLabResult.diabetes_risk_percentage !== null) && (
                     <DiseaseRiskItem
                       icon="🩸"
                       diseaseName="Risiko Diabetes"
-                      riskPercentage={calculateDiabetesRiskPercentage(dashboardData.latestLabResult)}
+                      riskPercentage={
+                        dashboardData.latestLabResult.diabetes_risk_percentage !== null &&
+                        dashboardData.latestLabResult.diabetes_risk_percentage !== undefined
+                          ? dashboardData.latestLabResult.diabetes_risk_percentage
+                          : calculateDiabetesRiskPercentage(dashboardData.latestLabResult)
+                      }
                     />
                   )}
 
-                  {/* Cholesterol Risk */}
+                  {/* Cholesterol Risk - Cek dari lab result ATAU dari self-check percentage */}
                   {(dashboardData.latestLabResult.cholesterol_total !== null ||
                     dashboardData.latestLabResult.cholesterol_ldl !== null ||
                     dashboardData.latestLabResult.cholesterol_hdl !== null ||
-                    dashboardData.latestLabResult.triglycerides !== null) && (
+                    dashboardData.latestLabResult.triglycerides !== null ||
+                    dashboardData.latestLabResult.cholesterol_risk_percentage !== null) && (
                     <DiseaseRiskItem
                       icon="💊"
                       diseaseName="Risiko Kolesterol"
-                      riskPercentage={calculateCholesterolRiskPercentage(dashboardData.latestLabResult)}
+                      riskPercentage={
+                        dashboardData.latestLabResult.cholesterol_risk_percentage !== null &&
+                        dashboardData.latestLabResult.cholesterol_risk_percentage !== undefined
+                          ? dashboardData.latestLabResult.cholesterol_risk_percentage
+                          : calculateCholesterolRiskPercentage(dashboardData.latestLabResult)
+                      }
                     />
                   )}
                 </View>

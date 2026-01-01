@@ -17,7 +17,11 @@ export default function SelfCheckScreen() {
   const router = useRouter();
 
   const handleSwipeComplete = () => {
-    router.push('/screens/cekKesehatan/selfCheckKuesioner' as any);
+    // Mulai dari tahap 1: Diabetes
+    router.push({
+      pathname: '/screens/cekKesehatan/selfCheckKuesioner' as any,
+      params: { stage: '1', type: 'diabetes' },
+    });
   };
 
   return (

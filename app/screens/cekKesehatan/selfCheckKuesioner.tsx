@@ -1,8 +1,9 @@
-// app/screens/cekKesehatan/selfCheckQuestions.tsx
+// app/screens/cekKesehatan/selfCheckKuesioner.tsx
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
   Pressable,
@@ -12,108 +13,58 @@ import {
   Text,
   View,
 } from 'react-native';
+import { getQuestionsByType, SelfCheckType } from '../../../src/data/selfCheckQuestions';
 
-// Tipe untuk jawaban
-type Answer = string | number | null;
+const STORAGE_KEY = 'self_check_answers';
 
-// Data pertanyaan
-const QUESTIONS = [
-  {
-    id: 1,
-    question: 'Berapa usia Anda?',
-    type: 'choice',
-    options: ['< 18 tahun', '18-25 tahun', '26-35 tahun', '36-45 tahun', '> 45 tahun'],
-  },
-  {
-    id: 2,
-    question: 'Apakah ada riwayat diabetes atau kolesterol tinggi di keluarga Anda?',
-    type: 'choice',
-    options: ['Tidak ada', 'Ada (orang tua)', 'Ada (saudara kandung)', 'Ada (keduanya)'],
-  },
-  {
-    id: 3,
-    question: 'Berapa kali Anda berolahraga dalam seminggu?',
-    type: 'choice',
-    options: ['Tidak pernah', '1-2 kali', '3-4 kali', '5-7 kali'],
-  },
-  {
-    id: 4,
-    question: 'Berapa lama Anda duduk/tidak aktif dalam sehari?',
-    type: 'choice',
-    options: ['< 4 jam', '4-6 jam', '6-8 jam', '> 8 jam'],
-  },
-  {
-    id: 5,
-    question: 'Seberapa sering Anda mengonsumsi minuman manis (softdrink, teh manis, dll)?',
-    type: 'choice',
-    options: ['Tidak pernah', '1-2 kali/minggu', '3-5 kali/minggu', 'Setiap hari'],
-  },
-  {
-    id: 6,
-    question: 'Seberapa sering Anda makan gorengan atau makanan berlemak?',
-    type: 'choice',
-    options: ['Jarang (< 1x/minggu)', 'Kadang (2-3x/minggu)', 'Sering (4-5x/minggu)', 'Setiap hari'],
-  },
-  {
-    id: 7,
-    question: 'Berapa porsi sayur dan buah yang Anda konsumsi per hari?',
-    type: 'choice',
-    options: ['Tidak ada', '1-2 porsi', '3-4 porsi', '5+ porsi'],
-  },
-  {
-    id: 8,
-    question: 'Berapa gelas air putih yang Anda minum per hari?',
-    type: 'choice',
-    options: ['< 4 gelas', '4-6 gelas', '6-8 gelas', '> 8 gelas'],
-  },
-  {
-    id: 9,
-    question: 'Bagaimana kualitas tidur Anda?',
-    type: 'choice',
-    options: ['Buruk (< 5 jam)', 'Kurang (5-6 jam)', 'Cukup (6-7 jam)', 'Baik (> 7 jam)'],
-  },
-  {
-    id: 10,
-    question: 'Apakah Anda sering merasa stress atau cemas?',
-    type: 'choice',
-    options: ['Tidak pernah', 'Jarang', 'Kadang-kadang', 'Sering'],
-  },
-  {
-    id: 11,
-    question: 'Apakah Anda merokok?',
-    type: 'choice',
-    options: ['Tidak', 'Dulu, tapi sudah berhenti', 'Ya, kadang-kadang', 'Ya, rutin'],
-  },
-  {
-    id: 12,
-    question: 'Seberapa sering Anda mengonsumsi alkohol?',
-    type: 'choice',
-    options: ['Tidak pernah', 'Jarang (acara khusus)', 'Kadang (1-2x/bulan)', 'Sering (tiap minggu)'],
-  },
-  {
-    id: 13,
-    question: 'Apakah Anda pernah cek gula darah atau kolesterol dalam 6 bulan terakhir?',
-    type: 'choice',
-    options: ['Tidak pernah', 'Pernah, hasilnya normal', 'Pernah, hasilnya borderline', 'Pernah, hasilnya tinggi'],
-  },
-  {
-    id: 14,
-    question: 'Apakah Anda sering merasa lelah tanpa sebab yang jelas?',
-    type: 'choice',
-    options: ['Tidak pernah', 'Jarang', 'Kadang-kadang', 'Sering'],
-  },
-  {
-    id: 15,
-    question: 'Apakah Anda sering merasa haus atau buang air kecil berlebihan?',
-    type: 'choice',
-    options: ['Tidak', 'Jarang', 'Kadang-kadang', 'Sering'],
-  },
+interface StageInfo {
+  stage: number;
+  type: SelfCheckType;
+  title: string;
+  icon: string;
+  nextStage?: number;
+  nextType?: SelfCheckType;
+}
+
+const STAGES: StageInfo[] = [
+  { stage: 1, type: 'diabetes', title: 'Tahap 1: Cek Diabetes', icon: '🩸', nextStage: 2, nextType: 'cholesterol' },
+  { stage: 2, type: 'cholesterol', title: 'Tahap 2: Cek Kolesterol', icon: '💊', nextStage: 3, nextType: 'both' },
+  { stage: 3, type: 'both', title: 'Tahap 3: Cek Gabungan', icon: '❤️' },
 ];
 
-export default function SelfCheckQuestionsScreen() {
+export default function SelfCheckKuesionerScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+
+  const currentStageNum = parseInt(params.stage as string) || 1;
+  const stageInfo = STAGES[currentStageNum - 1];
+
+  const QUESTIONS = getQuestionsByType(stageInfo.type);
   const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [answers, setAnswers] = useState<Answer[]>(new Array(QUESTIONS.length).fill(null));
+  const [answers, setAnswers] = useState<number[]>(new Array(QUESTIONS.length).fill(-1));
+  const [allStageAnswers, setAllStageAnswers] = useState<any>({});
+
+  // Load saved answers on mount
+  useEffect(() => {
+    loadSavedAnswers();
+  }, []);
+
+  const loadSavedAnswers = async () => {
+    try {
+      const saved = await AsyncStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsedAnswers = JSON.parse(saved);
+        setAllStageAnswers(parsedAnswers);
+
+        // Load current stage answers if exists
+        if (parsedAnswers[`stage${currentStageNum}`]) {
+          setAnswers(parsedAnswers[`stage${currentStageNum}`]);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading saved answers:', error);
+    }
+  };
 
   const progress = ((currentQuestion + 1) / QUESTIONS.length) * 100;
   const question = QUESTIONS[currentQuestion];
@@ -125,7 +76,7 @@ export default function SelfCheckQuestionsScreen() {
   };
 
   const handleNext = () => {
-    if (answers[currentQuestion] === null) {
+    if (answers[currentQuestion] === -1) {
       Alert.alert('Perhatian', 'Silakan pilih salah satu jawaban');
       return;
     }
@@ -133,8 +84,8 @@ export default function SelfCheckQuestionsScreen() {
     if (currentQuestion < QUESTIONS.length - 1) {
       setCurrentQuestion(currentQuestion + 1);
     } else {
-      // Selesai, hitung skor dan navigate ke hasil
-      calculateAndNavigateToResult();
+      // Selesai satu tahap
+      completeCurrentStage();
     }
   };
 
@@ -144,48 +95,157 @@ export default function SelfCheckQuestionsScreen() {
     }
   };
 
-  const calculateAndNavigateToResult = () => {
-    // Kalkulasi skor sederhana
-    let totalScore = 0;
-    answers.forEach((answer) => {
-      if (typeof answer === 'number') {
-        totalScore += answer;
+  const completeCurrentStage = async () => {
+    try {
+      // Save current stage answers
+      const updatedAnswers = {
+        ...allStageAnswers,
+        [`stage${currentStageNum}`]: answers,
+      };
+
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedAnswers));
+
+      // Check if there's a next stage
+      if (stageInfo.nextStage && stageInfo.nextType) {
+        // Show completion alert for current stage
+        const nextStage = stageInfo.nextStage;
+        const nextType = stageInfo.nextType;
+
+        Alert.alert(
+          `${stageInfo.title} Selesai! 🎉`,
+          `Lanjut ke ${STAGES[nextStage - 1].title}`,
+          [
+            {
+              text: 'Lanjut',
+              onPress: () => {
+                router.replace({
+                  pathname: '/screens/cekKesehatan/selfCheckKuesioner' as any,
+                  params: {
+                    stage: nextStage.toString(),
+                    type: nextType,
+                  },
+                });
+              },
+            },
+          ]
+        );
+      } else {
+        // Semua tahap selesai, hitung hasil
+        calculateFinalResults(updatedAnswers);
       }
-    });
-
-    // Tentukan level risiko
-    let riskLevel: 'rendah' | 'sedang' | 'tinggi';
-    if (totalScore < 20) {
-      riskLevel = 'rendah';
-    } else if (totalScore < 35) {
-      riskLevel = 'sedang';
-    } else {
-      riskLevel = 'tinggi';
+    } catch (error) {
+      console.error('Error saving answers:', error);
+      Alert.alert('Error', 'Gagal menyimpan jawaban');
     }
+  };
 
-    // Navigate dengan params
-    router.replace({
-      pathname: '/screens/cekKesehatan/selfCheckHasil' as any,
-      params: {
-        score: totalScore,
-        riskLevel: riskLevel,
-      },
-    });
+  const calculateFinalResults = async (allAnswers: any) => {
+    try {
+      // Calculate scores for each stage
+      const stage1Answers = allAnswers.stage1 || [];
+      const stage2Answers = allAnswers.stage2 || [];
+      const stage3Answers = allAnswers.stage3 || [];
+
+      const diabetesQuestions = getQuestionsByType('diabetes');
+      const cholesterolQuestions = getQuestionsByType('cholesterol');
+      const bothQuestions = getQuestionsByType('both');
+
+      // Calculate diabetes score (from stage 1)
+      let diabetesScore = 0;
+      stage1Answers.forEach((answerIndex: number, questionIndex: number) => {
+        if (answerIndex !== -1) {
+          diabetesScore += diabetesQuestions[questionIndex].options[answerIndex].score;
+        }
+      });
+      const diabetesMaxScore = diabetesQuestions.length * 3;
+      const diabetesPercentage = Math.round((diabetesScore / diabetesMaxScore) * 100);
+
+      // Calculate cholesterol score (from stage 2)
+      let cholesterolScore = 0;
+      stage2Answers.forEach((answerIndex: number, questionIndex: number) => {
+        if (answerIndex !== -1) {
+          cholesterolScore += cholesterolQuestions[questionIndex].options[answerIndex].score;
+        }
+      });
+      const cholesterolMaxScore = cholesterolQuestions.length * 3;
+      const cholesterolPercentage = Math.round((cholesterolScore / cholesterolMaxScore) * 100);
+
+      // Calculate combined score (from stage 3)
+      let bothScore = 0;
+      stage3Answers.forEach((answerIndex: number, questionIndex: number) => {
+        if (answerIndex !== -1) {
+          bothScore += bothQuestions[questionIndex].options[answerIndex].score;
+        }
+      });
+      const bothMaxScore = bothQuestions.length * 3;
+      const bothPercentage = Math.round((bothScore / bothMaxScore) * 100);
+
+      // Clear saved answers
+      await AsyncStorage.removeItem(STORAGE_KEY);
+
+      // Navigate to results with all three percentages
+      router.replace({
+        pathname: '/screens/cekKesehatan/selfCheckHasil' as any,
+        params: {
+          diabetesPercentage: diabetesPercentage.toString(),
+          cholesterolPercentage: cholesterolPercentage.toString(),
+          overallPercentage: bothPercentage.toString(),
+          diabetesScore: diabetesScore.toString(),
+          cholesterolScore: cholesterolScore.toString(),
+          overallScore: bothScore.toString(),
+        },
+      });
+    } catch (error) {
+      console.error('Error calculating results:', error);
+      Alert.alert('Error', 'Gagal menghitung hasil');
+    }
   };
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="chevron-back" size={24} color="#1F2937" />
         </Pressable>
-        <Text style={styles.headerTitle}>
-          Pertanyaan {currentQuestion + 1}/{QUESTIONS.length}
-        </Text>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerStage}>{stageInfo.title}</Text>
+          <Text style={styles.headerProgress}>
+            Pertanyaan {currentQuestion + 1}/{QUESTIONS.length}
+          </Text>
+        </View>
         <View style={{ width: 40 }} />
+      </View>
+
+      {/* Stage Progress Indicator */}
+      <View style={styles.stageIndicator}>
+        {STAGES.map((stage, index) => (
+          <View key={index} style={styles.stageItem}>
+            <View
+              style={[
+                styles.stageDot,
+                currentStageNum > stage.stage && styles.stageDotCompleted,
+                currentStageNum === stage.stage && styles.stageDotActive,
+              ]}
+            >
+              {currentStageNum > stage.stage ? (
+                <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+              ) : (
+                <Text style={styles.stageDotText}>{stage.stage}</Text>
+              )}
+            </View>
+            {index < STAGES.length - 1 && (
+              <View
+                style={[
+                  styles.stageLine,
+                  currentStageNum > stage.stage && styles.stageLineCompleted,
+                ]}
+              />
+            )}
+          </View>
+        ))}
       </View>
 
       {/* Progress Bar */}
@@ -203,57 +263,40 @@ export default function SelfCheckQuestionsScreen() {
       >
         {/* Question Card */}
         <View style={styles.questionCard}>
-          <View style={styles.questionNumberBadge}>
-            <Text style={styles.questionNumberText}>#{currentQuestion + 1}</Text>
+          <View style={styles.questionHeader}>
+            <View style={styles.questionNumberBadge}>
+              <Text style={styles.questionNumberText}>#{currentQuestion + 1}</Text>
+            </View>
+            <Text style={styles.stageIcon}>{stageInfo.icon}</Text>
           </View>
           <Text style={styles.questionText}>{question.question}</Text>
         </View>
 
+        {/* Options */}
         <View style={styles.optionsContainer}>
           {question.options.map((option, index) => (
             <Pressable
               key={index}
               onPress={() => handleAnswer(index)}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                backgroundColor: answers[currentQuestion] === index ? '#e2f8e0ff' : '#FFFFFF',
-                borderWidth: 2,
-                borderColor: answers[currentQuestion] === index ? '#256742ff' : '#E5E7EB',
-                borderRadius: 12,
-                padding: 16,
-                marginBottom: 10,
-              }}
+              style={[
+                styles.optionButton,
+                answers[currentQuestion] === index && styles.optionButtonSelected,
+              ]}
             >
               {/* Radio */}
-              <View style={{
-                width: 24,
-                height: 24,
-                borderRadius: 12,
-                borderWidth: 2,
-                borderColor: answers[currentQuestion] === index ? '#256742ff' : '#D1D5DB',
-                marginRight: 12,
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}>
+              <View
+                style={[
+                  styles.radio,
+                  answers[currentQuestion] === index && styles.radioSelected,
+                ]}
+              >
                 {answers[currentQuestion] === index && (
-                  <View style={{
-                    width: 12,
-                    height: 12,
-                    borderRadius: 6,
-                    backgroundColor: '#256742ff',
-                  }} />
+                  <View style={styles.radioInner} />
                 )}
               </View>
 
-              {/* Text - LANGSUNG TANPA WRAPPER */}
-              <Text style={{
-                flex: 1,
-                fontSize: 15,
-                color: '#1F2937',
-              }}>
-                {option}
-              </Text>
+              {/* Option Text */}
+              <Text style={styles.optionText}>{option.text}</Text>
             </Pressable>
           ))}
         </View>
@@ -269,31 +312,28 @@ export default function SelfCheckQuestionsScreen() {
             currentQuestion === 0 && styles.btnDisabled,
           ]}
         >
-          <Ionicons 
-            name="arrow-back" 
-            size={20} 
-            color={currentQuestion === 0 ? '#ffffffff' : '#93BFC7'} 
+          <Ionicons
+            name="arrow-back"
+            size={20}
+            color={currentQuestion === 0 ? '#FFFFFF' : '#256742'}
           />
-          <Text style={[styles.btnPreviousText,
-            currentQuestion === 0 && styles.btnDisabledText,
-          ]}
-        >
+          <Text
+            style={[
+              styles.btnPreviousText,
+              currentQuestion === 0 && styles.btnDisabledText,
+            ]}
+          >
             {currentQuestion === 0 ? '' : 'Sebelumnya'}
           </Text>
         </Pressable>
 
-        <Pressable
-          onPress={handleNext}
-          style={styles.btnNext}
-        >
+        <Pressable onPress={handleNext} style={styles.btnNext}>
           <Text style={styles.btnNextText}>
-            {currentQuestion === QUESTIONS.length - 1 ? 'Selesai' : 'Lanjut'}
+            {currentQuestion === QUESTIONS.length - 1
+              ? (stageInfo.nextStage ? 'Selesai Tahap' : 'Selesai')
+              : 'Lanjut'}
           </Text>
-          <Ionicons 
-            name="arrow-forward" 
-            size={20} 
-            color="#FFFFFF" 
-          />
+          <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
         </Pressable>
       </View>
     </View>
@@ -314,26 +354,72 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
-    marginBottom: 20,
   },
   backButton: {
     padding: 4,
     marginTop: 40,
   },
-  headerTitle: {
+  headerCenter: {
+    alignItems: 'center',
+    marginTop: 40,
+  },
+  headerStage: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1F2937',
-    marginTop: 40,
+  },
+  headerProgress: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  stageIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    backgroundColor: '#FFFFFF',
+  },
+  stageItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  stageDot: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#E5E7EB',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  stageDotActive: {
+    backgroundColor: '#256742',
+  },
+  stageDotCompleted: {
+    backgroundColor: '#ABE7B2',
+  },
+  stageDotText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  stageLine: {
+    width: 40,
+    height: 2,
+    backgroundColor: '#E5E7EB',
+    marginHorizontal: 4,
+  },
+  stageLineCompleted: {
+    backgroundColor: '#ABE7B2',
   },
   progressContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 32,
     paddingVertical: 12,
     backgroundColor: '#F9FAFB',
     gap: 12,
-    left: 16,
   },
   progressBarBackground: {
     flex: 1,
@@ -344,13 +430,13 @@ const styles = StyleSheet.create({
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: '#256742ff',
+    backgroundColor: '#256742',
     borderRadius: 4,
   },
   progressText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#256742ff',
+    color: '#256742',
     minWidth: 45,
   },
   scrollView: {
@@ -368,18 +454,25 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
+  questionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   questionNumberBadge: {
-    backgroundColor: '#256742ff',
+    backgroundColor: '#256742',
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
-    alignSelf: 'flex-start',
-    marginBottom: 12,
   },
   questionNumberText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#ffffffff',
+    color: '#FFFFFF',
+  },
+  stageIcon: {
+    fontSize: 24,
   },
   questionText: {
     fontSize: 18,
@@ -388,7 +481,44 @@ const styles = StyleSheet.create({
     lineHeight: 26,
   },
   optionsContainer: {
-    gap: 2,
+    gap: 10,
+  },
+  optionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    padding: 16,
+  },
+  optionButtonSelected: {
+    backgroundColor: '#E2F8E0',
+    borderColor: '#256742',
+  },
+  radio: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+    marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  radioSelected: {
+    borderColor: '#256742',
+  },
+  radioInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#256742',
+  },
+  optionText: {
+    flex: 1,
+    fontSize: 15,
+    color: '#1F2937',
   },
   bottomNav: {
     position: 'absolute',
@@ -410,49 +540,42 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 5,
   },
-
-  // Previous Button
   btnPrevious: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#ffffffff',
+    backgroundColor: '#FFFFFF',
     borderWidth: 2,
-    borderColor: '#ffffffff',
+    borderColor: '#FFFFFF',
     borderRadius: 12,
     paddingVertical: 14,
     gap: 8,
     right: 8,
   },
-
   btnPreviousText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#256742ff',
+    color: '#256742',
   },
-
-  // Previous Button Disabled
   btnDisabled: {
-    backgroundColor: '#ffffffff',
-    borderColor: '#ffffffff',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#FFFFFF',
   },
-
   btnDisabledText: {
-    color: '#ffffffff',
+    color: '#FFFFFF',
   },
-
-  // Next Button
   btnNext: {
     flexDirection: 'row',
     justifyContent: 'center',
-    backgroundColor: '#256742ff',
+    alignItems: 'center',
+    backgroundColor: '#256742',
     borderRadius: 10,
     height: 50,
     paddingVertical: 14,
     gap: 8,
     paddingHorizontal: 45,
-    shadowColor: '#000000ff',
+    shadowColor: '#000000',
     shadowOffset: {
       width: 0,
       height: 2,
@@ -461,10 +584,9 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-
   btnNextText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#FFFFFFFF',
+    color: '#FFFFFF',
   },
 });

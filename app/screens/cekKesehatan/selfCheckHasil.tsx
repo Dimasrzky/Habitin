@@ -1,100 +1,174 @@
-// app/screens/cekKesehatan/selfCheckResult.tsx
+// app/screens/cekKesehatan/selfCheckHasil.tsx
 
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React from 'react';
+import React, { useState } from 'react';
 import {
-    Pressable,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    View,
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
+import { auth } from '../../../src/config/firebase.config';
 
-export default function SelfCheckResultScreen() {
+interface RiskCategory {
+  level: string;
+  color: string;
+  description: string;
+}
+
+const getRiskCategory = (percentage: number): RiskCategory => {
+  if (percentage < 25) {
+    return {
+      level: 'Rendah',
+      color: '#ABE7B2',
+      description: 'Risiko rendah',
+    };
+  } else if (percentage < 50) {
+    return {
+      level: 'Sedang',
+      color: '#FFD580',
+      description: 'Perlu perhatian',
+    };
+  } else if (percentage < 75) {
+    return {
+      level: 'Tinggi',
+      color: '#FFB4B4',
+      description: 'Risiko tinggi',
+    };
+  } else {
+    return {
+      level: 'Sangat Tinggi',
+      color: '#FF8A8A',
+      description: 'Sangat berisiko',
+    };
+  }
+};
+
+const getOverallRecommendation = (
+  diabetesPercentage: number,
+  cholesterolPercentage: number,
+  overallPercentage: number
+): string => {
+  const maxRisk = Math.max(diabetesPercentage, cholesterolPercentage, overallPercentage);
+
+  if (maxRisk < 25) {
+    return 'Pertahankan pola hidup sehat Anda dan lakukan pemeriksaan rutin setiap 6-12 bulan.';
+  } else if (maxRisk < 50) {
+    return 'Pertimbangkan untuk konsultasi dengan dokter dan perbaiki pola hidup. Lakukan pemeriksaan lab dalam 3-6 bulan.';
+  } else if (maxRisk < 75) {
+    return 'Sangat disarankan untuk segera berkonsultasi dengan dokter dan melakukan pemeriksaan lab lengkap.';
+  } else {
+    return 'SEGERA periksakan diri ke dokter untuk pemeriksaan menyeluruh dan penanganan lebih lanjut.';
+  }
+};
+
+export default function SelfCheckHasilScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  
-  const score = parseInt(params.score as string) || 0;
-  const riskLevel = (params.riskLevel as 'rendah' | 'sedang' | 'tinggi') || 'sedang';
 
-  const getRiskColor = (level: string) => {
-    switch (level) {
-      case 'rendah': return '#CBF3BB';
-      case 'sedang': return '#FFE8B6';
-      case 'tinggi': return '#FFB4B4';
-      default: return '#ECF4E8';
+  const diabetesPercentage = parseInt(params.diabetesPercentage as string) || 0;
+  const cholesterolPercentage = parseInt(params.cholesterolPercentage as string) || 0;
+  const overallPercentage = parseInt(params.overallPercentage as string) || 0;
+
+  const diabetesScore = parseInt(params.diabetesScore as string) || 0;
+  const cholesterolScore = parseInt(params.cholesterolScore as string) || 0;
+  const overallScore = parseInt(params.overallScore as string) || 0;
+
+  const [isSaving, setIsSaving] = useState(false);
+
+  const diabetesCategory = getRiskCategory(diabetesPercentage);
+  const cholesterolCategory = getRiskCategory(cholesterolPercentage);
+  const overallCategory = getRiskCategory(overallPercentage);
+
+  const recommendation = getOverallRecommendation(
+    diabetesPercentage,
+    cholesterolPercentage,
+    overallPercentage
+  );
+
+  const handleSaveToHealth = async () => {
+    try {
+      setIsSaving(true);
+
+      const userId = auth.currentUser?.uid;
+      if (!userId) {
+        Alert.alert('Error', 'User tidak terautentikasi');
+        return;
+      }
+
+      // Import fungsi save dari health.service
+      const { saveSelfCheckResult } = await import(
+        '../../../src/services/database/health.service'
+      );
+
+      // Simpan hasil dengan kedua persentase
+      await saveSelfCheckResult(userId, {
+        type: 'both',
+        riskPercentage: overallPercentage,
+        totalScore: overallScore,
+        maxScore: 45,
+        timestamp: new Date().toISOString(),
+      });
+
+      // Update juga persentase individual
+      const { supabase } = await import('../../../src/config/supabase.config');
+      const { data: existingResult } = await supabase
+        .from('lab_results')
+        .select('id')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (existingResult) {
+        await supabase
+          .from('lab_results')
+          .update({
+            diabetes_risk_percentage: diabetesPercentage,
+            cholesterol_risk_percentage: cholesterolPercentage,
+          })
+          .eq('id', existingResult.id);
+      }
+
+      Alert.alert(
+        'Berhasil! 🎉',
+        'Hasil self-check telah disimpan ke status kesehatan Anda',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              router.replace('/(tabs)' as any);
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Error saving self-check result:', error);
+      Alert.alert('Error', 'Gagal menyimpan hasil. Silakan coba lagi.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  const getRiskText = (level: string) => {
-    switch (level) {
-      case 'rendah': return 'RISIKO RENDAH';
-      case 'sedang': return 'RISIKO SEDANG';
-      case 'tinggi': return 'RISIKO TINGGI';
-      default: return 'TIDAK DIKETAHUI';
-    }
-  };
-
-  const getRiskDescription = (level: string) => {
-    switch (level) {
-      case 'rendah':
-        return 'Selamat! Gaya hidup Anda sudah cukup baik. Pertahankan pola hidup sehat Anda.';
-      case 'sedang':
-        return 'Anda memiliki beberapa faktor risiko. Perlu perbaikan pada gaya hidup untuk mencegah diabetes dan kolesterol tinggi.';
-      case 'tinggi':
-        return 'Anda memiliki risiko tinggi. Sangat disarankan untuk segera memeriksakan diri ke dokter dan melakukan perubahan gaya hidup.';
-      default:
-        return '';
-    }
-  };
-
-  const getRecommendations = (level: string) => {
-    const common = [
-      'Perbanyak konsumsi sayur dan buah',
-      'Minum air putih minimal 8 gelas per hari',
-      'Hindari stress berlebihan',
-      'Tidur cukup 7-8 jam per hari',
-    ];
-
-    if (level === 'rendah') {
-      return [
-        'Pertahankan aktivitas fisik rutin',
-        'Lakukan pemeriksaan kesehatan rutin',
-        ...common.slice(0, 2),
-      ];
-    } else if (level === 'sedang') {
-      return [
-        'Kurangi konsumsi gula dan makanan berlemak',
-        'Olahraga minimal 30 menit, 3-4x seminggu',
-        'Lakukan pemeriksaan lab dalam 3-6 bulan',
-        ...common,
-      ];
-    } else {
-      return [
-        'SEGERA konsultasi dengan dokter',
-        'Lakukan pemeriksaan lab lengkap',
-        'Kurangi drastis konsumsi gula dan gorengan',
-        'Olahraga rutin minimal 5x seminggu',
-        'Kelola stress dengan baik',
-        ...common,
-      ];
-    }
+  const handleBackToHome = () => {
+    router.replace('/(tabs)' as any);
   };
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      
+
       {/* Header */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color="#1F2937" />
-        </Pressable>
+        <View style={{ width: 40 }} />
         <Text style={styles.headerTitle}>Hasil Self-Check</Text>
-        <Pressable style={styles.iconButton}>
-          <Ionicons name="share-outline" size={24} color="#1F2937" />
+        <Pressable onPress={handleBackToHome} style={styles.closeButton}>
+          <Ionicons name="close" size={24} color="#1F2937" />
         </Pressable>
       </View>
 
@@ -103,116 +177,172 @@ export default function SelfCheckResultScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Result Card */}
-        <View style={styles.resultCard}>
-          <View style={styles.resultIconContainer}>
-            <Ionicons 
-              name={riskLevel === 'rendah' ? 'checkmark-circle' : riskLevel === 'sedang' ? 'alert-circle' : 'warning'} 
-              size={64} 
-              color={riskLevel === 'rendah' ? '#ABE7B2' : riskLevel === 'sedang' ? '#FFD580' : '#FF8A8A'}
-            />
+        {/* Success Icon */}
+        <View style={styles.iconSection}>
+          <View style={styles.iconCircle}>
+            <Text style={styles.iconEmoji}>✅</Text>
           </View>
-          <View style={[styles.riskBadge, { backgroundColor: getRiskColor(riskLevel) }]}>
-            <View style={styles.riskCircle} />
-            <Text style={styles.riskText}>{getRiskText(riskLevel)}</Text>
-          </View>
-          <Text style={styles.scoreText}>Skor: {score}/60</Text>
-          <Text style={styles.resultDescription}>{getRiskDescription(riskLevel)}</Text>
+          <Text style={styles.title}>Pemeriksaan Selesai!</Text>
+          <Text style={styles.subtitle}>3 Tahap Pemeriksaan Telah Selesai</Text>
         </View>
 
-        {/* Risk Factors */}
-        <View style={styles.factorsCard}>
-          <Text style={styles.sectionTitle}>📊 Penilaian Berdasarkan</Text>
-          <View style={styles.factorsList}>
-            <FactorItem icon="restaurant" label="Pola Makan" percentage={65} />
-            <FactorItem icon="fitness" label="Aktivitas Fisik" percentage={45} />
-            <FactorItem icon="moon" label="Kualitas Tidur" percentage={70} />
-            <FactorItem icon="water" label="Hidrasi" percentage={80} />
-          </View>
-        </View>
-
-        {/* Recommendations */}
-        <View style={styles.recommendationsCard}>
-          <View style={styles.recommendationsHeader}>
-            <Ionicons name="bulb" size={24} color="#FFD580" />
-            <Text style={styles.recommendationsTitle}>Rekomendasi untuk Anda</Text>
-          </View>
-          <View style={styles.recommendationsList}>
-            {getRecommendations(riskLevel).map((rec, index) => (
-              <View key={index} style={styles.recommendationItem}>
-                <Ionicons name="checkmark-circle" size={18} color="#ABE7B2" />
-                <Text style={styles.recommendationText}>{rec}</Text>
+        {/* Overall Summary */}
+        <View style={styles.summaryCard}>
+          <Text style={styles.summaryTitle}>Ringkasan Kesehatan</Text>
+          <View style={styles.summaryGrid}>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Diabetes</Text>
+              <Text style={[styles.summaryValue, { color: diabetesCategory.color }]}>
+                {diabetesPercentage}%
+              </Text>
+              <View style={[styles.summaryBadge, { backgroundColor: diabetesCategory.color }]}>
+                <Text style={styles.summaryBadgeText}>{diabetesCategory.level}</Text>
               </View>
-            ))}
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Kolesterol</Text>
+              <Text style={[styles.summaryValue, { color: cholesterolCategory.color }]}>
+                {cholesterolPercentage}%
+              </Text>
+              <View style={[styles.summaryBadge, { backgroundColor: cholesterolCategory.color }]}>
+                <Text style={styles.summaryBadgeText}>{cholesterolCategory.level}</Text>
+              </View>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Gabungan</Text>
+              <Text style={[styles.summaryValue, { color: overallCategory.color }]}>
+                {overallPercentage}%
+              </Text>
+              <View style={[styles.summaryBadge, { backgroundColor: overallCategory.color }]}>
+                <Text style={styles.summaryBadgeText}>{overallCategory.level}</Text>
+              </View>
+            </View>
           </View>
         </View>
 
-        {/* CTA Card */}
-        <View style={styles.ctaCard}>
-          <Ionicons name="document-text" size={32} color="#93BFC7" />
-          <Text style={styles.ctaTitle}>Ingin Hasil Lebih Akurat?</Text>
-          <Text style={styles.ctaDescription}>
-            Upload hasil lab Anda untuk mendapatkan analisis yang lebih detail dan akurat
+        {/* Detail Cards for Each Category */}
+        <View style={styles.detailsSection}>
+          <Text style={styles.sectionTitle}>Rincian Hasil</Text>
+
+          {/* Diabetes Detail */}
+          <View style={styles.detailCard}>
+            <View style={styles.detailHeader}>
+              <Text style={styles.detailIcon}>🩸</Text>
+              <Text style={styles.detailTitle}>Risiko Diabetes</Text>
+            </View>
+            <View style={styles.detailProgressBar}>
+              <View
+                style={[
+                  styles.detailProgressFill,
+                  {
+                    width: `${diabetesPercentage}%`,
+                    backgroundColor: diabetesCategory.color,
+                  },
+                ]}
+              />
+            </View>
+            <View style={styles.detailFooter}>
+              <Text style={styles.detailPercentage}>{diabetesPercentage}%</Text>
+              <Text style={styles.detailScore}>Skor: {diabetesScore}/45</Text>
+            </View>
+            <Text style={styles.detailDescription}>{diabetesCategory.description}</Text>
+          </View>
+
+          {/* Cholesterol Detail */}
+          <View style={styles.detailCard}>
+            <View style={styles.detailHeader}>
+              <Text style={styles.detailIcon}>💊</Text>
+              <Text style={styles.detailTitle}>Risiko Kolesterol</Text>
+            </View>
+            <View style={styles.detailProgressBar}>
+              <View
+                style={[
+                  styles.detailProgressFill,
+                  {
+                    width: `${cholesterolPercentage}%`,
+                    backgroundColor: cholesterolCategory.color,
+                  },
+                ]}
+              />
+            </View>
+            <View style={styles.detailFooter}>
+              <Text style={styles.detailPercentage}>{cholesterolPercentage}%</Text>
+              <Text style={styles.detailScore}>Skor: {cholesterolScore}/45</Text>
+            </View>
+            <Text style={styles.detailDescription}>{cholesterolCategory.description}</Text>
+          </View>
+
+          {/* Overall Detail */}
+          <View style={styles.detailCard}>
+            <View style={styles.detailHeader}>
+              <Text style={styles.detailIcon}>❤️</Text>
+              <Text style={styles.detailTitle}>Risiko Gabungan</Text>
+            </View>
+            <View style={styles.detailProgressBar}>
+              <View
+                style={[
+                  styles.detailProgressFill,
+                  {
+                    width: `${overallPercentage}%`,
+                    backgroundColor: overallCategory.color,
+                  },
+                ]}
+              />
+            </View>
+            <View style={styles.detailFooter}>
+              <Text style={styles.detailPercentage}>{overallPercentage}%</Text>
+              <Text style={styles.detailScore}>Skor: {overallScore}/45</Text>
+            </View>
+            <Text style={styles.detailDescription}>{overallCategory.description}</Text>
+          </View>
+        </View>
+
+        {/* Recommendation Card */}
+        <View style={styles.recommendationCard}>
+          <View style={styles.recommendationHeader}>
+            <Ionicons name="bulb" size={24} color="#F59E0B" />
+            <Text style={styles.recommendationTitle}>Rekomendasi</Text>
+          </View>
+          <Text style={styles.recommendationText}>{recommendation}</Text>
+        </View>
+
+        {/* Info Card */}
+        <View style={styles.infoCard}>
+          <View style={styles.infoHeader}>
+            <Ionicons name="information-circle" size={20} color="#2563EB" />
+            <Text style={styles.infoTitle}>Catatan Penting</Text>
+          </View>
+          <Text style={styles.infoText}>
+            Hasil ini adalah estimasi risiko berdasarkan 45 pertanyaan kuesioner (3 tahap). Untuk
+            diagnosis yang akurat, silakan upload hasil lab atau konsultasi dengan dokter.
           </Text>
-          <Pressable
-            style={({ pressed }) => [
-              styles.ctaButton,
-              { opacity: pressed ? 0.9 : 1 },
-            ]}
-            onPress={() => router.push('/screens/cekKesehatan/uploadLab' as any)}
-          >
-            <Text style={styles.ctaButtonText}>Upload Hasil Lab</Text>
-            <Ionicons name="arrow-forward" size={18} color="#93BFC7" />
-          </Pressable>
         </View>
-
-        {/* Action Buttons */}
-        <View style={styles.actionsContainer}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.actionButton,
-              styles.secondaryButton,
-              { opacity: pressed ? 0.8 : 1 }
-            ]}
-            onPress={() => router.push('/(tabs)' as any)}
-          >
-            <Ionicons name="home" size={20} color="#6B7280" />
-            <Text style={styles.secondaryButtonText}>Kembali ke Beranda</Text>
-          </Pressable>
-
-          <Pressable
-            style={({ pressed }) => [
-              styles.actionButton,
-              styles.primaryButton,
-              { opacity: pressed ? 0.9 : 1 }
-            ]}
-            onPress={() => router.back()}
-          >
-            <Ionicons name="refresh" size={20} color="#FFFFFF" />
-            <Text style={styles.primaryButtonText}>Ulangi Self-Check</Text>
-          </Pressable>
-        </View>
-
-        <View style={{ height: 24 }} />
       </ScrollView>
+
+      {/* Bottom Actions */}
+      <View style={styles.bottomActions}>
+        <Pressable
+          onPress={handleSaveToHealth}
+          disabled={isSaving}
+          style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
+        >
+          {isSaving ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <>
+              <Ionicons name="save" size={20} color="#FFFFFF" />
+              <Text style={styles.saveButtonText}>Simpan ke Status Kesehatan</Text>
+            </>
+          )}
+        </Pressable>
+
+        <Pressable onPress={handleBackToHome} style={styles.homeButton}>
+          <Text style={styles.homeButtonText}>Kembali ke Beranda</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
-
-const FactorItem = ({ icon, label, percentage }: { icon: any, label: string, percentage: number }) => (
-  <View style={styles.factorItem}>
-    <View style={styles.factorHeader}>
-      <View style={styles.factorIconLabel}>
-        <Ionicons name={icon} size={18} color="#93BFC7" />
-        <Text style={styles.factorLabel}>{label}</Text>
-      </View>
-      <Text style={styles.factorPercentage}>{percentage}%</Text>
-    </View>
-    <View style={styles.factorProgressBar}>
-      <View style={[styles.factorProgressFill, { width: `${percentage}%` }]} />
-    </View>
-  </View>
-);
 
 const styles = StyleSheet.create({
   container: {
@@ -224,219 +354,243 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 22,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
-  backButton: {
-    padding: 4,
+  closeButton: {
+    padding: 6,
+    top: 12,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#1F2937',
-  },
-  iconButton: {
-    padding: 4,
+    top: 12,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     padding: 16,
+    paddingBottom: 150,
   },
-  resultCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 24,
-    marginBottom: 16,
+  iconSection: {
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    marginVertical: 24,
   },
-  resultIconContainer: {
+  iconCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#E8F5E9',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 16,
   },
-  riskBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 24,
-    marginBottom: 8,
-    gap: 8,
+  iconEmoji: {
+    fontSize: 50,
   },
-  riskCircle: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: 'rgba(0,0,0,0.2)',
-  },
-  riskText: {
-    fontSize: 16,
+  title: {
+    fontSize: 24,
     fontWeight: '700',
     color: '#1F2937',
+    textAlign: 'center',
+    marginBottom: 8,
   },
-  scoreText: {
+  subtitle: {
     fontSize: 14,
     color: '#6B7280',
-    marginBottom: 12,
-  },
-  resultDescription: {
-    fontSize: 14,
-    color: '#374151',
     textAlign: 'center',
-    lineHeight: 20,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1F2937',
-    marginBottom: 16,
-  },
-  factorsCard: {
+  summaryCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
+    padding: 20,
+    marginBottom: 24,
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
-  factorsList: {
-    gap: 16,
-  },
-  factorItem: {
-    gap: 8,
-  },
-  factorHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  factorIconLabel: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  factorLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
-  },
-  factorPercentage: {
-    fontSize: 14,
+  summaryTitle: {
+    fontSize: 18,
     fontWeight: '600',
-    color: '#93BFC7',
+    color: '#1F2937',
+    marginBottom: 16,
+    textAlign: 'center',
   },
-  factorProgressBar: {
+  summaryGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  summaryItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  summaryLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  summaryValue: {
+    fontSize: 32,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  summaryBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  summaryBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  detailsSection: {
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 12,
+  },
+  detailCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  detailHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 8,
+  },
+  detailIcon: {
+    fontSize: 24,
+  },
+  detailTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  detailProgressBar: {
     height: 8,
     backgroundColor: '#F3F4F6',
     borderRadius: 4,
     overflow: 'hidden',
+    marginBottom: 8,
   },
-  factorProgressFill: {
+  detailProgressFill: {
     height: '100%',
-    backgroundColor: '#93BFC7',
     borderRadius: 4,
   },
-  recommendationsCard: {
+  detailFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  detailPercentage: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  detailScore: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  detailDescription: {
+    fontSize: 13,
+    color: '#6B7280',
+    fontStyle: 'italic',
+  },
+  recommendationCard: {
     backgroundColor: '#FFFBEB',
-    borderRadius: 16,
+    borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#FEF3C7',
   },
-  recommendationsHeader: {
+  recommendationHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
     gap: 8,
   },
-  recommendationsTitle: {
+  recommendationTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#92400E',
   },
-  recommendationsList: {
-    gap: 12,
-  },
-  recommendationItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-  },
   recommendationText: {
     fontSize: 14,
     color: '#78350F',
-    flex: 1,
     lineHeight: 20,
   },
-  ctaCard: {
-    backgroundColor: '#E3F2FD',
-    borderRadius: 16,
-    padding: 20,
-    alignItems: 'center',
-    marginBottom: 16,
+  infoCard: {
+    backgroundColor: '#EFF6FF',
+    borderRadius: 12,
+    padding: 16,
     borderWidth: 1,
     borderColor: '#DBEAFE',
   },
-  ctaTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  ctaDescription: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-    marginBottom: 16,
-    lineHeight: 20,
-  },
-  ctaButton: {
+  infoHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
+    marginBottom: 8,
     gap: 8,
-    borderWidth: 1,
-    borderColor: '#93BFC7',
   },
-  ctaButtonText: {
-    fontSize: 15,
+  infoTitle: {
+    fontSize: 14,
     fontWeight: '600',
-    color: '#93BFC7',
+    color: '#1E40AF',
   },
-  actionsContainer: {
+  infoText: {
+    fontSize: 13,
+    color: '#1E3A8A',
+    lineHeight: 18,
+  },
+  bottomActions: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
     gap: 12,
   },
-  actionButton: {
+  saveButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#256742',
     borderRadius: 12,
-    paddingVertical: 14,
+    paddingVertical: 16,
     gap: 8,
   },
-  secondaryButton: {
-    backgroundColor: '#F3F4F6',
+  saveButtonDisabled: {
+    backgroundColor: '#9CA3AF',
   },
-  secondaryButtonText: {
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  homeButton: {
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  homeButtonText: {
     fontSize: 15,
     fontWeight: '600',
     color: '#6B7280',
-  },
-  primaryButton: {
-    backgroundColor: '#93BFC7',
-  },
-  primaryButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#FFFFFF',
   },
 });

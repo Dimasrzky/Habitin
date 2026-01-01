@@ -80,7 +80,33 @@ export default function CekKesehatanTab() {
               <View style={styles.featureList}></View>
             </View>
           </Pressable>
-        </View>  
+        </View>
+
+        {/* Card 3: Input Manual - Full Width */}
+        <Pressable
+          onPress={() => router.push('/screens/cekKesehatan/inputManual')}
+        >
+          <View style={styles.inputManualHeaderWrapper}>
+            <View style={styles.inputManualHeader}>
+              <View style={styles.inputManualIconContainer}>
+                <Ionicons name="create-outline" size={32} color="#F59E0B" />
+              </View>
+              <View style={styles.inputManualContent}>
+                <Text style={styles.inputManualTitle}>Input Manual Hasil Lab</Text>
+                <Text style={styles.inputManualSubtitle}>
+                  Masukkan nilai lab secara langsung, tanpa upload dokumen
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.inputManualButton}>
+              <Text style={styles.inputManualButtonText}>Mulai Input</Text>
+              <View style={styles.inputManualArrow}>
+                <Ionicons name="arrow-forward" size={18} color="#F59E0B" />
+              </View>
+            </View>
+          </View>
+        </Pressable>
       </ScrollView>
     </View>
   );
@@ -332,5 +358,89 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     color: '#93BFC7',
+  },
+  inputManualHeaderWrapper: {
+    backgroundColor: '#faf4ddff',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1.5,
+    borderColor: '#efbf00ff',
+  },
+  inputManualHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  inputManualIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#FEF3C7',
+  },
+  inputManualContent: {
+    flex: 1,
+  },
+  inputManualTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  inputManualSubtitle: {
+    fontSize: 13,
+    color: '#6B7280',
+    lineHeight: 18,
+  },
+  inputManualFeatures: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+    gap: 10,
+  },
+  inputManualFeatureItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  featureDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#F59E0B',
+  },
+  inputManualFeatureText: {
+    fontSize: 13,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  inputManualButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#FEF3C7',
+  },
+  inputManualButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  inputManualArrow: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FFFBEB',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#FEF3C7',
   },
 });
