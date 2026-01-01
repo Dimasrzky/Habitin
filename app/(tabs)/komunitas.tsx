@@ -20,6 +20,7 @@ import RNShare from 'react-native-share';
 import { captureRef } from 'react-native-view-shot';
 import ImageViewer from '../../components/ImageViewer';
 import { ProgressShareCard } from '../../components/komunitas/ProgressShareCard';
+import { PhotoShareCard } from '../../components/komunitas/PhotoShareCard';
 import { auth } from '../../src/config/firebase.config';
 import { CommunityService } from '../../src/services/database/community.service';
 import { CommunityPostWithUser, ReactionType } from '../../src/types/community.types';
@@ -88,6 +89,7 @@ export default function CommunityScreen() {
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [shareCardVisible, setShareCardVisible] = useState(false);
     const [selectedPostForShare, setSelectedPostForShare] = useState<CommunityPost | null>(null);
+    const [shareCardType, setShareCardType] = useState<'progress' | 'photo' | null>(null);
     const shareCardRef = useRef<View>(null);
 
     // =====================================================
@@ -252,9 +254,22 @@ export default function CommunityScreen() {
     // Handle share post
     const handleShare = async (post: CommunityPost) => {
         try {
-            // Untuk postingan progress, gunakan share card
+            // Determine which share card to use
+            let cardType: 'progress' | 'photo' | null = null;
+
+            // Postingan progress dengan metrics
             if (post.postType === 'progress' && post.metrics) {
+                cardType = 'progress';
+            }
+            // Postingan dengan gambar (semua tipe)
+            else if (post.image) {
+                cardType = 'photo';
+            }
+
+            // Jika ada kartu share yang sesuai
+            if (cardType) {
                 setSelectedPostForShare(post);
+                setShareCardType(cardType);
                 setShareCardVisible(true);
 
                 // Wait for modal to render
@@ -269,8 +284,10 @@ export default function CommunityScreen() {
 
                             // Share the image using react-native-share
                             const shareOptions = {
-                                title: 'Bagikan Progress',
-                                message: `Progress saya di Habitin`,
+                                title: cardType === 'progress' ? 'Bagikan Progress' : 'Bagikan Postingan',
+                                message: cardType === 'progress'
+                                    ? `Progress saya di Habitin`
+                                    : `${post.userName} di Habitin`,
                                 url: Platform.OS === 'ios' ? uri : `file://${uri}`,
                                 type: 'image/png',
                             };
@@ -286,10 +303,11 @@ export default function CommunityScreen() {
                     } finally {
                         setShareCardVisible(false);
                         setSelectedPostForShare(null);
+                        setShareCardType(null);
                     }
                 }, 500);
             } else {
-                // Untuk postingan lain, gunakan share teks biasa
+                // Untuk postingan tanpa gambar dan bukan progress, gunakan share teks biasa
                 await Share.share({
                     message: `${post.userName} di Habitin: ${post.content}`,
                 });
@@ -808,7 +826,7 @@ export default function CommunityScreen() {
                 />
             )}
 
-            {/* Progress Share Card Modal */}
+            {/* Share Card Modal */}
             <Modal
                 visible={shareCardVisible}
                 transparent={true}
@@ -816,6 +834,7 @@ export default function CommunityScreen() {
                 onRequestClose={() => {
                     setShareCardVisible(false);
                     setSelectedPostForShare(null);
+                    setShareCardType(null);
                 }}
             >
                 <View
@@ -826,13 +845,24 @@ export default function CommunityScreen() {
                         opacity: 0,
                     }}
                 >
-                    {selectedPostForShare && (
+                    {selectedPostForShare && shareCardType === 'progress' && (
                         <ProgressShareCard
                             ref={shareCardRef}
                             userName={selectedPostForShare.userName}
                             userAvatar={selectedPostForShare.userAvatar}
                             content={selectedPostForShare.content}
                             metrics={selectedPostForShare.metrics}
+                        />
+                    )}
+                    {selectedPostForShare && shareCardType === 'photo' && (
+                        <PhotoShareCard
+                            ref={shareCardRef}
+                            userName={selectedPostForShare.userName}
+                            userAvatar={selectedPostForShare.userAvatar}
+                            userLevel={selectedPostForShare.userLevel}
+                            postType={selectedPostForShare.postType}
+                            content={selectedPostForShare.content}
+                            imageUrl={selectedPostForShare.image!}
                         />
                     )}
                 </View>

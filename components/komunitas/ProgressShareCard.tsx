@@ -257,7 +257,7 @@ export const ProgressShareCard = React.forwardRef<View, ProgressShareCardProps>(
                         Habitin
                     </Text>
                     <Text style={{ fontSize: 14, color: '#6B7280', marginLeft: 4 }}>
-                        - Jaga Kesehatanmu
+                        - Stay Health, Stay Happy
                     </Text>
                 </View>
             </View>

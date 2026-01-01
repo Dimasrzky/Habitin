@@ -135,15 +135,32 @@ export const PhotoShareCard = React.forwardRef<View, PhotoShareCardProps>(
                 </View>
 
                 {/* Image */}
-                <View style={{ width: '100%', height: 280, backgroundColor: '#F3F4F6' }}>
-                    <Image
-                        source={{ uri: imageUrl }}
+                <View
+                    style={{
+                        paddingHorizontal: 20,
+                        paddingBottom: 16,
+                    }}
+                >
+                    <View
                         style={{
                             width: '100%',
-                            height: '100%',
+                            height: 280,
+                            backgroundColor: '#F3F4F6',
+                            borderWidth: 1,
+                            borderColor: '#E5E7EB',
+                            borderRadius: 12,
+                            overflow: 'hidden',
                         }}
-                        resizeMode="cover"
-                    />
+                    >
+                        <Image
+                            source={{ uri: imageUrl }}
+                            style={{
+                                width: '100%',
+                                height: '100%',
+                            }}
+                            resizeMode="cover"
+                        />
+                    </View>
                 </View>
 
                 {/* Footer - App Branding */}
@@ -152,10 +169,8 @@ export const PhotoShareCard = React.forwardRef<View, PhotoShareCardProps>(
                         flexDirection: 'row',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        paddingVertical: 16,
+                        paddingBottom: 16,
                         paddingHorizontal: 20,
-                        borderTopWidth: 1,
-                        borderTopColor: '#F3F4F6',
                     }}
                 >
                     <View
@@ -175,7 +190,7 @@ export const PhotoShareCard = React.forwardRef<View, PhotoShareCardProps>(
                         Habitin
                     </Text>
                     <Text style={{ fontSize: 14, color: '#6B7280', marginLeft: 4 }}>
-                        - Jaga Kesehatanmu
+                        - Stay Health, Stay Happy
                     </Text>
                 </View>
             </View>
