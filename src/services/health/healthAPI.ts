@@ -116,6 +116,30 @@ export async function getLatestLabResult(userId: string): Promise<LabResult | nu
   }
 }
 
+export async function deleteLabResult(labResultId: string, userId: string): Promise<boolean> {
+  try {
+    console.log('🗑️ Deleting lab result:', labResultId);
+
+    // Delete from database
+    const { error } = await supabase
+      .from('lab_results')
+      .delete()
+      .eq('id', labResultId)
+      .eq('user_id', userId); // Ensure user owns this record
+
+    if (error) {
+      console.error('❌ Delete lab result error:', error);
+      throw error;
+    }
+
+    console.log('✅ Lab result deleted successfully');
+    return true;
+  } catch (error) {
+    console.error('❌ Failed to delete lab result:', error);
+    return false;
+  }
+}
+
 // =====================================================
 // 🆕 NEW FUNCTION: UPLOAD WITH PROGRESS
 // =====================================================
