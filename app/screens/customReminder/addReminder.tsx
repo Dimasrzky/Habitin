@@ -182,7 +182,7 @@ export default function AddReminderScreen() {
             style={{
               fontSize: 16,
               fontWeight: '600',
-              color: '#ABE7B2',
+              color: '#3c7243ff',
             }}
           >
             {loading ? 'Menyimpan...' : 'Simpan'}
@@ -393,7 +393,7 @@ export default function AddReminderScreen() {
                   {option.label}
                 </Text>
                 {dueDateHours === option.value && (
-                  <Ionicons name="checkmark-circle" size={24} color="#ABE7B2" />
+                  <Ionicons name="checkmark-circle" size={24} color="#3c7243ff" />
                 )}
               </TouchableOpacity>
             ))}
@@ -438,7 +438,7 @@ export default function AddReminderScreen() {
                   {option.label}
                 </Text>
                 {repeatPattern === option.value && (
-                  <Ionicons name="checkmark-circle" size={24} color="#ABE7B2" />
+                  <Ionicons name="checkmark-circle" size={24} color="#3c7243ff" />
                 )}
               </TouchableOpacity>
             ))}

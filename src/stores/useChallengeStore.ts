@@ -28,6 +28,58 @@ import {
 } from '@/services/challenge/streakService';
 
 // ========================================
+// MUTEX/LOCK PATTERN (Outside Zustand)
+// ========================================
+
+// Global locks to prevent concurrent requests (not in Zustand state)
+const requestLocks = {
+  dailyQuests: null as Promise<void> | null,
+  availableChallenges: null as Promise<void> | null,
+  activeChallenges: null as Promise<void> | null,
+};
+
+// Track last successful fetch time to enforce minimum delay between requests
+const lastFetchTime = {
+  dailyQuests: 0,
+  availableChallenges: 0,
+  activeChallenges: 0,
+};
+
+const MIN_FETCH_INTERVAL = 500; // Minimum 500ms between fetches
+
+// Helper: Wait for minimum interval
+const waitForMinInterval = async (key: keyof typeof lastFetchTime) => {
+  const elapsed = Date.now() - lastFetchTime[key];
+  if (elapsed < MIN_FETCH_INTERVAL) {
+    const waitTime = MIN_FETCH_INTERVAL - elapsed;
+    console.log(`[Store] Waiting ${waitTime}ms before next ${key} fetch`);
+    await new Promise(resolve => setTimeout(resolve, waitTime));
+  }
+};
+
+// Helper: Retry with exponential backoff
+const retryWithBackoff = async <T>(
+  fn: () => Promise<T>,
+  maxRetries = 2,
+  initialDelay = 300
+): Promise<T> => {
+  let lastError: any;
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      if (i < maxRetries - 1) {
+        const delay = initialDelay * Math.pow(2, i);
+        console.log(`[Store] Retry ${i + 1}/${maxRetries} after ${delay}ms`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  throw lastError;
+};
+
+// ========================================
 // STORE INTERFACE
 // ========================================
 
@@ -143,20 +195,42 @@ const challengeStoreCreator: StateCreator<ChallengeStore> = (set, get) => ({
       return;
     }
 
+    // Use global lock to prevent concurrent requests
+    if (requestLocks.dailyQuests) {
+      console.log('[Store] loadDailyQuests: Already loading, reusing existing request');
+      return requestLocks.dailyQuests;
+    }
+
     console.log('[Store] loadDailyQuests: Starting...');
     set({ dailyQuestsLoading: true, dailyQuestsError: null });
 
-    try {
-      const quests = await getTodayQuests(userId, healthPriority);
-      console.log('[Store] loadDailyQuests: Loaded', quests.length, 'quests');
-      set({ dailyQuests: quests, dailyQuestsLoading: false });
-    } catch (e) {
-      console.error('[Store] loadDailyQuests: Error', e);
-      set({
-        dailyQuestsLoading: false,
-        dailyQuestsError: e instanceof Error ? e.message : 'Failed to load quests',
-      });
-    }
+    // SET LOCK IMMEDIATELY before any await
+    const promise = (async () => {
+      try {
+        // Wait for minimum interval between fetches
+        await waitForMinInterval('dailyQuests');
+
+        // Retry with exponential backoff on failure
+        const quests = await retryWithBackoff(
+          () => getTodayQuests(userId, healthPriority)
+        );
+        console.log('[Store] loadDailyQuests: Loaded', quests.length, 'quests');
+        set({ dailyQuests: quests, dailyQuestsLoading: false });
+        lastFetchTime.dailyQuests = Date.now();
+      } catch (e) {
+        console.error('[Store] loadDailyQuests: Error', e);
+        set({
+          dailyQuestsLoading: false,
+          dailyQuestsError: e instanceof Error ? e.message : 'Failed to load quests',
+        });
+      } finally {
+        // Always clear lock when done
+        requestLocks.dailyQuests = null;
+      }
+    })();
+
+    requestLocks.dailyQuests = promise;
+    return promise;
   },
 
   completeDailyQuestAction: async (questId) => {
@@ -177,8 +251,15 @@ const challengeStoreCreator: StateCreator<ChallengeStore> = (set, get) => ({
       // Complete quest in backend
       await completeDailyQuest(userId, questId);
 
+      // Longer delay to ensure database commit and replication complete
+      await new Promise(resolve => setTimeout(resolve, 500));
+
       // Refresh stats to update points
       await get().refreshStats();
+
+      // Clear existing lock and last fetch time to force fresh load
+      requestLocks.dailyQuests = null;
+      lastFetchTime.dailyQuests = 0;
 
       // Reload quests to get fresh data from server
       await get().loadDailyQuests();
@@ -197,30 +278,54 @@ const challengeStoreCreator: StateCreator<ChallengeStore> = (set, get) => ({
       return;
     }
 
+    // Use global lock to prevent concurrent requests
+    if (requestLocks.availableChallenges) {
+      console.log('[Store] loadAvailableChallenges: Already loading, reusing existing request');
+      return requestLocks.availableChallenges;
+    }
+
     console.log('[Store] loadAvailableChallenges: Starting with category', selectedCategory);
     set({ availableChallengesLoading: true, availableChallengesError: null });
 
-    try {
-      const category = selectedCategory === 'all' ? undefined : selectedCategory;
-      const challenges = await getAvailableChallenges(healthPriority, category, userId || undefined);
+    // SET LOCK IMMEDIATELY before any await
+    const promise = (async () => {
+      try {
+        // Wait for minimum interval between fetches
+        await waitForMinInterval('availableChallenges');
 
-      console.log('[Store] loadAvailableChallenges: Loaded', challenges.length, 'challenges');
-      set({
-        availableChallenges: challenges,
-        availableChallengesLoading: false,
-      });
-    } catch (e) {
-      console.error('[Store] loadAvailableChallenges: Error', e);
-      set({
-        availableChallengesLoading: false,
-        availableChallengesError: e instanceof Error ? e.message : 'Failed to load challenges',
-      });
-      // Don't clear existing data on error - preserve what we have
-    }
+        const category = selectedCategory === 'all' ? undefined : selectedCategory;
+        // Retry with exponential backoff on failure
+        const challenges = await retryWithBackoff(
+          () => getAvailableChallenges(healthPriority, category, userId || undefined)
+        );
+
+        console.log('[Store] loadAvailableChallenges: Loaded', challenges.length, 'challenges');
+        set({
+          availableChallenges: challenges,
+          availableChallengesLoading: false,
+        });
+        lastFetchTime.availableChallenges = Date.now();
+      } catch (e) {
+        console.error('[Store] loadAvailableChallenges: Error', e);
+        set({
+          availableChallengesLoading: false,
+          availableChallengesError: e instanceof Error ? e.message : 'Failed to load challenges',
+        });
+        // Don't clear existing data on error - preserve what we have
+      } finally {
+        // Always clear lock when done
+        requestLocks.availableChallenges = null;
+      }
+    })();
+
+    requestLocks.availableChallenges = promise;
+    return promise;
   },
 
   setCategory: (category) => {
     set({ selectedCategory: category });
+    // Clear lock to allow fresh load with new category
+    requestLocks.availableChallenges = null;
     get().loadAvailableChallenges();
   },
 
@@ -231,25 +336,47 @@ const challengeStoreCreator: StateCreator<ChallengeStore> = (set, get) => ({
       return;
     }
 
+    // Use global lock to prevent concurrent requests
+    if (requestLocks.activeChallenges) {
+      console.log('[Store] loadActiveChallenges: Already loading, reusing existing request');
+      return requestLocks.activeChallenges;
+    }
+
     console.log('[Store] loadActiveChallenges: Starting...');
     set({ activeChallengesLoading: true, activeChallengesError: null });
 
-    try {
-      const challenges = await getActiveChallenges(userId);
+    // SET LOCK IMMEDIATELY before any await
+    const promise = (async () => {
+      try {
+        // Wait for minimum interval between fetches
+        await waitForMinInterval('activeChallenges');
 
-      console.log('[Store] loadActiveChallenges: Loaded', challenges.length, 'challenges');
-      set({
-        activeChallenges: challenges,
-        activeChallengesLoading: false,
-      });
-    } catch (e) {
-      console.error('[Store] loadActiveChallenges: Error', e);
-      set({
-        activeChallengesLoading: false,
-        activeChallengesError: e instanceof Error ? e.message : 'Failed to load challenges',
-      });
-      // Don't clear existing data on error - preserve what we have
-    }
+        // Retry with exponential backoff on failure
+        const challenges = await retryWithBackoff(
+          () => getActiveChallenges(userId)
+        );
+
+        console.log('[Store] loadActiveChallenges: Loaded', challenges.length, 'challenges');
+        set({
+          activeChallenges: challenges,
+          activeChallengesLoading: false,
+        });
+        lastFetchTime.activeChallenges = Date.now();
+      } catch (e) {
+        console.error('[Store] loadActiveChallenges: Error', e);
+        set({
+          activeChallengesLoading: false,
+          activeChallengesError: e instanceof Error ? e.message : 'Failed to load challenges',
+        });
+        // Don't clear existing data on error - preserve what we have
+      } finally {
+        // Always clear lock when done
+        requestLocks.activeChallenges = null;
+      }
+    })();
+
+    requestLocks.activeChallenges = promise;
+    return promise;
   },
 
   startChallengeAction: async (masterChallengeId) => {

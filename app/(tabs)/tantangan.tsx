@@ -1,6 +1,7 @@
 import { useChallengeInit } from '@/hooks/useChallengeInit';
 import { useChallenges } from '@/hooks/useChallenges';
 import { useDailyQuests } from '@/hooks/useDailyQuests';
+import { useRealtimeChallenge } from '@/hooks/useRealtimeChallenge';
 import { useChallengeStore } from '@/stores/useChallengeStore';
 import { formatTimeRemaining } from '@/utils/challengeHelpers';
 import { Ionicons } from '@expo/vector-icons';
@@ -72,6 +73,22 @@ export default function ChallengeHubScreen() {
 
   // Local state
   const [refreshing, setRefreshing] = React.useState(false);
+
+  // Realtime updates - auto refresh when challenge data changes
+  const handleRealtimeUpdate = React.useCallback(() => {
+    console.log('🔔 Challenge update detected, refreshing...');
+    // Refresh all challenge-related data silently (no loading state)
+    Promise.all([
+      refreshQuests(),
+      refreshAvailable(),
+      refreshActive(),
+    ]).catch(err => console.error('Error in realtime refresh:', err));
+  }, [refreshQuests, refreshAvailable, refreshActive]);
+
+  useRealtimeChallenge({
+    onChallengeUpdate: handleRealtimeUpdate,
+    enabled: isInitialized && hasUploadedLab,
+  });
 
   // Handle refresh
   const onRefresh = async () => {

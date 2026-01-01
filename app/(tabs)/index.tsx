@@ -46,7 +46,7 @@ const QUICK_ACCESS_ITEMS: QuickAccessItem[] = [
 ];
 
 const DAILY_TIPS = [
-  'Minum air putih 8 gelas sehari membantu menjaga kesehatan ginjal dan metabolisme tubuh.',
+  'Minum air putih 8 gelas sehari membantu menjaga kesehatan ginjal.',
   'Tidur 7-8 jam sehari sangat penting untuk kesehatan mental dan fisik.',
   'Olahraga 30 menit sehari dapat meningkatkan mood dan energi Anda.',
   'Konsumsi sayur dan buah setiap hari untuk memenuhi kebutuhan vitamin.',
@@ -935,7 +935,7 @@ export default function HomeScreen() {
                       marginRight: 12,
                     }}
                   >
-                    <Ionicons name="trophy" size={20} color="#ABE7B2" />
+                    <Ionicons name="trophy" size={20} color="#398b43ff" />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 14, fontWeight: '600', color: '#000000', marginBottom: 2 }}>
