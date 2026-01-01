@@ -27,33 +27,33 @@ export const notificationService = {
         throw new Error('Permission not granted for notifications');
       }
 
-      // ✅ Setup notification channel untuk Android
+      // ✅ Setup notification channel untuk Android dengan custom sound
       if (Platform.OS === 'android') {
+        // Delete old channel jika ada
         try {
-          await Notifications.setNotificationChannelAsync('habitin-reminders', {
-            name: 'Habitin Reminders',
-            importance: Notifications.AndroidImportance.MAX,
-            sound: 'notification_habitin.wav',
-            vibrationPattern: [0, 250, 250, 250],
-            lightColor: '#ABE7B2',
-            enableVibrate: true,
-            enableLights: true,
-            showBadge: true,
-          });
-          console.log('✅ Notification channel created with custom sound');
-        } catch (error) {
-          console.warn('⚠️ Failed to set custom sound, using default:', error);
-          // Fallback: create channel without custom sound
-          await Notifications.setNotificationChannelAsync('habitin-reminders', {
-            name: 'Habitin Reminders',
-            importance: Notifications.AndroidImportance.MAX,
-            vibrationPattern: [0, 250, 250, 250],
-            lightColor: '#ABE7B2',
-            enableVibrate: true,
-            enableLights: true,
-            showBadge: true,
-          });
+          await Notifications.deleteNotificationChannelAsync('habitin-reminders');
+        } catch {
+          // Ignore error if channel doesn't exist
         }
+
+        // Create new channel dengan custom sound
+        const channelId = 'habitin-reminders-v2'; // New channel ID untuk force update
+        await Notifications.setNotificationChannelAsync(channelId, {
+          name: 'Habitin Reminders',
+          importance: Notifications.AndroidImportance.MAX,
+          sound: 'notification_habitin.wav',
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#ABE7B2',
+          enableVibrate: true,
+          enableLights: true,
+          showBadge: true,
+          audioAttributes: {
+            usage: Notifications.AndroidAudioUsage.NOTIFICATION,
+            contentType: Notifications.AndroidAudioContentType.SONIFICATION,
+          },
+        });
+
+        console.log('✅ Notification channel created with custom sound: notification_habitin.wav');
       }
 
       return true;
@@ -63,7 +63,7 @@ export const notificationService = {
     }
   },
 
-  // ✅ FIX: Schedule dengan timezone awareness
+  // ✅ FIX: Schedule dengan timezone awareness dan CALENDAR trigger untuk akurasi
   async scheduleNotification(
     title: string,
     body: string,
@@ -71,28 +71,38 @@ export const notificationService = {
     reminderId: string
   ): Promise<string> {
     const now = new Date();
-    
+
     let trigger: Notifications.NotificationTriggerInput;
 
     const secondsUntilTrigger = Math.floor((triggerDate.getTime() - now.getTime()) / 1000);
 
-    if (secondsUntilTrigger > 5) {
-      // ✅ Use DATE trigger untuk waktu yang lebih dari 5 detik
+    console.log('⏰ Scheduling notification:');
+    console.log('   Current time:', now.toLocaleString('id-ID'));
+    console.log('   Target time:', triggerDate.toLocaleString('id-ID'));
+    console.log('   Seconds until trigger:', secondsUntilTrigger);
+
+    if (secondsUntilTrigger > 60) {
+      // ✅ Use CALENDAR trigger untuk akurasi yang lebih baik (lebih dari 1 menit)
       trigger = {
-        type: Notifications.SchedulableTriggerInputTypes.DATE,
-        date: triggerDate, // Date object dengan timezone local
+        type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
+        repeats: false,
+        year: triggerDate.getFullYear(),
+        month: triggerDate.getMonth() + 1, // month is 1-indexed in Calendar trigger
+        day: triggerDate.getDate(),
+        hour: triggerDate.getHours(),
+        minute: triggerDate.getMinutes(),
+        second: 0,
       };
-      
-      console.log('✅ Using DATE trigger');
-      console.log('📅 Trigger date object:', triggerDate);
+
+      console.log('✅ Using CALENDAR trigger for precise timing');
     } else if (secondsUntilTrigger > 0) {
-      // ✅ Use TIME_INTERVAL untuk waktu dekat (kurang dari 5 detik)
+      // ✅ Use TIME_INTERVAL untuk waktu dekat (kurang dari 1 menit)
       trigger = {
         type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-        seconds: secondsUntilTrigger,
+        seconds: Math.max(1, secondsUntilTrigger),
         repeats: false,
       };
-      
+
       console.log(`✅ Using TIME_INTERVAL trigger: ${secondsUntilTrigger}s`);
     } else {
       // ✅ Immediate notification (waktu sudah lewat)
@@ -101,45 +111,29 @@ export const notificationService = {
         seconds: 1,
         repeats: false,
       };
-      
+
       console.warn('⚠️ Trigger time is in the past! Scheduling immediately.');
     }
 
-    try {
-      const notificationId = await Notifications.scheduleNotificationAsync({
-        content: {
-          title,
-          body,
-          sound: 'notification_habitin.wav',
-          data: { reminderId },
-        },
-        trigger,
-        ...(Platform.OS === 'android' && {
-          channelId: 'habitin-reminders'
-        }),
-      });
+    const notificationId = await Notifications.scheduleNotificationAsync({
+      content: {
+        title,
+        body,
+        sound: 'notification_habitin.wav',
+        data: { reminderId },
+        priority: Notifications.AndroidNotificationPriority.MAX,
+      },
+      trigger,
+      ...(Platform.OS === 'android' && {
+        channelId: 'habitin-reminders-v2'
+      }),
+    });
 
-      console.log('✅ Notification scheduled:', notificationId);
-      return notificationId;
-    } catch (error) {
-      console.error('❌ Failed to schedule with custom sound, trying default:', error);
+    console.log('✅ Notification scheduled with ID:', notificationId);
+    console.log('   Channel: habitin-reminders-v2');
+    console.log('   Sound: notification_habitin.wav');
 
-      // Fallback: schedule without custom sound
-      const notificationId = await Notifications.scheduleNotificationAsync({
-        content: {
-          title,
-          body,
-          sound: true,
-          data: { reminderId },
-        },
-        trigger,
-        ...(Platform.OS === 'android' && {
-          channelId: 'habitin-reminders'
-        }),
-      });
-
-      return notificationId;
-    }
+    return notificationId;
   },
 
   async cancelNotification(notificationId: string) {
