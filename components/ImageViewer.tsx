@@ -1,14 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
-  Image,
   Modal,
   PanResponder,
   Pressable,
   StatusBar,
   StyleSheet,
+  Text,
   View,
 } from 'react-native';
 
@@ -27,72 +27,70 @@ export default function ImageViewer({ visible, imageUrl, onClose }: ImageViewerP
   const translateY = useRef(new Animated.Value(0)).current;
   const opacity = useRef(new Animated.Value(0)).current;
 
-  // Pan responder for gestures
-  const lastScale = useRef(1);
-  const lastTranslateX = useRef(0);
-  const lastTranslateY = useRef(0);
+  // State for tracking
+  const [isZoomed, setIsZoomed] = useState(false);
+  const lastTap = useRef<number>(0);
+  const scaleValue = useRef(1);
+  const translateXValue = useRef(0);
+  const translateYValue = useRef(0);
+  const isZoomedRef = useRef(false);
 
+  // Pan responder for gestures with improved logic
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        // Only handle pan if zoomed or significant movement
+        return isZoomedRef.current || Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5;
+      },
       onPanResponderGrant: () => {
-        // Store last values when gesture starts
-        scale.setOffset(lastScale.current);
-        translateX.setOffset(lastTranslateX.current);
-        translateY.setOffset(lastTranslateY.current);
+        // Set offset when gesture starts
+        if (isZoomedRef.current) {
+          translateX.setOffset(translateXValue.current);
+          translateY.setOffset(translateYValue.current);
+        }
       },
       onPanResponderMove: (_, gestureState) => {
-        // Pinch to zoom simulation (using vertical movement as scale)
-        if (Math.abs(gestureState.dy) > Math.abs(gestureState.dx)) {
-          const newScale = Math.max(0.5, Math.min(3, 1 + gestureState.dy / 200));
-          scale.setValue(newScale - lastScale.current);
-        } else {
-          // Pan when zoomed
+        if (isZoomedRef.current) {
+          // Allow panning when zoomed
           translateX.setValue(gestureState.dx);
           translateY.setValue(gestureState.dy);
+        } else {
+          // Allow vertical drag to close when not zoomed
+          if (Math.abs(gestureState.dy) > Math.abs(gestureState.dx)) {
+            translateY.setValue(gestureState.dy);
+            // Reduce opacity as user drags down
+            const dragOpacity = Math.max(0, 1 - Math.abs(gestureState.dy) / 400);
+            opacity.setValue(dragOpacity);
+          }
         }
       },
       onPanResponderRelease: (_, gestureState) => {
-        // Flatten offset
-        scale.flattenOffset();
-        translateX.flattenOffset();
-        translateY.flattenOffset();
+        if (isZoomedRef.current) {
+          // Flatten offset to get absolute position
+          translateX.flattenOffset();
+          translateY.flattenOffset();
 
-        // Update last values
-        scale.addListener(({ value }) => {
-          lastScale.current = value;
-        });
-        translateX.addListener(({ value }) => {
-          lastTranslateX.current = value;
-        });
-        translateY.addListener(({ value }) => {
-          lastTranslateY.current = value;
-        });
-
-        // Check if swipe down to close
-        if (gestureState.dy > 100 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx)) {
-          handleClose();
+          // Update the ref values
+          translateXValue.current += gestureState.dx;
+          translateYValue.current += gestureState.dy;
         } else {
-          // Reset if scale is too small
-          if (lastScale.current < 1) {
+          // Check if swipe down to close (when not zoomed)
+          if (gestureState.dy > 100 && Math.abs(gestureState.vy) > 0.5) {
+            handleClose();
+          } else {
+            // Reset position if not closing
             Animated.parallel([
-              Animated.spring(scale, {
-                toValue: 1,
-                useNativeDriver: true,
-              }),
-              Animated.spring(translateX, {
-                toValue: 0,
-                useNativeDriver: true,
-              }),
               Animated.spring(translateY, {
                 toValue: 0,
                 useNativeDriver: true,
               }),
+              Animated.timing(opacity, {
+                toValue: 1,
+                duration: 200,
+                useNativeDriver: true,
+              }),
             ]).start();
-            lastScale.current = 1;
-            lastTranslateX.current = 0;
-            lastTranslateY.current = 0;
           }
         }
       },
@@ -102,13 +100,16 @@ export default function ImageViewer({ visible, imageUrl, onClose }: ImageViewerP
   // Show animation when modal opens
   React.useEffect(() => {
     if (visible) {
-      // Reset values
+      // Reset all values
+      scaleValue.current = 1;
+      translateXValue.current = 0;
+      translateYValue.current = 0;
+      isZoomedRef.current = false;
+      setIsZoomed(false);
+
       scale.setValue(1);
       translateX.setValue(0);
       translateY.setValue(0);
-      lastScale.current = 1;
-      lastTranslateX.current = 0;
-      lastTranslateY.current = 0;
 
       // Fade in
       Animated.timing(opacity, {
@@ -128,37 +129,53 @@ export default function ImageViewer({ visible, imageUrl, onClose }: ImageViewerP
       useNativeDriver: true,
     }).start(() => {
       onClose();
-      // Reset transforms
+      // Reset all transforms
+      scaleValue.current = 1;
+      translateXValue.current = 0;
+      translateYValue.current = 0;
+      isZoomedRef.current = false;
+      setIsZoomed(false);
       scale.setValue(1);
       translateX.setValue(0);
       translateY.setValue(0);
-      lastScale.current = 1;
-      lastTranslateX.current = 0;
-      lastTranslateY.current = 0;
     });
   };
 
   const handleDoubleTap = () => {
-    const isZoomed = lastScale.current > 1;
+    const now = Date.now();
+    const DOUBLE_TAP_DELAY = 300;
 
-    Animated.parallel([
-      Animated.spring(scale, {
-        toValue: isZoomed ? 1 : 2,
-        useNativeDriver: true,
-      }),
-      Animated.spring(translateX, {
-        toValue: 0,
-        useNativeDriver: true,
-      }),
-      Animated.spring(translateY, {
-        toValue: 0,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    if (now - lastTap.current < DOUBLE_TAP_DELAY) {
+      // Double tap detected - toggle zoom
+      const newZoomState = !isZoomedRef.current;
+      const targetScale = newZoomState ? 2.5 : 1;
 
-    lastScale.current = isZoomed ? 1 : 2;
-    lastTranslateX.current = 0;
-    lastTranslateY.current = 0;
+      scaleValue.current = targetScale;
+      translateXValue.current = 0;
+      translateYValue.current = 0;
+      isZoomedRef.current = newZoomState;
+      setIsZoomed(newZoomState);
+
+      Animated.parallel([
+        Animated.spring(scale, {
+          toValue: targetScale,
+          useNativeDriver: true,
+          friction: 7,
+        }),
+        Animated.spring(translateX, {
+          toValue: 0,
+          useNativeDriver: true,
+          friction: 7,
+        }),
+        Animated.spring(translateY, {
+          toValue: 0,
+          useNativeDriver: true,
+          friction: 7,
+        }),
+      ]).start();
+    }
+
+    lastTap.current = now;
   };
 
   return (
@@ -207,12 +224,16 @@ export default function ImageViewer({ visible, imageUrl, onClose }: ImageViewerP
 
         {/* Instructions */}
         <View style={styles.footer}>
-          <View style={styles.instructionRow}>
-            <Ionicons name="hand-left-outline" size={16} color="#FFFFFF" />
-            <Ionicons name="hand-right-outline" size={16} color="#FFFFFF" style={{ marginLeft: 4 }} />
-            <View style={styles.instructionText}>
-              <Ionicons name="scan-outline" size={14} color="#9CA3AF" />
-              <Ionicons name="expand-outline" size={14} color="#9CA3AF" style={{ marginLeft: 6 }} />
+          <View style={styles.instructionContainer}>
+            <View style={styles.instructionRow}>
+              <Ionicons name="hand-left-outline" size={18} color="#FFFFFF" />
+              <Text style={styles.instructionText}>Ketuk 2x untuk zoom</Text>
+            </View>
+            <View style={styles.instructionRow}>
+              <Ionicons name="move-outline" size={18} color="#FFFFFF" />
+              <Text style={styles.instructionText}>
+                {isZoomed ? 'Geser untuk pan' : 'Swipe ke bawah untuk tutup'}
+              </Text>
             </View>
           </View>
         </View>
@@ -268,20 +289,21 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     alignItems: 'center',
   },
+  instructionContainer: {
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 16,
+    gap: 8,
+  },
   instructionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
+    gap: 10,
   },
   instructionText: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: 12,
-    paddingLeft: 12,
-    borderLeftWidth: 1,
-    borderLeftColor: 'rgba(255, 255, 255, 0.2)',
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '500',
   },
 });
