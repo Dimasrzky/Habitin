@@ -81,29 +81,16 @@ export const notificationService = {
     console.log('   Target time:', triggerDate.toLocaleString('id-ID'));
     console.log('   Seconds until trigger:', secondsUntilTrigger);
 
-    if (secondsUntilTrigger > 60) {
-      // ✅ Use CALENDAR trigger untuk akurasi yang lebih baik (lebih dari 1 menit)
+    if (secondsUntilTrigger > 0) {
+      // ✅ Always use DATE trigger for accuracy
+      // Date object sudah dalam local timezone
       trigger = {
-        type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
-        repeats: false,
-        year: triggerDate.getFullYear(),
-        month: triggerDate.getMonth() + 1, // month is 1-indexed in Calendar trigger
-        day: triggerDate.getDate(),
-        hour: triggerDate.getHours(),
-        minute: triggerDate.getMinutes(),
-        second: 0,
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: triggerDate,
       };
 
-      console.log('✅ Using CALENDAR trigger for precise timing');
-    } else if (secondsUntilTrigger > 0) {
-      // ✅ Use TIME_INTERVAL untuk waktu dekat (kurang dari 1 menit)
-      trigger = {
-        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-        seconds: Math.max(1, secondsUntilTrigger),
-        repeats: false,
-      };
-
-      console.log(`✅ Using TIME_INTERVAL trigger: ${secondsUntilTrigger}s`);
+      console.log('✅ Using DATE trigger with exact timestamp');
+      console.log('   Timestamp (ms):', triggerDate.getTime());
     } else {
       // ✅ Immediate notification (waktu sudah lewat)
       trigger = {
