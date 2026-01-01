@@ -384,7 +384,7 @@ export default function CreatePostScreen() {
           ]}
         >
           {isSubmitting ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
+            <ActivityIndicator size="small" color="#318d53ff" />
           ) : (
             <Text style={styles.postButtonText}>Posting</Text>
           )}
@@ -594,6 +594,7 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
     marginHorizontal: 16,
+    right:25,
   },
   postButton: {
     paddingVertical: 10,
@@ -610,7 +611,7 @@ const styles = StyleSheet.create({
   postButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#318d53ff',
   },
   progressContainer: {
     flexDirection: 'row',

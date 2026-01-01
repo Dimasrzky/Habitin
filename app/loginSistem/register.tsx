@@ -4,7 +4,7 @@ import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
+  Modal,
   StyleSheet,
   Text,
   TextInput,
@@ -22,28 +22,30 @@ function Register() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [successModal, setSuccessModal] = useState(false);
+  const [errorModal, setErrorModal] = useState({ visible: false, message: '' });
 
   const handleRegister = async () => {
     // Validation
     if (!fullName || !email || !password || !confirmPassword) {
-      Alert.alert('Error', 'Please fill in all fields');
+      setErrorModal({ visible: true, message: 'Mohon isi semua kolom' });
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
+      setErrorModal({ visible: true, message: 'Password tidak cocok' });
       return;
     }
 
     if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+      setErrorModal({ visible: true, message: 'Password harus minimal 6 karakter' });
       return;
     }
 
     setLoading(true);
     try {
       console.log('Creating Firebase user...');
-      
+
       // Step 1: Create Firebase Auth user
       const userCredential = await createUserWithEmailAndPassword(
         auth,
@@ -51,14 +53,14 @@ function Register() {
         password
       );
       const user = userCredential.user;
-      
+
       console.log('Firebase user created:', user.uid);
 
       // Step 2: Update display name
       await updateProfile(user, {
         displayName: fullName,
       });
-      
+
       console.log('Display name updated');
 
       // Step 3: Create Supabase user record
@@ -81,43 +83,83 @@ function Register() {
         console.log('Supabase user record created');
       }
 
-      Alert.alert(
-        'Success',
-        'Your account has been created successfully!',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.replace('/loginSistem/login'),
-          },
-        ]
-      );
+      setSuccessModal(true);
     } catch (error: any) {
       console.error('Registration error:', error);
-      
-      let errorMessage = 'Registration failed. Please try again.';
-      
+
+      let errorMessage = 'Registrasi gagal. Silakan coba lagi.';
+
       if (error.code === 'auth/email-already-in-use') {
-        errorMessage = 'This email is already registered.';
+        errorMessage = 'Email ini sudah terdaftar.';
       } else if (error.code === 'auth/invalid-email') {
-        errorMessage = 'Invalid email address.';
+        errorMessage = 'Alamat email tidak valid.';
       } else if (error.code === 'auth/weak-password') {
-        errorMessage = 'Password is too weak. Use at least 6 characters.';
+        errorMessage = 'Password terlalu lemah. Gunakan minimal 6 karakter.';
       }
-      
-      Alert.alert('Registration Failed', errorMessage);
+
+      setErrorModal({ visible: true, message: errorMessage });
     } finally {
       setLoading(false);
     }
   };
 
+  const handleSuccessModalClose = () => {
+    setSuccessModal(false);
+    router.replace('/loginSistem/login');
+  };
+
   return (
     <View style={styles.container}>
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={successModal}
+        onRequestClose={handleSuccessModalClose}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Ionicons name="checkmark-circle" size={60} color="#22c55e" style={styles.modalIcon} />
+            <Text style={styles.modalTitle}>Registrasi Berhasil!</Text>
+            <Text style={styles.modalMessage}>
+              Akun Anda telah berhasil dibuat. Silakan login untuk melanjutkan.
+            </Text>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={handleSuccessModalClose}
+            >
+              <Text style={styles.modalButtonText}>Lanjut ke Login</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={errorModal.visible}
+        onRequestClose={() => setErrorModal({ visible: false, message: '' })}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Ionicons name="alert-circle" size={60} color="#ef4444" style={styles.modalIcon} />
+            <Text style={styles.modalTitle}>Registrasi Gagal</Text>
+            <Text style={styles.modalMessage}>{errorModal.message}</Text>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => setErrorModal({ visible: false, message: '' })}
+            >
+              <Text style={styles.modalButtonText}>Tutup</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <Text style={styles.title}>Register</Text>
       <Text style={styles.subtitle}>Create your Habitin account</Text>
 
       <TextInput
         style={styles.input}
-        placeholder="Full Name"
+        placeholder="Nama Panggilan"
         value={fullName}
         onChangeText={setFullName}
         editable={!loading}
@@ -156,7 +198,7 @@ function Register() {
 
       <TextInput
         style={styles.input}
-        placeholder="Confirm Password"
+        placeholder="Konfirmasi Password"
         value={confirmPassword}
         onChangeText={setConfirmPassword}
         secureTextEntry={!showPassword}
@@ -179,14 +221,13 @@ function Register() {
         onPress={() => router.push('/loginSistem/login')}
         disabled={loading}
       >
-        <Text style={styles.link}>Already have an account? Login</Text>
+        <Text style={styles.link}>Sudah memiliki akun? Login</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
         onPress={() => router.back()}
         disabled={loading}
       >
-        <Text style={styles.backLink}>← Back to Landing</Text>
       </TouchableOpacity>
     </View>
   );
@@ -265,5 +306,55 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 15,
     fontSize: 14,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 30,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    width: '90%',
+    maxWidth: 400,
+  },
+  modalIcon: {
+    marginBottom: 15,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 25,
+    lineHeight: 24,
+  },
+  modalButton: {
+    backgroundColor: '#256742ff',
+    paddingVertical: 14,
+    paddingHorizontal: 40,
+    borderRadius: 10,
+    width: '100%',
+  },
+  modalButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
 });

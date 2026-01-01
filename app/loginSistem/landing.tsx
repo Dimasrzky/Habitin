@@ -1,8 +1,8 @@
 // app/loginSistem/landing.tsx
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import LottieView from 'lottie-react-native';
 import React from 'react';
 import {
   Dimensions,
@@ -10,7 +10,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
@@ -31,7 +31,7 @@ export default function Landing() {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
       <LinearGradient
-        colors={['#ffffffff', '#ffffffff', '#51c081ff', '#308d58ff']}
+        colors={['#ffffffff', '#ffffffff', '#70d19aff', '#53b37dff']}
         style={styles.gradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -41,32 +41,12 @@ export default function Landing() {
         </View>
 
         <View style={styles.illustrationContainer}>
-          <View style={styles.circleBackground}>
-            <View style={[styles.iconWrapper, styles.iconHeart]}>
-              <MaterialCommunityIcons name="heart-plus" size={32} color="#FFFFFF" />
-            </View>
-
-            <View style={[styles.iconWrapper, styles.iconChart]}>
-              <MaterialCommunityIcons name="chart-line" size={28} color="#FFFFFF" />
-            </View>
-
-            <View style={[styles.iconWrapper, styles.iconTrophy]}>
-              <MaterialCommunityIcons name="trophy" size={28} color="#FFFFFF" />
-            </View>
-
-            <View style={[styles.iconWrapper, styles.iconWater]}>
-              <MaterialCommunityIcons name="water" size={28} color="#FFFFFF" />
-            </View>
-
-            <View style={[styles.iconWrapper, styles.iconRun]}>
-              <MaterialCommunityIcons name="run" size={28} color="#FFFFFF" />
-            </View>
-
-            <View style={[styles.dot, styles.dot1]} />
-            <View style={[styles.dot, styles.dot2]} />
-            <View style={[styles.dot, styles.dot3]} />
-            <View style={[styles.dot, styles.dot4]} />
-          </View>
+          <LottieView
+            source={require('../../assets/json/Landing.json')}
+            autoPlay
+            loop
+            style={styles.animation}
+          />
         </View>
 
         <View style={styles.contentContainer}>
@@ -114,80 +94,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: -30,
   },
-  circleBackground: {
-    width: width * 0.7,
-    height: width * 0.7,
-    borderRadius: (width * 0.7) / 2,
-    backgroundColor: 'rgba(100, 200, 255, 0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  iconWrapper: {
-    position: 'absolute',
-    backgroundColor: '#256742ff',
-    borderRadius: 50,
-    padding: 15,
-    shadowColor: '#00d9ffff',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  iconHeart: {
-    top: 10,
-    left: '50%',
-    marginLeft: -30,
-    padding: 18,
-  },
-  iconChart: {
-    top: 60,
-    left: 20,
-  },
-  iconTrophy: {
-    bottom: 60,
-    left: 25,
-  },
-  iconWater: {
-    top: 60,
-    right: 20,
-  },
-  iconRun: {
-    bottom: 60,
-    right: 25,
-  },
-  dot: {
-    position: 'absolute',
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(100, 230, 255, 0.6)',
-  },
-  dot1: {
-    top: 80,
-    right: 70,
-  },
-  dot2: {
-    bottom: 80,
-    left: 70,
-  },
-  dot3: {
-    top: 40,
-    left: 90,
-    width: 6,
-    height: 6,
-  },
-  dot4: {
-    bottom: 40,
-    right: 90,
-    width: 6,
-    height: 6,
-  },
-  handContainer: {
-    position: 'absolute',
-    bottom: -80,
-    left: '50%',
-    marginLeft: -60,
+  animation: {
+    width: width * 1,
+    height: width * 1,
   },
   contentContainer: {
     alignItems: 'center',

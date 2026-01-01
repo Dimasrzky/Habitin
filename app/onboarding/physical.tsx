@@ -1,14 +1,13 @@
 import { router } from 'expo-router';
 import React from 'react';
 import {
-  SafeAreaView,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
+import OnboardingLayout from '../../components/onboarding/OnboardingLayout';
 import { useOnboarding } from '../../src/context/OnboardingContext';
 
 const CONDITION_OPTIONS = [
@@ -85,153 +84,12 @@ export default function PhysicalScreen() {
     data.familyHistory.length > 0;
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>←</Text>
-        </TouchableOpacity>
-        <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { width: '37.5%' }]} />
-        </View>
-        <Text style={styles.stepText}>Step 3 of 8</Text>
-      </View>
-
-      {/* Content */}
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>Kondisi Fisik & Riwayat</Text>
-        <Text style={styles.subtitle}>Bantu kami memahami kondisi kesehatan Anda</Text>
-
-        {/* Height & Weight */}
-        <View style={styles.rowContainer}>
-          <View style={[styles.inputContainer, { flex: 1, marginRight: 10 }]}>
-            <Text style={styles.label}>Tinggi Badan (cm)</Text>
-            <TextInput
-              style={styles.input}
-              value={data.heightCm}
-              onChangeText={(text) => updateData('heightCm', text.replace(/[^0-9]/g, ''))}
-              placeholder="170"
-              keyboardType="numeric"
-              placeholderTextColor="#BDBDBD"
-            />
-          </View>
-
-          <View style={[styles.inputContainer, { flex: 1 }]}>
-            <Text style={styles.label}>Berat Badan (kg)</Text>
-            <TextInput
-              style={styles.input}
-              value={data.weightKg}
-              onChangeText={(text) => updateData('weightKg', text.replace(/[^0-9]/g, ''))}
-              placeholder="65"
-              keyboardType="numeric"
-              placeholderTextColor="#BDBDBD"
-            />
-          </View>
-        </View>
-
-        {/* BMI Display */}
-        {bmiValue && bmiCategory && (
-          <View style={styles.bmiContainer}>
-            <Text style={styles.bmiLabel}>BMI Anda:</Text>
-            <View style={styles.bmiValue}>
-              <Text style={styles.bmiNumber}>{bmiValue}</Text>
-              <Text style={[styles.bmiCategory, { color: bmiCategory.color }]}>
-                {bmiCategory.text}
-              </Text>
-            </View>
-          </View>
-        )}
-
-        {/* Existing Conditions */}
-        <View style={styles.questionContainer}>
-          <Text style={styles.questionText}>
-            Apakah Anda memiliki kondisi kesehatan khusus?
-          </Text>
-          <Text style={styles.hint}>Pilih sesuai kondisi Anda</Text>
-
-          {CONDITION_OPTIONS.map((option) => (
-            <TouchableOpacity
-              key={option}
-              style={[
-                styles.optionButton,
-                data.existingConditions.includes(option) && styles.optionButtonSelected,
-              ]}
-              onPress={() => toggleCondition(option)}
-            >
-              <View style={styles.checkbox}>
-                {data.existingConditions.includes(option) && (
-                  <View style={styles.checkboxInner} />
-                )}
-              </View>
-              <Text
-                style={[
-                  styles.optionText,
-                  data.existingConditions.includes(option) && styles.optionTextSelected,
-                ]}
-              >
-                {option}
-              </Text>
-            </TouchableOpacity>
-          ))}
-
-          {data.existingConditions.includes('Lainnya') && (
-            <TextInput
-              style={[styles.input, { marginTop: 10 }]}
-              value={data.otherCondition || ''}
-              onChangeText={(text) => updateData('otherCondition', text)}
-              placeholder="Sebutkan kondisi lainnya"
-              placeholderTextColor="#BDBDBD"
-            />
-          )}
-        </View>
-
-        {/* Family History */}
-        <View style={styles.questionContainer}>
-          <Text style={styles.questionText}>Riwayat Kesehatan Keluarga</Text>
-          <Text style={styles.hint}>
-            Apakah ada anggota keluarga yang memiliki riwayat penyakit
-            berikut?
-          </Text>
-
-          {FAMILY_HISTORY_OPTIONS.map((option) => (
-            <TouchableOpacity
-              key={option}
-              style={[
-                styles.optionButton,
-                data.familyHistory.includes(option) && styles.optionButtonSelected,
-              ]}
-              onPress={() => toggleFamilyHistory(option)}
-            >
-              <View style={styles.checkbox}>
-                {data.familyHistory.includes(option) && (
-                  <View style={styles.checkboxInner} />
-                )}
-              </View>
-              <Text
-                style={[
-                  styles.optionText,
-                  data.familyHistory.includes(option) && styles.optionTextSelected,
-                ]}
-              >
-                {option}
-              </Text>
-            </TouchableOpacity>
-          ))}
-
-          {data.familyHistory.includes('Kanker') && (
-            <TextInput
-              style={[styles.input, { marginTop: 10 }]}
-              value={data.cancerType || ''}
-              onChangeText={(text) => updateData('cancerType', text)}
-              placeholder="Sebutkan jenis kanker"
-              placeholderTextColor="#BDBDBD"
-            />
-          )}
-        </View>
-      </ScrollView>
-
-      {/* Footer */}
-      <View style={styles.footer}>
+    <OnboardingLayout
+      currentStep={3}
+      totalSteps={8}
+      showBackButton={true}
+      onBack={() => router.back()}
+      footer={
         <TouchableOpacity
           style={[styles.nextButton, !canProceed && styles.nextButtonDisabled]}
           onPress={() => canProceed && router.push('/onboarding/lifestyle')}
@@ -239,48 +97,142 @@ export default function PhysicalScreen() {
         >
           <Text style={styles.nextButtonText}>Lanjut</Text>
         </TouchableOpacity>
+      }
+    >
+      <Text style={styles.title}>Kondisi Fisik & Riwayat</Text>
+      <Text style={styles.subtitle}>Bantu kami memahami kondisi kesehatan Anda</Text>
+
+      {/* Height & Weight */}
+      <View style={styles.rowContainer}>
+        <View style={[styles.inputContainer, { flex: 1, marginRight: 10 }]}>
+          <Text style={styles.label}>Tinggi Badan (cm)</Text>
+          <TextInput
+            style={styles.input}
+            value={data.heightCm}
+            onChangeText={(text) => updateData('heightCm', text.replace(/[^0-9]/g, ''))}
+            placeholder="170"
+            keyboardType="numeric"
+            placeholderTextColor="#BDBDBD"
+          />
+        </View>
+
+        <View style={[styles.inputContainer, { flex: 1 }]}>
+          <Text style={styles.label}>Berat Badan (kg)</Text>
+          <TextInput
+            style={styles.input}
+            value={data.weightKg}
+            onChangeText={(text) => updateData('weightKg', text.replace(/[^0-9]/g, ''))}
+            placeholder="65"
+            keyboardType="numeric"
+            placeholderTextColor="#BDBDBD"
+          />
+        </View>
       </View>
-    </SafeAreaView>
+
+      {/* BMI Display */}
+      {bmiValue && bmiCategory && (
+        <View style={styles.bmiContainer}>
+          <Text style={styles.bmiLabel}>BMI Anda:</Text>
+          <View style={styles.bmiValue}>
+            <Text style={styles.bmiNumber}>{bmiValue}</Text>
+            <Text style={[styles.bmiCategory, { color: bmiCategory.color }]}>
+              {bmiCategory.text}
+            </Text>
+          </View>
+        </View>
+      )}
+
+      {/* Existing Conditions */}
+      <View style={styles.questionContainer}>
+        <Text style={styles.questionText}>
+          Apakah Anda memiliki kondisi kesehatan khusus?
+        </Text>
+        <Text style={styles.hint}>Pilih sesuai kondisi Anda</Text>
+
+        {CONDITION_OPTIONS.map((option) => (
+          <TouchableOpacity
+            key={option}
+            style={[
+              styles.optionButton,
+              data.existingConditions.includes(option) && styles.optionButtonSelected,
+            ]}
+            onPress={() => toggleCondition(option)}
+          >
+            <View style={styles.checkbox}>
+              {data.existingConditions.includes(option) && (
+                <View style={styles.checkboxInner} />
+              )}
+            </View>
+            <Text
+              style={[
+                styles.optionText,
+                data.existingConditions.includes(option) && styles.optionTextSelected,
+              ]}
+            >
+              {option}
+            </Text>
+          </TouchableOpacity>
+        ))}
+
+        {data.existingConditions.includes('Lainnya') && (
+          <TextInput
+            style={[styles.input, { marginTop: 10 }]}
+            value={data.otherCondition || ''}
+            onChangeText={(text) => updateData('otherCondition', text)}
+            placeholder="Sebutkan kondisi lainnya"
+            placeholderTextColor="#BDBDBD"
+          />
+        )}
+      </View>
+
+      {/* Family History */}
+      <View style={styles.questionContainer}>
+        <Text style={styles.questionText}>Riwayat Kesehatan Keluarga</Text>
+        <Text style={styles.hint}>
+          Apakah ada anggota keluarga yang memiliki riwayat penyakit
+          berikut?
+        </Text>
+
+        {FAMILY_HISTORY_OPTIONS.map((option) => (
+          <TouchableOpacity
+            key={option}
+            style={[
+              styles.optionButton,
+              data.familyHistory.includes(option) && styles.optionButtonSelected,
+            ]}
+            onPress={() => toggleFamilyHistory(option)}
+          >
+            <View style={styles.checkbox}>
+              {data.familyHistory.includes(option) && (
+                <View style={styles.checkboxInner} />
+              )}
+            </View>
+            <Text
+              style={[
+                styles.optionText,
+                data.familyHistory.includes(option) && styles.optionTextSelected,
+              ]}
+            >
+              {option}
+            </Text>
+          </TouchableOpacity>
+        ))}
+
+        {data.familyHistory.includes('Kanker') && (
+          <TextInput
+            style={[styles.input, { marginTop: 10 }]}
+            value={data.cancerType || ''}
+            onChangeText={(text) => updateData('cancerType', text)}
+            placeholder="Sebutkan jenis kanker"
+            placeholderTextColor="#BDBDBD"
+          />
+        )}
+      </View>
+    </OnboardingLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 15,
-  },
-  backButton: {
-    marginBottom: 10,
-  },
-  backButtonText: {
-    fontSize: 28,
-    color: '#212121',
-  },
-  progressBar: {
-    height: 6,
-    backgroundColor: '#E0E0E0',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#4CAF50',
-  },
-  stepText: {
-    marginTop: 8,
-    fontSize: 12,
-    color: '#757575',
-    textAlign: 'center',
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
   title: {
     fontSize: 26,
     fontWeight: 'bold',
@@ -394,11 +346,6 @@ const styles = StyleSheet.create({
   optionTextSelected: {
     color: '#2E7D32',
     fontWeight: '600',
-  },
-  footer: {
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
   },
   nextButton: {
     backgroundColor: '#4CAF50',

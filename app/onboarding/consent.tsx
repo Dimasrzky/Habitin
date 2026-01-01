@@ -1,16 +1,15 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Linking,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Linking,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
+import OnboardingLayout from '../../components/onboarding/OnboardingLayout';
 import { auth } from '../../src/config/firebase.config';
 import { useOnboarding } from '../../src/context/OnboardingContext';
 import { saveOnboardingData } from '../../src/services/onboarding/onboardingService';
@@ -63,20 +62,25 @@ export default function ConsentScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>←</Text>
+    <OnboardingLayout
+      currentStep={7}
+      totalSteps={8}
+      showBackButton={true}
+      onBack={() => router.back()}
+      footer={
+        <TouchableOpacity
+          style={[styles.submitButton, !allConsentsGiven && styles.submitButtonDisabled]}
+          onPress={handleSubmit}
+          disabled={!allConsentsGiven || loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.submitButtonText}>Selesai & Mulai</Text>
+          )}
         </TouchableOpacity>
-        <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { width: '87.5%' }]} />
-        </View>
-        <Text style={styles.stepText}>Step 7 of 8</Text>
-      </View>
-
-      {/* Content */}
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      }
+    >
         <Text style={styles.title}>Privasi & Persetujuan</Text>
         <Text style={styles.subtitle}>
           Keamanan dan privasi data Anda adalah prioritas kami
@@ -160,63 +164,11 @@ export default function ConsentScreen() {
             dengan dokter atau tenaga medis yang berkualifikasi.
           </Text>
         </View>
-      </ScrollView>
-
-      {/* Footer */}
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={[styles.submitButton, !allConsentsGiven && styles.submitButtonDisabled]}
-          onPress={handleSubmit}
-          disabled={!allConsentsGiven || loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <Text style={styles.submitButtonText}>Selesai & Mulai</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+    </OnboardingLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 15,
-  },
-  backButton: {
-    marginBottom: 10,
-  },
-  backButtonText: {
-    fontSize: 28,
-    color: '#212121',
-  },
-  progressBar: {
-    height: 6,
-    backgroundColor: '#E0E0E0',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#4CAF50',
-  },
-  stepText: {
-    marginTop: 8,
-    fontSize: 12,
-    color: '#757575',
-    textAlign: 'center',
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
   title: {
     fontSize: 26,
     fontWeight: 'bold',
@@ -314,11 +266,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#F57C00',
     lineHeight: 20,
-  },
-  footer: {
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
   },
   submitButton: {
     backgroundColor: '#4CAF50',

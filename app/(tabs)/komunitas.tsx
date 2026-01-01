@@ -1,11 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
     FlatList,
     Image,
+    Modal,
+    Platform,
     Pressable,
     RefreshControl,
     ScrollView,
@@ -14,7 +16,10 @@ import {
     View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import RNShare from 'react-native-share';
+import { captureRef } from 'react-native-view-shot';
 import ImageViewer from '../../components/ImageViewer';
+import { ProgressShareCard } from '../../components/komunitas/ProgressShareCard';
 import { auth } from '../../src/config/firebase.config';
 import { CommunityService } from '../../src/services/database/community.service';
 import { CommunityPostWithUser, ReactionType } from '../../src/types/community.types';
@@ -81,6 +86,9 @@ export default function CommunityScreen() {
     const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
     const [imageViewerVisible, setImageViewerVisible] = useState(false);
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
+    const [shareCardVisible, setShareCardVisible] = useState(false);
+    const [selectedPostForShare, setSelectedPostForShare] = useState<CommunityPost | null>(null);
+    const shareCardRef = useRef<View>(null);
 
     // =====================================================
     // DATA FETCHING
@@ -244,9 +252,48 @@ export default function CommunityScreen() {
     // Handle share post
     const handleShare = async (post: CommunityPost) => {
         try {
-            await Share.share({
-                message: `${post.userName} di Habitin: ${post.content}`,
-            });
+            // Untuk postingan progress, gunakan share card
+            if (post.postType === 'progress' && post.metrics) {
+                setSelectedPostForShare(post);
+                setShareCardVisible(true);
+
+                // Wait for modal to render
+                setTimeout(async () => {
+                    try {
+                        if (shareCardRef.current) {
+                            // Capture the card as image
+                            const uri = await captureRef(shareCardRef.current, {
+                                format: 'png',
+                                quality: 1,
+                            });
+
+                            // Share the image using react-native-share
+                            const shareOptions = {
+                                title: 'Bagikan Progress',
+                                message: `Progress saya di Habitin`,
+                                url: Platform.OS === 'ios' ? uri : `file://${uri}`,
+                                type: 'image/png',
+                            };
+
+                            await RNShare.open(shareOptions);
+                        }
+                    } catch (error: any) {
+                        // User cancelled share dialog
+                        if (error.message !== 'User did not share') {
+                            console.error('Error capturing/sharing card:', error);
+                            Alert.alert('Error', 'Gagal membuat gambar share');
+                        }
+                    } finally {
+                        setShareCardVisible(false);
+                        setSelectedPostForShare(null);
+                    }
+                }, 500);
+            } else {
+                // Untuk postingan lain, gunakan share teks biasa
+                await Share.share({
+                    message: `${post.userName} di Habitin: ${post.content}`,
+                });
+            }
         } catch (error) {
             console.error(error);
         }
@@ -760,6 +807,36 @@ export default function CommunityScreen() {
                     onClose={handleCloseImageViewer}
                 />
             )}
+
+            {/* Progress Share Card Modal */}
+            <Modal
+                visible={shareCardVisible}
+                transparent={true}
+                animationType="none"
+                onRequestClose={() => {
+                    setShareCardVisible(false);
+                    setSelectedPostForShare(null);
+                }}
+            >
+                <View
+                    style={{
+                        position: 'absolute',
+                        left: -9999,
+                        top: -9999,
+                        opacity: 0,
+                    }}
+                >
+                    {selectedPostForShare && (
+                        <ProgressShareCard
+                            ref={shareCardRef}
+                            userName={selectedPostForShare.userName}
+                            userAvatar={selectedPostForShare.userAvatar}
+                            content={selectedPostForShare.content}
+                            metrics={selectedPostForShare.metrics}
+                        />
+                    )}
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }

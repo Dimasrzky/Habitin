@@ -3,14 +3,13 @@ import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
   Platform,
-  SafeAreaView,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import OnboardingLayout from '../../components/onboarding/OnboardingLayout';
 import { useOnboarding } from '../../src/context/OnboardingContext';
 
 const GENDER_OPTIONS = ['Pria', 'Wanita', 'Lainnya'];
@@ -40,20 +39,21 @@ export default function PersonalScreen() {
     data.fullName.trim() !== '' && data.dateOfBirth !== null && data.gender !== '';
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>←</Text>
+    <OnboardingLayout
+      currentStep={2}
+      totalSteps={8}
+      showBackButton={true}
+      onBack={() => router.back()}
+      footer={
+        <TouchableOpacity
+          style={[styles.nextButton, !canProceed && styles.nextButtonDisabled]}
+          onPress={() => canProceed && router.push('/onboarding/physical')}
+          disabled={!canProceed}
+        >
+          <Text style={styles.nextButtonText}>Lanjut</Text>
         </TouchableOpacity>
-        <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { width: '25%' }]} />
-        </View>
-        <Text style={styles.stepText}>Step 2 of 8</Text>
-      </View>
-
-      {/* Content */}
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      }
+    >
         <Text style={styles.title}>Informasi Personal</Text>
         <Text style={styles.subtitle}>
           Masukkan data diri Anda 
@@ -148,59 +148,11 @@ export default function PersonalScreen() {
             ))}
           </View>
         </View>
-      </ScrollView>
-
-      {/* Footer */}
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={[styles.nextButton, !canProceed && styles.nextButtonDisabled]}
-          onPress={() => canProceed && router.push('/onboarding/physical')}
-          disabled={!canProceed}
-        >
-          <Text style={styles.nextButtonText}>Lanjut</Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+    </OnboardingLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 15,
-  },
-  backButton: {
-    marginBottom: 10,
-  },
-  backButtonText: {
-    fontSize: 28,
-    color: '#212121',
-  },
-  progressBar: {
-    height: 6,
-    backgroundColor: '#E0E0E0',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#4CAF50',
-  },
-  stepText: {
-    marginTop: 8,
-    fontSize: 12,
-    color: '#757575',
-    textAlign: 'center',
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
   title: {
     fontSize: 26,
     fontWeight: 'bold',
@@ -286,11 +238,6 @@ const styles = StyleSheet.create({
   bloodTypeText: {
     fontSize: 15,
     color: '#424242',
-  },
-  footer: {
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
   },
   nextButton: {
     backgroundColor: '#4CAF50',

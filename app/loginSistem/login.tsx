@@ -4,7 +4,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
+  Modal,
   StyleSheet,
   Text,
   TextInput,
@@ -20,10 +20,11 @@ function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [errorModal, setErrorModal] = useState({ visible: false, message: '' });
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      setErrorModal({ visible: true, message: 'Mohon isi semua kolom' });
       return;
     }
 
@@ -31,7 +32,7 @@ function Login() {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       console.log('Login successful:', userCredential.user.email);
-      
+
       // ✅ CEK STATUS ONBOARDING DARI DATABASE
       const completedOnboarding = await checkOnboardingCompleted(userCredential.user.uid);
 
@@ -43,20 +44,16 @@ function Login() {
       }
     } catch (error: any) {
       console.error('Login error:', error);
-      
-      let errorMessage = 'Login failed. Please try again.';
-      
-      if (error.code === 'auth/user-not-found') {
-        errorMessage = 'No account found with this email.';
-      } else if (error.code === 'auth/wrong-password') {
-        errorMessage = 'Incorrect password.';
-      } else if (error.code === 'auth/invalid-email') {
-        errorMessage = 'Invalid email address.';
+
+      let errorMessage = 'Login gagal. Silakan coba lagi.';
+
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+        errorMessage = 'Email atau password yang Anda masukkan salah';
       } else if (error.code === 'auth/too-many-requests') {
-        errorMessage = 'Too many failed attempts. Please try again later.';
+        errorMessage = 'Terlalu banyak percobaan gagal. Silakan coba lagi nanti.';
       }
-      
-      Alert.alert('Login Failed', errorMessage);
+
+      setErrorModal({ visible: true, message: errorMessage });
     } finally {
       setLoading(false);
     }
@@ -64,8 +61,29 @@ function Login() {
 
   return (
     <View style={styles.container}>
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={errorModal.visible}
+        onRequestClose={() => setErrorModal({ visible: false, message: '' })}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Ionicons name="alert-circle" size={50} color="#ef4444" style={styles.modalIcon} />
+            <Text style={styles.modalTitle}>Login Gagal</Text>
+            <Text style={styles.modalMessage}>{errorModal.message}</Text>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => setErrorModal({ visible: false, message: '' })}
+            >
+              <Text style={styles.modalButtonText}>Tutup</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <Text style={styles.title}>Login</Text>
-      <Text style={styles.subtitle}>Welcome back to Habitin</Text>
+      <Text style={styles.subtitle}>Welcome to Habitin</Text>
 
       <TextInput
         style={styles.input}
@@ -114,14 +132,14 @@ function Login() {
         onPress={() => router.push('/loginSistem/register')}
         disabled={loading}
       >
-        <Text style={styles.link}>Dont have an account? Register</Text>
+        <Text style={styles.link}>Belum memiliki akun? Register</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
-        onPress={() => router.back()}
+        onPress={() => router.push('/loginSistem/landing')}
         disabled={loading}
       >
-        <Text style={styles.backLink}>← Back to Landing</Text>
+        <Text style={styles.backLink}>← Kembali ke Landing</Text>
       </TouchableOpacity>
     </View>
   );
@@ -197,5 +215,55 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 15,
     fontSize: 14,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 30,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    width: '90%',
+    maxWidth: 400,
+  },
+  modalIcon: {
+    marginBottom: 15,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 25,
+    lineHeight: 22,
+  },
+  modalButton: {
+    backgroundColor: '#256742ff',
+    paddingVertical: 12,
+    paddingHorizontal: 40,
+    borderRadius: 10,
+    width: '100%',
+  },
+  modalButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
 });
