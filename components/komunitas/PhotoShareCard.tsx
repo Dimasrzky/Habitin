@@ -46,6 +46,26 @@ export const PhotoShareCard = React.forwardRef<View, PhotoShareCardProps>(
                     elevation: 5,
                 }}
             >
+                {/* Watermark Logo - Top Right */}
+                <View
+                    style={{
+                        position: 'absolute',
+                        top: 20,
+                        right: 20,
+                        zIndex: 10,
+                        opacity: 0.2,
+                    }}
+                >
+                    <Image
+                        source={require('../../assets/images/Launcher_logos_RBG(1).png')}
+                        style={{
+                            width: 56,
+                            height: 56,
+                        }}
+                        resizeMode="contain"
+                    />
+                </View>
+
                 {/* Header - User Info */}
                 <View style={{ padding: 20, paddingBottom: 16 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
