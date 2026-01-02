@@ -11,6 +11,7 @@ import {
   Alert,
   Animated,
   Image,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -19,7 +20,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  View,
+  View
 } from 'react-native';
 
 // =====================================================
@@ -55,6 +56,7 @@ export default function ChatbotScreen() {
   const [isTyping, setIsTyping] = useState(false);
   const [showQuickChats, setShowQuickChats] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   // Animation
   const typingDot1 = useRef(new Animated.Value(0)).current;
@@ -63,6 +65,26 @@ export default function ChatbotScreen() {
 
   useEffect(() => {
     loadChatHistory();
+
+    // Keyboard listeners
+    const keyboardDidShow = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        const offset = e.endCoordinates.height - 300;
+        setKeyboardHeight(offset);
+      }
+    );
+    const keyboardDidHide = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        setKeyboardHeight(0);
+      }
+    );
+
+    return () => {
+      keyboardDidShow.remove();
+      keyboardDidHide.remove();
+    };
   }, []);
 
   const loadChatHistory = async () => {
@@ -343,13 +365,13 @@ export default function ChatbotScreen() {
       {/* Chat Area */}
       <KeyboardAvoidingView
         style={styles.chatContainer}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={'padding'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <ScrollView
           ref={scrollViewRef}
           style={styles.chatArea}
-          contentContainerStyle={styles.chatContent}
+          contentContainerStyle={[styles.chatContent, { paddingBottom: keyboardHeight > 0 ? keyboardHeight : 16 }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
@@ -494,9 +516,10 @@ export default function ChatbotScreen() {
           </View>
         </View>
       </KeyboardAvoidingView>
-        <Text style={styles.disclaimer}>
-            💡 Informasi dari AI, konsultasi dokker untuk diagnosis akurat
-        </Text>
+
+      <Text style={styles.disclaimer}>
+          💡 Informasi dari AI, konsultasi dokker untuk diagnosis akurat
+      </Text>
     </View>
   );
 }
@@ -720,8 +743,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#E5E7EB',
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 8,
-    top: 5,
+    paddingBottom: 2,
   },
   inputWrapper: {
     flexDirection: 'row',
@@ -732,7 +754,7 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
     paddingHorizontal: 16,
     paddingVertical: 8,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   input: {
     flex: 1,
