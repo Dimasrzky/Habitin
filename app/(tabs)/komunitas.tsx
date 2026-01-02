@@ -286,7 +286,7 @@ export default function CommunityScreen() {
                             const shareOptions = {
                                 title: cardType === 'progress' ? 'Bagikan Progress' : 'Bagikan Postingan',
                                 message: cardType === 'progress'
-                                    ? `Progress saya di Habitin`
+                                    ? `Progress ${post.userName} di Habitin`
                                     : `${post.userName} di Habitin`,
                                 url: Platform.OS === 'ios' ? uri : `file://${uri}`,
                                 type: 'image/png',

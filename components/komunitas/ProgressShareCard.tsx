@@ -31,6 +31,26 @@ export const ProgressShareCard = React.forwardRef<View, ProgressShareCardProps>(
                     elevation: 5,
                 }}
             >
+                {/* Watermark Logo - Top Right */}
+                <View
+                    style={{
+                        position: 'absolute',
+                        top: 24,
+                        right: 24,
+                        zIndex: 10,
+                        opacity: 0.2,
+                    }}
+                >
+                    <Image
+                        source={require('../../assets/images/Launcher_logos_RBG(1).png')}
+                        style={{
+                            width: 56,
+                            height: 56,
+                        }}
+                        resizeMode="contain"
+                    />
+                </View>
+
                 {/* Header - User Info */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
                     {userAvatar ? (
