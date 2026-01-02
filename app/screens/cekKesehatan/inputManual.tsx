@@ -2,7 +2,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -27,10 +27,58 @@ interface LabValues {
   triglycerides: string;
 }
 
+// Isolated Input Component with its own state
+const IsolatedInput = React.memo<{
+  field: string;
+  onValueChange: (field: string, value: string) => void;
+  label: string;
+  unit: string;
+  normalRange: string;
+  placeholder: string;
+}>(
+  function IsolatedInput({
+    field,
+    onValueChange,
+    label,
+    unit,
+    normalRange,
+    placeholder,
+  }) {
+    const [localValue, setLocalValue] = useState('');
+
+    const handleChange = (text: string) => {
+      const numericValue = text.replace(/[^0-9.]/g, '');
+      setLocalValue(numericValue);
+      onValueChange(field, numericValue);
+    };
+
+    return (
+      <View style={styles.inputContainer}>
+        <View style={styles.labelRow}>
+          <Text style={styles.inputLabel}>{label}</Text>
+          <Text style={styles.normalRangeText}>Normal: {normalRange}</Text>
+        </View>
+        <View style={styles.inputWrapper}>
+          <TextInput
+            style={styles.input}
+            value={localValue}
+            onChangeText={handleChange}
+            keyboardType="decimal-pad"
+            placeholder={placeholder}
+            placeholderTextColor="#9CA3AF"
+            returnKeyType="done"
+          />
+          <Text style={styles.unit}>{unit}</Text>
+        </View>
+      </View>
+    );
+  }
+);
+
 export default function InputManualScreen() {
   const router = useRouter();
 
-  const [values, setValues] = useState<LabValues>({
+  const valuesRef = useRef<LabValues>({
     glucoseFasting: '',
     hba1c: '',
     totalCholesterol: '',
@@ -39,13 +87,11 @@ export default function InputManualScreen() {
     triglycerides: '',
   });
 
-  const [focusedField, setFocusedField] = useState<string | null>(null);
-
-  const handleValueChange = (field: keyof LabValues, value: string) => {
-    // Only allow numbers and decimal point
-    const numericValue = value.replace(/[^0-9.]/g, '');
-    setValues((prev) => ({ ...prev, [field]: numericValue }));
+  const handleValueChange = (field: string, value: string) => {
+    valuesRef.current[field as keyof LabValues] = value;
   };
+
+  const values = valuesRef.current;
 
   const validateInputs = (): boolean => {
     // At least one diabetes OR one cholesterol value must be filled
@@ -133,52 +179,11 @@ export default function InputManualScreen() {
     });
   };
 
-  const InputField = ({
-    label,
-    value,
-    field,
-    unit,
-    normalRange,
-    placeholder,
-  }: {
-    label: string;
-    value: string;
-    field: keyof LabValues;
-    unit: string;
-    normalRange: string;
-    placeholder: string;
-  }) => (
-    <View style={styles.inputContainer}>
-      <View style={styles.labelRow}>
-        <Text style={styles.inputLabel}>{label}</Text>
-        <Text style={styles.normalRangeText}>Normal: {normalRange}</Text>
-      </View>
-      <View
-        style={[
-          styles.inputWrapper,
-          focusedField === field && styles.inputWrapperFocused,
-          value !== '' && styles.inputWrapperFilled,
-        ]}
-      >
-        <TextInput
-          style={styles.input}
-          value={value}
-          onChangeText={(text) => handleValueChange(field, text)}
-          keyboardType="decimal-pad"
-          placeholder={placeholder}
-          placeholderTextColor="#9CA3AF"
-          onFocus={() => setFocusedField(field)}
-          onBlur={() => setFocusedField(null)}
-        />
-        <Text style={styles.unit}>{unit}</Text>
-      </View>
-    </View>
-  );
-
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
@@ -195,6 +200,8 @@ export default function InputManualScreen() {
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="none"
       >
         {/* Hero Section */}
         <View style={styles.heroSection}>
@@ -229,19 +236,19 @@ export default function InputManualScreen() {
           </View>
 
           <View style={styles.fieldsContainer}>
-            <InputField
+            <IsolatedInput
               label="Glukosa Puasa"
-              value={values.glucoseFasting}
               field="glucoseFasting"
+              onValueChange={handleValueChange}
               unit="mg/dL"
               normalRange="< 100"
               placeholder="Masukkan nilai"
             />
 
-            <InputField
+            <IsolatedInput
               label="HbA1c"
-              value={values.hba1c}
               field="hba1c"
+              onValueChange={handleValueChange}
               unit="%"
               normalRange="< 5.7"
               placeholder="Masukkan nilai"
@@ -262,37 +269,37 @@ export default function InputManualScreen() {
           </View>
 
           <View style={styles.fieldsContainer}>
-            <InputField
+            <IsolatedInput
               label="Kolesterol Total"
-              value={values.totalCholesterol}
               field="totalCholesterol"
+              onValueChange={handleValueChange}
               unit="mg/dL"
               normalRange="< 200"
               placeholder="Masukkan nilai"
             />
 
-            <InputField
+            <IsolatedInput
               label="LDL (Kolesterol Jahat)"
-              value={values.ldl}
               field="ldl"
+              onValueChange={handleValueChange}
               unit="mg/dL"
               normalRange="< 100"
               placeholder="Masukkan nilai"
             />
 
-            <InputField
+            <IsolatedInput
               label="HDL (Kolesterol Baik)"
-              value={values.hdl}
               field="hdl"
+              onValueChange={handleValueChange}
               unit="mg/dL"
               normalRange="> 60"
               placeholder="Masukkan nilai"
             />
 
-            <InputField
+            <IsolatedInput
               label="Trigliserida"
-              value={values.triglycerides}
               field="triglycerides"
+              onValueChange={handleValueChange}
               unit="mg/dL"
               normalRange="< 150"
               placeholder="Masukkan nilai"
@@ -334,23 +341,19 @@ export default function InputManualScreen() {
           </View>
         </View>
 
-        {/* Bottom Spacer */}
-        <View style={{ height: 20 }} />
+        {/* Spacing for fixed footer */}
+        <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Fixed Bottom Button */}
-      <View style={styles.bottomButtonContainer}>
+      {/* Fixed Submit Button Footer */}
+      <View style={styles.footerContainer}>
         <Pressable
           onPress={handleSubmit}
-          style={({ pressed }) => [
-            styles.submitButton,
-            { opacity: pressed ? 0.9 : 1 },
-          ]}
+          style={
+            styles.submitButton
+            }
         >
           <Text style={styles.submitButtonText}>Analisis Hasil</Text>
-          <View style={styles.submitButtonIcon}>
-            <Ionicons name="arrow-forward" size={20} color="#256742" />
-          </View>
         </Pressable>
       </View>
     </KeyboardAvoidingView>
@@ -367,10 +370,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 24,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
+    top:20,
   },
   backButton: {
     padding: 8,
@@ -387,7 +391,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
-    paddingBottom: 120,
+    paddingBottom: 10,
   },
   heroSection: {
     alignItems: 'center',
@@ -559,43 +563,42 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#111827',
   },
-  bottomButtonContainer: {
+  footerContainer: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    paddingBottom: 24,
+    paddingTop: 12,
+    paddingBottom: 20,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: '#E5E7EB',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.1,
     shadowRadius: 12,
-    elevation: 8,
+    elevation: 10,
   },
   submitButton: {
+    backgroundColor: '#256742ff',
+    borderRadius: 8,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#256742',
-    borderRadius: 14,
-    paddingVertical: 16,
-    gap: 8,
+    gap: 10,
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   submitButtonText: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
     color: '#FFFFFF',
-  },
-  submitButtonIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
+    letterSpacing: 0.3,
   },
 });

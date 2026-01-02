@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
     borderWidth: 1.5,
-    borderColor: '#efbf00ff',
+    borderColor: '#faf4ddff',
   },
   inputManualHeader: {
     flexDirection: 'row',
